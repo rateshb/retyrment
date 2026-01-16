@@ -78,10 +78,9 @@ class AuthControllerUnitTest {
             ResponseEntity<?> response = authController.getCurrentUser();
 
             assertThat(response.getStatusCode().value()).isEqualTo(200);
-            assertThat(response.getBody()).isInstanceOf(Map.class);
-            @SuppressWarnings("unchecked")
-            Map<String, Object> body = (Map<String, Object>) response.getBody();
-            assertThat(body.get("email")).isEqualTo("test@example.com");
+            assertThat(response.getBody()).isInstanceOf(com.retyrment.dto.UserResponseDTO.class);
+            com.retyrment.dto.UserResponseDTO body = (com.retyrment.dto.UserResponseDTO) response.getBody();
+            assertThat(body.getEmail()).isEqualTo("test@example.com");
         }
 
         @Test
@@ -333,13 +332,9 @@ class AuthControllerUnitTest {
             ResponseEntity<?> response = authController.getCurrentUser();
 
             assertThat(response.getStatusCode().value()).isEqualTo(200);
-            @SuppressWarnings("unchecked")
-            Map<String, Object> body = (Map<String, Object>) response.getBody();
-            assertThat(body.get("trial")).isNotNull();
-            
-            @SuppressWarnings("unchecked")
-            Map<String, Object> trial = (Map<String, Object>) body.get("trial");
-            assertThat(trial.get("active")).isEqualTo(true);
+            com.retyrment.dto.UserResponseDTO body = (com.retyrment.dto.UserResponseDTO) response.getBody();
+            assertThat(body.getTrial()).isNotNull();
+            assertThat(body.getTrial().getActive()).isEqualTo(true);
         }
     }
 }

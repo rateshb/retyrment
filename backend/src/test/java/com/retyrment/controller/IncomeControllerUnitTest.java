@@ -215,6 +215,54 @@ class IncomeControllerUnitTest {
             assertThat(result.getUserId()).isEqualTo("user-1");
             verify(incomeRepository).save(argThat(income -> income.getUserId().equals("user-1")));
         }
+
+        @Test
+        @DisplayName("should set default isActive to true when null")
+        void shouldSetDefaultIsActiveWhenNull() {
+            Income newIncome = Income.builder()
+                    .source("Freelance")
+                    .monthlyAmount(50000.0)
+                    .isActive(null)
+                    .build();
+            
+            when(incomeRepository.save(any(Income.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            incomeController.createIncome(newIncome);
+
+            verify(incomeRepository).save(argThat(income -> income.getIsActive().equals(true)));
+        }
+
+        @Test
+        @DisplayName("should preserve isActive when provided as false")
+        void shouldPreserveIsActiveWhenProvidedAsFalse() {
+            Income newIncome = Income.builder()
+                    .source("Freelance")
+                    .monthlyAmount(50000.0)
+                    .isActive(false)
+                    .build();
+            
+            when(incomeRepository.save(any(Income.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            incomeController.createIncome(newIncome);
+
+            verify(incomeRepository).save(argThat(income -> income.getIsActive().equals(false)));
+        }
+
+        @Test
+        @DisplayName("should preserve isActive when provided as true")
+        void shouldPreserveIsActiveWhenProvidedAsTrue() {
+            Income newIncome = Income.builder()
+                    .source("Freelance")
+                    .monthlyAmount(50000.0)
+                    .isActive(true)
+                    .build();
+            
+            when(incomeRepository.save(any(Income.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            incomeController.createIncome(newIncome);
+
+            verify(incomeRepository).save(argThat(income -> income.getIsActive().equals(true)));
+        }
     }
 
     @Nested

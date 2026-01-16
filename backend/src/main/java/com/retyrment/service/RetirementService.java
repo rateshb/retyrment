@@ -182,7 +182,7 @@ public class RetirementService {
                 
                 // Other Liquid Assets (FD, RD, STOCK, CASH)
                 // Apply rate reduction to FD/RD rates as well
-                double reductionFactor = enableRateReduction ? ((double) year / (double) rateReductionYears) * rateReductionPercent : 0.0;
+                double reductionFactor = (enableRateReduction && rateReductionYears > 0) ? ((double) year / (double) rateReductionYears) * rateReductionPercent : 0.0;
                 double currentFdRate = enableRateReduction ? Math.max(4.0, fdReturn - reductionFactor) : fdReturn;
                 double currentRdRate = enableRateReduction ? Math.max(4.0, rdReturn - reductionFactor) : rdReturn;
                 
@@ -228,7 +228,8 @@ public class RetirementService {
             double goalOutflow = 0;
             List<String> goalsThisYear = new ArrayList<>();
             for (Goal goal : goals) {
-                if (goal.getTargetYear() != null && goal.getTargetYear() == calendarYear) {
+                if (goal.getTargetYear() != null && goal.getTargetYear() == calendarYear 
+                        && goal.getTargetAmount() != null) {
                     double inflatedAmount = calculationService.calculateInflatedValue(
                             goal.getTargetAmount(), simpleInflation, year);
                     goalOutflow += inflatedAmount;
@@ -745,7 +746,6 @@ public class RetirementService {
         gap.put("corpusGap", Math.round(corpusGap));
         gap.put("gapPercent", Math.round(gapPercent * 10) / 10.0);
         gap.put("isOnTrack", corpusGap <= 0);
-        gap.put("additionalMonthlySIPNeeded", Math.round(additionalMonthlySIP));
         gap.put("additionalSIPRequired", Math.round(additionalMonthlySIP));
         gap.put("totalGoalAmount", Math.round(totalGoalAmount));
         gap.put("continuingInsurance", continuingInsurance);

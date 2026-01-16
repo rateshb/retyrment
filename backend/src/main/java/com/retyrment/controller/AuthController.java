@@ -1,5 +1,6 @@
 package com.retyrment.controller;
 
+import com.retyrment.dto.UserResponseDTO;
 import com.retyrment.model.User;
 import com.retyrment.repository.UserRepository;
 import com.retyrment.security.JwtUtils;
@@ -10,7 +11,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestController
@@ -31,7 +31,7 @@ public class AuthController {
         }
         
         if (auth.getPrincipal() instanceof User user) {
-            return ResponseEntity.ok(userToResponse(user));
+            return ResponseEntity.ok(UserResponseDTO.fromUser(user, false));
         }
         
         return ResponseEntity.status(401).body(Map.of("error", "Invalid authentication"));
@@ -48,9 +48,9 @@ public class AuthController {
         String email = jwtUtils.getEmailFromToken(token);
         return userRepository.findByEmail(email)
             .map(user -> {
-                Map<String, Object> response = new LinkedHashMap<>();
+                UserResponseDTO userResponse = UserResponseDTO.fromUser(user, false);
+                Map<String, Object> response = userResponse.toMap();
                 response.put("valid", true);
-                response.putAll(userToResponse(user));
                 return ResponseEntity.ok(response);
             })
             .orElse(ResponseEntity.status(401).body(Map.of("valid", false)));
@@ -101,50 +101,5 @@ public class AuthController {
         }
         
         return ResponseEntity.status(401).body(Map.of("error", "Invalid authentication"));
-    }
-    
-    private Map<String, Object> userToResponse(User user) {
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("id", user.getId());
-        response.put("email", user.getEmail());
-        response.put("name", user.getName());
-        response.put("picture", user.getPicture());
-        response.put("role", user.getRole().name());
-        response.put("effectiveRole", user.getEffectiveRole().name());
-        response.put("isPro", user.isPro());
-        response.put("isAdmin", user.isAdmin());
-        
-        // Trial information
-        if (user.isInTrial()) {
-            Map<String, Object> trial = new LinkedHashMap<>();
-            trial.put("active", true);
-            trial.put("daysRemaining", user.getTrialDaysRemaining());
-            trial.put("endDate", user.getTrialEndDate());
-            response.put("trial", trial);
-        }
-        
-        // PRO Subscription information
-        if (user.getRole() == User.UserRole.PRO) {
-            Map<String, Object> subscription = new LinkedHashMap<>();
-            subscription.put("active", user.isSubscriptionActive());
-            subscription.put("startDate", user.getSubscriptionStartDate());
-            subscription.put("endDate", user.getSubscriptionEndDate());
-            subscription.put("daysRemaining", user.getSubscriptionDaysRemaining());
-            subscription.put("expired", !user.isSubscriptionActive());
-            response.put("subscription", subscription);
-        }
-        
-        // Role expiry information (for temporary role changes)
-        if (user.getRoleExpiryDate() != null) {
-            Map<String, Object> roleInfo = new LinkedHashMap<>();
-            roleInfo.put("temporary", true);
-            roleInfo.put("expiryDate", user.getRoleExpiryDate());
-            roleInfo.put("daysRemaining", user.getRoleDaysRemaining());
-            roleInfo.put("originalRole", user.getOriginalRole() != null ? user.getOriginalRole().name() : null);
-            roleInfo.put("reason", user.getRoleChangeReason());
-            response.put("roleInfo", roleInfo);
-        }
-        
-        return response;
     }
 }

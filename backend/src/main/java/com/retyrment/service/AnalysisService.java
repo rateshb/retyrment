@@ -117,8 +117,12 @@ public class AnalysisService {
         
         int currentYear = LocalDate.now().getYear();
 
+        // First pass: calculate total goals value for proportional allocation
+        double totalGoalsValue = goals.stream()
+                .mapToDouble(g -> g.getTargetAmount() != null ? g.getTargetAmount() : 0)
+                .sum();
+
         List<Map<String, Object>> goalAnalysis = new ArrayList<>();
-        double totalGoalsValue = 0;
         double totalInflatedValue = 0;
 
         for (Goal goal : goals) {
@@ -132,7 +136,7 @@ public class AnalysisService {
             Map<String, Object> projection = calculateProjections(userId, yearsToGoal);
             double projectedCorpus = ((Number) projection.get("finalValue")).doubleValue();
             
-            // Simple proportional allocation
+            // Simple proportional allocation based on total goals
             double allocation = totalGoalsValue > 0 ? 
                     (targetAmount / totalGoalsValue) * projectedCorpus : projectedCorpus;
             
@@ -154,7 +158,6 @@ public class AnalysisService {
             analysis.put("gap", Math.round(Math.max(0, inflatedAmount - allocation)));
 
             goalAnalysis.add(analysis);
-            totalGoalsValue += targetAmount;
             totalInflatedValue += inflatedAmount;
         }
 

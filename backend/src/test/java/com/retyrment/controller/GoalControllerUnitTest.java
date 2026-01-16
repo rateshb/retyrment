@@ -133,7 +133,96 @@ class GoalControllerUnitTest {
     }
 
     @Nested
-    @DisplayName("createGoal - Data Isolation")
+    @DisplayName("getGoalsByPriority - Branch Coverage")
+    class GetGoalsByPriority {
+        @Test
+        @DisplayName("should filter goals by priority")
+        void shouldFilterGoalsByPriority() {
+            Goal highPriorityGoal = Goal.builder()
+                    .id("goal-2")
+                    .userId("user-1")
+                    .priority(Priority.HIGH)
+                    .build();
+            Goal lowPriorityGoal = Goal.builder()
+                    .id("goal-3")
+                    .userId("user-1")
+                    .priority(Priority.LOW)
+                    .build();
+
+            when(goalRepository.findByUserId("user-1"))
+                    .thenReturn(Arrays.asList(testGoal, highPriorityGoal, lowPriorityGoal));
+
+            List<Goal> result = goalController.getGoalsByPriority(Priority.HIGH);
+
+            assertThat(result).hasSize(2);
+            assertThat(result).allMatch(goal -> goal.getPriority() == Priority.HIGH);
+        }
+
+        @Test
+        @DisplayName("should return empty list when no goals match priority")
+        void shouldReturnEmptyListWhenNoMatch() {
+            when(goalRepository.findByUserId("user-1"))
+                    .thenReturn(Arrays.asList(testGoal));
+
+            List<Goal> result = goalController.getGoalsByPriority(Priority.LOW);
+
+            assertThat(result).isEmpty();
+        }
+    }
+
+    @Nested
+    @DisplayName("getUpcomingGoals - Branch Coverage")
+    class GetUpcomingGoals {
+        @Test
+        @DisplayName("should filter goals by target year")
+        void shouldFilterGoalsByTargetYear() {
+            Goal goal2025 = Goal.builder()
+                    .id("goal-2")
+                    .userId("user-1")
+                    .targetYear(2025)
+                    .build();
+            Goal goal2026 = Goal.builder()
+                    .id("goal-3")
+                    .userId("user-1")
+                    .targetYear(2026)
+                    .build();
+
+            when(goalRepository.findByUserId("user-1"))
+                    .thenReturn(Arrays.asList(goal2025, goal2026, testGoal));
+
+            List<Goal> result = goalController.getUpcomingGoals(2026);
+
+            // testGoal has targetYear 2030, so it should be excluded
+            assertThat(result).hasSize(2);
+            assertThat(result).allMatch(goal -> goal.getTargetYear() != null && goal.getTargetYear() <= 2026);
+        }
+
+        @Test
+        @DisplayName("should exclude goals with null targetYear")
+        void shouldExcludeGoalsWithNullTargetYear() {
+            Goal goalWithNullYear = Goal.builder()
+                    .id("goal-2")
+                    .userId("user-1")
+                    .targetYear(null)
+                    .build();
+            Goal goal2025 = Goal.builder()
+                    .id("goal-3")
+                    .userId("user-1")
+                    .targetYear(2025)
+                    .build();
+
+            when(goalRepository.findByUserId("user-1"))
+                    .thenReturn(Arrays.asList(goalWithNullYear, goal2025));
+
+            List<Goal> result = goalController.getUpcomingGoals(2026);
+
+            assertThat(result).hasSize(1);
+            assertThat(result.get(0).getTargetYear()).isEqualTo(2025);
+        }
+    }
+
+    @Nested
+    @DisplayName("createGoal - Branch Coverage")
     class CreateGoal {
         @Test
         @DisplayName("should automatically set userId from authenticated user")
@@ -154,6 +243,74 @@ class GoalControllerUnitTest {
 
             assertThat(result.getUserId()).isEqualTo("user-1");
             verify(goalRepository).save(argThat(goal -> goal.getUserId().equals("user-1")));
+        }
+
+        @Test
+        @DisplayName("should set default isRecurring to false when null")
+        void shouldSetDefaultIsRecurringWhenNull() {
+            Goal newGoal = Goal.builder()
+                    .name("New Goal")
+                    .targetAmount(1000000.0)
+                    .targetYear(2025)
+                    .isRecurring(null)
+                    .build();
+            
+            when(goalRepository.save(any(Goal.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            goalController.createGoal(newGoal);
+
+            verify(goalRepository).save(argThat(goal -> goal.getIsRecurring().equals(false)));
+        }
+
+        @Test
+        @DisplayName("should set default priority to MEDIUM when null")
+        void shouldSetDefaultPriorityWhenNull() {
+            Goal newGoal = Goal.builder()
+                    .name("New Goal")
+                    .targetAmount(1000000.0)
+                    .targetYear(2025)
+                    .priority(null)
+                    .build();
+            
+            when(goalRepository.save(any(Goal.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            goalController.createGoal(newGoal);
+
+            verify(goalRepository).save(argThat(goal -> goal.getPriority().equals(Priority.MEDIUM)));
+        }
+
+        @Test
+        @DisplayName("should preserve isRecurring when provided")
+        void shouldPreserveIsRecurringWhenProvided() {
+            Goal newGoal = Goal.builder()
+                    .name("New Goal")
+                    .targetAmount(1000000.0)
+                    .targetYear(2025)
+                    .isRecurring(true)
+                    .build();
+            
+            when(goalRepository.save(any(Goal.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            goalController.createGoal(newGoal);
+
+            verify(goalRepository).save(argThat(goal -> goal.getIsRecurring().equals(true)));
+        }
+
+        @Test
+        @DisplayName("should preserve priority when provided")
+        void shouldPreservePriorityWhenProvided() {
+            Goal newGoal = Goal.builder()
+                    .name("New Goal")
+                    .targetAmount(1000000.0)
+                    .targetYear(2025)
+                    .priority(Priority.HIGH)
+                    .build();
+            
+            when(goalRepository.save(any(Goal.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            goalController.createGoal(newGoal);
+
+            verify(goalRepository).save(argThat(goal -> goal.getPriority().equals(Priority.HIGH)));
         }
     }
 

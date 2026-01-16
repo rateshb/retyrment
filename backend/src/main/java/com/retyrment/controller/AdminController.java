@@ -1,5 +1,6 @@
 package com.retyrment.controller;
 
+import com.retyrment.dto.UserResponseDTO;
 import com.retyrment.model.User;
 import com.retyrment.model.UserFeatureAccess;
 import com.retyrment.repository.UserRepository;
@@ -45,7 +46,7 @@ public class AdminController {
         }
 
         List<Map<String, Object>> users = userRepository.findAll().stream()
-                .map(this::userToMap)
+                .map(user -> UserResponseDTO.fromUser(user, true).toMap())
                 .collect(Collectors.toList());
 
         Map<String, Object> response = new LinkedHashMap<>();
@@ -197,7 +198,7 @@ public class AdminController {
 
         return ResponseEntity.ok(Map.of(
             "message", message,
-            "user", userToMap(user)
+            "user", UserResponseDTO.fromUser(user, true).toMap()
         ));
     }
     
@@ -240,7 +241,7 @@ public class AdminController {
         return ResponseEntity.ok(Map.of(
             "message", String.format("Trial extended by %d days", additionalDays),
             "trialEndDate", user.getTrialEndDate(),
-            "user", userToMap(user)
+            "user", UserResponseDTO.fromUser(user, true).toMap()
         ));
     }
     
@@ -290,7 +291,7 @@ public class AdminController {
         
         return ResponseEntity.ok(Map.of(
             "message", "Role expiry removed - role is now permanent",
-            "user", userToMap(user)
+            "user", UserResponseDTO.fromUser(user, true).toMap()
         ));
     }
 
@@ -304,7 +305,7 @@ public class AdminController {
         }
 
         return userRepository.findById(userId)
-                .map(user -> ResponseEntity.ok(userToMap(user)))
+                .map(user -> ResponseEntity.ok(UserResponseDTO.fromUser(user, true)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -319,7 +320,7 @@ public class AdminController {
 
         List<Map<String, Object>> users = userRepository.findAll().stream()
                 .filter(u -> u.getEmail().toLowerCase().contains(email.toLowerCase()))
-                .map(this::userToMap)
+                .map(user -> UserResponseDTO.fromUser(user, true).toMap())
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(Map.of("users", users));
@@ -350,54 +351,6 @@ public class AdminController {
         return ResponseEntity.ok(Map.of("message", "User deleted successfully"));
     }
 
-    private Map<String, Object> userToMap(User user) {
-        Map<String, Object> map = new LinkedHashMap<>();
-        map.put("id", user.getId());
-        map.put("email", user.getEmail());
-        map.put("name", user.getName());
-        map.put("picture", user.getPicture());
-        map.put("role", user.getRole().name());
-        map.put("effectiveRole", user.getEffectiveRole().name());
-        map.put("createdAt", user.getCreatedAt());
-        map.put("lastLoginAt", user.getLastLoginAt());
-        
-        // Trial information
-        if (user.getTrialEndDate() != null) {
-            Map<String, Object> trial = new LinkedHashMap<>();
-            trial.put("active", user.isInTrial());
-            trial.put("startDate", user.getTrialStartDate());
-            trial.put("endDate", user.getTrialEndDate());
-            trial.put("daysRemaining", user.getTrialDaysRemaining());
-            map.put("trial", trial);
-        }
-        
-        // PRO Subscription information
-        if (user.getRole() == User.UserRole.PRO) {
-            Map<String, Object> subscription = new LinkedHashMap<>();
-            subscription.put("active", user.isSubscriptionActive());
-            subscription.put("startDate", user.getSubscriptionStartDate());
-            subscription.put("endDate", user.getSubscriptionEndDate());
-            subscription.put("daysRemaining", user.getSubscriptionDaysRemaining());
-            subscription.put("expired", !user.isSubscriptionActive());
-            map.put("subscription", subscription);
-        }
-        
-        // Role expiry information
-        if (user.getRoleExpiryDate() != null) {
-            Map<String, Object> roleInfo = new LinkedHashMap<>();
-            roleInfo.put("temporary", true);
-            roleInfo.put("expiryDate", user.getRoleExpiryDate());
-            roleInfo.put("daysRemaining", user.getRoleDaysRemaining());
-            roleInfo.put("expired", user.isRoleExpired());
-            roleInfo.put("originalRole", user.getOriginalRole() != null ? user.getOriginalRole().name() : null);
-            roleInfo.put("reason", user.getRoleChangeReason());
-            roleInfo.put("changedAt", user.getRoleChangedAt());
-            roleInfo.put("changedBy", user.getRoleChangedBy());
-            map.put("roleInfo", roleInfo);
-        }
-        
-        return map;
-    }
 
     /**
      * Get feature access for a user (admin only)

@@ -92,6 +92,44 @@ class LoanControllerUnitTest {
     }
 
     @Nested
+    @DisplayName("getLoansByType - Branch Coverage")
+    class GetLoansByType {
+        @Test
+        @DisplayName("should filter loans by type")
+        void shouldFilterLoansByType() {
+            Loan homeLoan = Loan.builder()
+                    .id("loan-2")
+                    .userId("user-1")
+                    .type(LoanType.HOME)
+                    .build();
+            Loan personalLoan = Loan.builder()
+                    .id("loan-3")
+                    .userId("user-1")
+                    .type(LoanType.PERSONAL)
+                    .build();
+
+            when(loanRepository.findByUserId("user-1"))
+                    .thenReturn(Arrays.asList(testLoan, homeLoan, personalLoan));
+
+            List<Loan> result = loanController.getLoansByType(LoanType.HOME);
+
+            assertThat(result).hasSize(2);
+            assertThat(result).allMatch(loan -> loan.getType() == LoanType.HOME);
+        }
+
+        @Test
+        @DisplayName("should return empty list when no loans match type")
+        void shouldReturnEmptyListWhenNoMatch() {
+            when(loanRepository.findByUserId("user-1"))
+                    .thenReturn(Arrays.asList(testLoan));
+
+            List<Loan> result = loanController.getLoansByType(LoanType.EDUCATION);
+
+            assertThat(result).isEmpty();
+        }
+    }
+
+    @Nested
     @DisplayName("getActiveLoans - Data Isolation")
     class GetActiveLoans {
         @Test
@@ -104,6 +142,33 @@ class LoanControllerUnitTest {
 
             assertThat(result).hasSize(1);
             assertThat(result.get(0).getUserId()).isEqualTo("user-1");
+        }
+    }
+
+    @Nested
+    @DisplayName("getAmortizationSchedule - Branch Coverage")
+    class GetAmortizationSchedule {
+        @Test
+        @DisplayName("should return amortization schedule when loan exists")
+        void shouldReturnAmortizationSchedule() {
+            List<Map<String, Object>> schedule = Arrays.asList(new HashMap<>());
+            when(loanRepository.findByIdAndUserId("loan-1", "user-1"))
+                    .thenReturn(Optional.of(testLoan));
+            when(calculationService.calculateAmortization(testLoan)).thenReturn(schedule);
+
+            List<Map<String, Object>> result = loanController.getAmortizationSchedule("loan-1");
+
+            assertThat(result).isEqualTo(schedule);
+        }
+
+        @Test
+        @DisplayName("should throw exception when loan does not exist")
+        void shouldThrowExceptionWhenLoanNotFound() {
+            when(loanRepository.findByIdAndUserId("loan-1", "user-1"))
+                    .thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> loanController.getAmortizationSchedule("loan-1"))
+                    .isInstanceOf(ResourceNotFoundException.class);
         }
     }
 

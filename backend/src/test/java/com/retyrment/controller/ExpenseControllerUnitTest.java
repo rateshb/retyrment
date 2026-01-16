@@ -87,6 +87,59 @@ class ExpenseControllerUnitTest {
     }
 
     @Nested
+    @DisplayName("getExpensesByCategory - Branch Coverage")
+    class GetExpensesByCategory {
+        @Test
+        @DisplayName("should filter expenses by category")
+        void shouldFilterExpensesByCategory() {
+            Expense groceries1 = Expense.builder()
+                    .id("exp-1")
+                    .userId("user-1")
+                    .name("Groceries 1")
+                    .category(ExpenseCategory.GROCERIES)
+                    .build();
+            Expense groceries2 = Expense.builder()
+                    .id("exp-2")
+                    .userId("user-1")
+                    .name("Groceries 2")
+                    .category(ExpenseCategory.GROCERIES)
+                    .build();
+            Expense rent = Expense.builder()
+                    .id("exp-3")
+                    .userId("user-1")
+                    .name("Rent")
+                    .category(ExpenseCategory.RENT)
+                    .build();
+
+            when(expenseRepository.findByUserId("user-1"))
+                    .thenReturn(Arrays.asList(groceries1, groceries2, rent));
+
+            List<Expense> result = expenseController.getExpensesByCategory(ExpenseCategory.GROCERIES);
+
+            assertThat(result).hasSize(2);
+            assertThat(result).allMatch(expense -> expense.getCategory() == ExpenseCategory.GROCERIES);
+        }
+
+        @Test
+        @DisplayName("should return empty list when no expenses match category")
+        void shouldReturnEmptyListWhenNoMatch() {
+            Expense rent = Expense.builder()
+                    .id("exp-1")
+                    .userId("user-1")
+                    .name("Rent")
+                    .category(ExpenseCategory.RENT)
+                    .build();
+
+            when(expenseRepository.findByUserId("user-1"))
+                    .thenReturn(Arrays.asList(rent));
+
+            List<Expense> result = expenseController.getExpensesByCategory(ExpenseCategory.GROCERIES);
+
+            assertThat(result).isEmpty();
+        }
+    }
+
+    @Nested
     @DisplayName("getFixedExpenses - Data Isolation")
     class GetFixedExpenses {
         @Test
@@ -151,6 +204,50 @@ class ExpenseControllerUnitTest {
 
             assertThat(result.getUserId()).isEqualTo("user-1");
             verify(expenseRepository).save(argThat(exp -> exp.getUserId().equals("user-1")));
+        }
+
+        @Test
+        @DisplayName("should set default isFixed to true when null")
+        void shouldSetDefaultIsFixedWhenNull() {
+            Expense newExpense = Expense.builder()
+                    .name("New Expense")
+                    .category(ExpenseCategory.ENTERTAINMENT)
+                    .monthlyAmount(2000.0)
+                    .isFixed(null) // Explicitly null
+                    .build();
+            
+            when(expenseRepository.save(any(Expense.class))).thenAnswer(inv -> {
+                Expense e = inv.getArgument(0);
+                e.setId("new-id");
+                return e;
+            });
+
+            Expense result = expenseController.createExpense(newExpense);
+
+            assertThat(result.getIsFixed()).isTrue();
+            verify(expenseRepository).save(argThat(exp -> exp.getIsFixed()));
+        }
+
+        @Test
+        @DisplayName("should retain isFixed as false when explicitly false")
+        void shouldRetainIsFixedAsFalse() {
+            Expense newExpense = Expense.builder()
+                    .name("Variable Expense")
+                    .category(ExpenseCategory.ENTERTAINMENT)
+                    .monthlyAmount(2000.0)
+                    .isFixed(false)
+                    .build();
+            
+            when(expenseRepository.save(any(Expense.class))).thenAnswer(inv -> {
+                Expense e = inv.getArgument(0);
+                e.setId("new-id");
+                return e;
+            });
+
+            Expense result = expenseController.createExpense(newExpense);
+
+            assertThat(result.getIsFixed()).isFalse();
+            verify(expenseRepository).save(argThat(exp -> !exp.getIsFixed()));
         }
     }
 

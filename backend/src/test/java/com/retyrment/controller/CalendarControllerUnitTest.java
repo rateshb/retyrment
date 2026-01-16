@@ -185,6 +185,54 @@ class CalendarControllerUnitTest {
             assertThat(result.getIsActive()).isTrue();
             verify(calendarEntryRepository).save(any(CalendarEntry.class));
         }
+
+        @Test
+        @DisplayName("should set default isActive to true when null")
+        void shouldSetDefaultIsActiveWhenNull() {
+            CalendarEntry newEntry = CalendarEntry.builder()
+                    .description("New Payment")
+                    .amount(5000.0)
+                    .isActive(null)
+                    .build();
+            
+            when(calendarEntryRepository.save(any(CalendarEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            calendarController.createEntry(newEntry);
+
+            verify(calendarEntryRepository).save(argThat(entry -> entry.getIsActive().equals(true)));
+        }
+
+        @Test
+        @DisplayName("should preserve isActive when provided as false")
+        void shouldPreserveIsActiveWhenProvidedAsFalse() {
+            CalendarEntry newEntry = CalendarEntry.builder()
+                    .description("New Payment")
+                    .amount(5000.0)
+                    .isActive(false)
+                    .build();
+            
+            when(calendarEntryRepository.save(any(CalendarEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            calendarController.createEntry(newEntry);
+
+            verify(calendarEntryRepository).save(argThat(entry -> entry.getIsActive().equals(false)));
+        }
+
+        @Test
+        @DisplayName("should preserve isActive when provided as true")
+        void shouldPreserveIsActiveWhenProvidedAsTrue() {
+            CalendarEntry newEntry = CalendarEntry.builder()
+                    .description("New Payment")
+                    .amount(5000.0)
+                    .isActive(true)
+                    .build();
+            
+            when(calendarEntryRepository.save(any(CalendarEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            calendarController.createEntry(newEntry);
+
+            verify(calendarEntryRepository).save(argThat(entry -> entry.getIsActive().equals(true)));
+        }
     }
 
     @Nested
