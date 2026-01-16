@@ -175,6 +175,11 @@ jobs:
             -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
             -Dsonar.java.coveragePlugin=jacoco
             -Dsonar.coverage.exclusions=**/model/**,**/security/**,**/exception/**,**/config/**,**/RetyrmentApplication.java
+            -Dsonar.issue.ignore.multicriteria=e1,e2
+            -Dsonar.issue.ignore.multicriteria.e1.ruleKey=java:S2187
+            -Dsonar.issue.ignore.multicriteria.e1.resourceKey=**/*Test.java
+            -Dsonar.issue.ignore.multicriteria.e2.ruleKey=java:S5961
+            -Dsonar.issue.ignore.multicriteria.e2.resourceKey=**/*Test.java
 
   build:
     name: Build Application
