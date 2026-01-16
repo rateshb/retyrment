@@ -143,6 +143,8 @@ jobs:
           args: >
             -Dsonar.organization=${{ github.repository_owner }} 
             -Dsonar.projectKey=${{ github.repository_owner }}_${{ github.event.repository.name }} 
+            -Dsonar.java.binaries=target/classes
+            -Dsonar.java.test.binaries=target/test-classes
             -Dsonar.projectName="${{ github.event.repository.name }}" 
             -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
             -Dsonar.java.coveragePlugin=jacoco
