@@ -29,16 +29,39 @@ let currentParams = { ...defaultParams };
 let strategyData = {
     netWorth: null,
     loans: [],
-    goals: []
+    goals: [],
+    expenseOpportunities: [] // Investment opportunities from ending expenses
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // Initialize tabs - ensure only income tab is visible on page load
+    if (typeof window.switchAnalysisTab === 'function') {
+        window.switchAnalysisTab('income');
+    }
+    
     initializeEffectiveYearDropdown();
     loadSavedParams();
     await applyRetirementFeatureRestrictions(); // Apply feature restrictions first
     loadRetirementData();
     applyProRestrictions();
+    
+    // Initialize collapsible matrix
+    initializeCollapsibleMatrix();
 });
+
+// Initialize collapsible matrix functionality
+function initializeCollapsibleMatrix() {
+    const matrixHeader = document.getElementById('matrix-header');
+    const matrixContent = document.getElementById('matrix-content');
+    const matrixToggle = document.getElementById('matrix-toggle');
+    
+    if (matrixHeader && matrixContent && matrixToggle) {
+        matrixHeader.addEventListener('click', () => {
+            matrixContent.classList.toggle('hidden');
+            matrixToggle.textContent = matrixContent.classList.contains('hidden') ? '▶' : '▼';
+        });
+    }
+}
 
 // Apply retirement page feature restrictions
 async function applyRetirementFeatureRestrictions() {
@@ -46,36 +69,22 @@ async function applyRetirementFeatureRestrictions() {
         const featuresResponse = await api.auth.features();
         const features = featuresResponse.features || {};
         
-        // Hide Strategy Planner tab if not enabled (default is false/restricted)
+        // Hide Strategy Planner TAB if not enabled (default is false/restricted)
+        // NOTE: Only control the tab button visibility, NOT the panel content
+        // Panel visibility is controlled by switchAnalysisTab()
+        const strategyTab = document.getElementById('tab-strategy');
+        
         if (features.retirementStrategyPlannerTab !== true) {
-            // Hide immediately
-            const strategyTab = document.getElementById('tab-strategy');
-            const strategyPanel = document.getElementById('panel-strategy');
+            // Hide the tab button
             if (strategyTab) {
                 strategyTab.style.display = 'none';
-                strategyTab.style.visibility = 'hidden';
+                strategyTab.classList.add('hidden');
             }
-            if (strategyPanel) {
-                strategyPanel.style.display = 'none';
-                strategyPanel.style.visibility = 'hidden';
-            }
-            
-            // Also hide via CSS class
-            if (strategyTab) strategyTab.classList.add('hidden');
-            if (strategyPanel) strategyPanel.classList.add('hidden');
         } else {
-            // Show if enabled
-            const strategyTab = document.getElementById('tab-strategy');
-            const strategyPanel = document.getElementById('panel-strategy');
+            // Show the tab button (but panel stays hidden until tab is clicked)
             if (strategyTab) {
                 strategyTab.style.display = '';
-                strategyTab.style.visibility = '';
                 strategyTab.classList.remove('hidden');
-            }
-            if (strategyPanel) {
-                strategyPanel.style.display = '';
-                strategyPanel.style.visibility = '';
-                strategyPanel.classList.remove('hidden');
             }
         }
     } catch (error) {
@@ -126,7 +135,7 @@ function initializeEffectiveYearDropdown() {
 // Make sure it's in global scope for onclick handlers
 window.switchAnalysisTab = function switchAnalysisTab(tab) {
     // Update tab buttons
-    ['income', 'gap', 'expenses', 'maturing', 'strategy'].forEach(t => {
+    ['income', 'gap', 'expenses', 'maturing', 'ending-expenses', 'strategy', 'withdrawal'].forEach(t => {
         const tabBtn = document.getElementById(`tab-${t}`);
         const panel = document.getElementById(`panel-${t}`);
         if (!tabBtn || !panel) return;
@@ -148,6 +157,16 @@ window.switchAnalysisTab = function switchAnalysisTab(tab) {
             document.getElementById('strategy-allocation-breakdown').innerHTML = 
                 '<div class="text-center py-4 text-slate-400">Loading data... Please wait.</div>';
         }
+    }
+    
+    // Load ending expenses data when tab is selected
+    if (tab === 'ending-expenses') {
+        loadEndingExpensesData();
+    }
+    
+    // Load withdrawal strategy data when tab is selected
+    if (tab === 'withdrawal') {
+        renderWithdrawalSchedule();
     }
 };
 
@@ -172,17 +191,28 @@ async function loadStrategyDataAndRender(retirementData) {
     try {
         // Load additional data if not already loaded
         if (!strategyData.netWorth) {
-            console.log('Fetching netWorth, loans, goals...');
-            const [netWorth, loans, goals] = await Promise.all([
+            console.log('Fetching netWorth, loans, goals, expenseOpportunities...');
+            
+            // Get current params for expense opportunities
+            const params = getParamsFromInputs();
+            const currentAge = params.currentAge || 35;
+            const retirementAge = params.retirementAge || 60;
+            
+            const [netWorth, loans, goals, expenseOpportunitiesResponse] = await Promise.all([
                 api.analysis.getNetWorth().catch(e => { console.error('getNetWorth error:', e); return { assetBreakdown: {} }; }),
                 api.loans.getAll().catch(e => { console.error('getLoans error:', e); return []; }),
-                api.goals.getAll().catch(e => { console.error('getGoals error:', e); return []; })
+                api.goals.getAll().catch(e => { console.error('getGoals error:', e); return []; }),
+                api.expenses.getInvestmentOpportunities(currentAge, retirementAge).catch(e => { console.error('getExpenseOpportunities error:', e); return {}; })
             ]);
             
-            console.log('Fetched data:', { netWorth, loans, goals });
+            // API returns { freedUpByYear: [...], totalMonthlyFreedUpByRetirement: ..., etc }
+            const expenseOpportunities = expenseOpportunitiesResponse?.freedUpByYear || [];
+            
+            console.log('Fetched data:', { netWorth, loans, goals, expenseOpportunities });
             strategyData.netWorth = netWorth || { assetBreakdown: {} };
             strategyData.loans = loans || [];
             strategyData.goals = goals || [];
+            strategyData.expenseOpportunities = expenseOpportunities;
         }
         
         // Now render (even if some data is missing)
@@ -637,6 +667,114 @@ function formatNumber(num) {
     return num.toLocaleString('en-IN');
 }
 
+// ==================== SIP STEP-UP OPTIMIZATION ====================
+
+// Render SIP Step-Up Optimization card
+function renderSipStepUpOptimization(optimization, currentAge, summary) {
+    const container = document.getElementById('sip-stepup-optimization');
+    if (!container || !optimization) {
+        if (container) container.classList.add('hidden');
+        return;
+    }
+    
+    container.classList.remove('hidden');
+    
+    // Get strategy info to show proper context
+    const selectedStrategy = summary?.incomeStrategy || currentParams.incomeStrategy || 'SUSTAINABLE';
+    const withdrawalRate = summary?.withdrawalRate || 8;
+    const monthlyExpense = summary?.monthlyExpenseAtRetirement || 0;
+    
+    // Calculate what corpus the 4% rule would require (conservative baseline)
+    const required4PercentCorpus = monthlyExpense * 12 / 0.04; // Annual expense / 4%
+    const requiredCorpusFromStrategy = optimization.requiredCorpus || 0;
+    
+    // Check if the optimization is based on aggressive assumptions
+    const isAggressive = selectedStrategy === 'SUSTAINABLE' && withdrawalRate > 6;
+    const optimalCorpus = optimization.scenarios?.find(s => s.stopYear === optimization.optimalStopYear)?.projectedCorpus || 0;
+    const meetsConservative = optimalCorpus >= required4PercentCorpus;
+    
+    // Update recommendation with context
+    const recommendationEl = document.getElementById('stepup-recommendation');
+    if (recommendationEl) {
+        if (isAggressive && !meetsConservative) {
+            recommendationEl.innerHTML = `
+                <span class="text-amber-700">⚠️ Based on ${withdrawalRate}% withdrawal (optimistic). 
+                With 4% rule, you'd need ${formatCurrency(required4PercentCorpus, true)} corpus.</span>
+            `;
+        } else {
+            recommendationEl.textContent = optimization.recommendation || 'No optimization data available';
+        }
+    }
+    
+    // Update stats
+    document.getElementById('stepup-initial-sip').textContent = formatCurrency(optimization.sipAtStart);
+    document.getElementById('stepup-full-sip').textContent = formatCurrency(optimization.sipAtFullStepUp);
+    document.getElementById('stepup-optimal-sip').textContent = formatCurrency(optimization.sipAtOptimalStop);
+    document.getElementById('stepup-relief').textContent = formatCurrency(optimization.monthlyReliefFromStoppingEarly);
+    
+    // Render scenarios table with additional context
+    const scenariosEl = document.getElementById('stepup-scenarios');
+    if (scenariosEl && optimization.scenarios) {
+        const currentYear = new Date().getFullYear();
+        const requiredCorpus = optimization.requiredCorpus || 0;
+        const optimalStopYear = optimization.optimalStopYear;
+        
+        // Add header note if using aggressive assumptions
+        let tableHTML = '';
+        if (isAggressive) {
+            tableHTML += `
+                <tr class="bg-amber-50">
+                    <td colspan="5" class="px-3 py-2 text-xs text-amber-700">
+                        ⚠️ Target based on ${withdrawalRate}% withdrawal. Conservative (4% rule) needs: <strong>${formatCurrency(required4PercentCorpus, true)}</strong>
+                    </td>
+                </tr>
+            `;
+        }
+        
+        tableHTML += optimization.scenarios.map(scenario => {
+            const isOptimal = scenario.stopYear === optimalStopYear;
+            const calendarYear = currentYear + scenario.stopYear;
+            const age = (currentAge || 35) + scenario.stopYear;
+            const surplus = scenario.surplus || 0;
+            
+            // Check if this scenario meets 4% rule requirement
+            const meetsConservativeReq = scenario.projectedCorpus >= required4PercentCorpus;
+            const rowClass = isOptimal 
+                ? (meetsConservativeReq ? 'bg-emerald-50 font-semibold' : 'bg-amber-100 font-semibold')
+                : (scenario.meetsTarget ? '' : 'bg-red-50');
+            
+            return `
+                <tr class="${rowClass}">
+                    <td class="px-3 py-2 text-slate-700">
+                        ${calendarYear} (Age ${age})
+                        ${isOptimal ? `<span class="ml-1 ${meetsConservativeReq ? 'text-emerald-600' : 'text-amber-600'}">← ${meetsConservativeReq ? 'Optimal' : 'Risky'}</span>` : ''}
+                    </td>
+                    <td class="px-3 py-2 text-right font-mono text-slate-600">${formatCurrency(scenario.finalSipAtStop)}</td>
+                    <td class="px-3 py-2 text-right font-mono text-slate-700">${formatCurrency(scenario.projectedCorpus, true)}</td>
+                    <td class="px-3 py-2 text-right font-mono ${surplus >= 0 ? 'text-emerald-600' : 'text-danger-600'}">
+                        ${surplus >= 0 ? '+' : ''}${formatCurrency(surplus, true)}
+                    </td>
+                    <td class="px-3 py-2 text-center">
+                        ${isAggressive 
+                            ? (meetsConservativeReq ? '<span class="text-emerald-600">✓✓</span>' : (scenario.meetsTarget ? '<span class="text-amber-500">⚠️</span>' : '<span class="text-danger-500">✗</span>'))
+                            : (scenario.meetsTarget ? '<span class="text-emerald-600">✓</span>' : '<span class="text-danger-500">✗</span>')}
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        
+        scenariosEl.innerHTML = tableHTML;
+    }
+}
+
+// Toggle step-up details visibility
+function toggleStepUpDetails() {
+    const details = document.getElementById('stepup-details');
+    if (details) {
+        details.classList.toggle('hidden');
+    }
+}
+
 // Highlight the selected income strategy card (single selection only)
 function highlightSelectedStrategy(strategy) {
     // Get all strategy cards
@@ -702,6 +840,9 @@ function renderRetirementMatrix(data) {
     document.getElementById('years-to-retire').textContent = yearsToRetire;
     document.getElementById('final-corpus').textContent = formatCurrency(summary.finalCorpus, true);
     
+    // Render SIP Step-Up Optimization (pass summary for strategy context)
+    renderSipStepUpOptimization(summary.sipStepUpOptimization, summary.currentAge || currentParams.currentAge, summary);
+    
     // Update Required Corpus card (from GAP analysis)
     const gapData = data.gapAnalysis || {};
     const requiredCorpus = gapData.requiredCorpus || 0;
@@ -764,7 +905,7 @@ function renderRetirementMatrix(data) {
 
     if (matrix.length === 0) {
         tbody.innerHTML = `
-            <tr><td colspan="8" class="px-4 py-8 text-center text-slate-500">
+            <tr><td colspan="10" class="px-4 py-8 text-center text-slate-500">
                 Add investments to see your retirement projection.
             </td></tr>
         `;
@@ -774,13 +915,88 @@ function renderRetirementMatrix(data) {
     // Get starting balances for tooltip info
     const startBal = data.summary?.startingBalances || {};
     
+    // Get step-up optimization data
+    const stepUpOptimization = data.summary?.sipStepUpOptimization || {};
+    const optimalStopYear = stepUpOptimization.optimalStopYear;
+    const currentYear = new Date().getFullYear();
+    
+    // Get step-up info for calculating "if stopped" values
+    const sipStepUpPercent = data.summary?.sipStepUpPercent || 10; // Default 10% step-up
+    const mfRate = matrix[0]?.mfRate || 12;
+    
+    // Get the SIP at the stop year (this becomes flat if we stop)
+    const sipAtStopYear = optimalStopYear !== null ? (matrix[optimalStopYear]?.mfSip || 0) : 0;
+    
+    // Calculate what SIP and corpus would be IF step-up was STOPPED (flat)
+    // The matrix already shows WITH step-up, so we calculate the savings from stopping
+    function calculateIfStopped(yearIdx) {
+        if (optimalStopYear === null || yearIdx <= optimalStopYear) {
+            return { flatSip: null, flatCorpus: null }; // No comparison needed
+        }
+        
+        // If stopped, SIP stays flat at the stop year value
+        const flatSip = sipAtStopYear;
+        
+        // Current SIP (with step-up continuing) from matrix
+        const currentSip = matrix[yearIdx]?.mfSip || 0;
+        
+        // Calculate corpus difference from lower SIP
+        // How much LESS corpus we'd have if SIP was flat instead of stepped-up
+        const yearsAfterStop = yearIdx - optimalStopYear;
+        const sipSavings = currentSip - flatSip; // Monthly savings from stopping step-up
+        
+        // Rough estimate of corpus reduction (less contributions + less growth)
+        const avgSipDiff = sipSavings / 2; // Average difference over the period
+        const corpusReduction = avgSipDiff * 12 * yearsAfterStop * (1 + mfRate/100);
+        
+        return {
+            flatSip: Math.round(flatSip),
+            flatCorpus: Math.round((matrix[yearIdx]?.netCorpus || 0) - corpusReduction),
+            sipSavings: Math.round(sipSavings)
+        };
+    }
+    
     tbody.innerHTML = matrix.map((row, idx) => {
         // Calculate inflows this year (insurance maturity + investment maturity)
         const hasInflow = row.insuranceMaturity > 0 || row.investmentMaturity > 0;
         const totalInflow = (row.insuranceMaturity || 0) + (row.investmentMaturity || 0);
         
+        // Determine step-up status for this row
+        const isStepUpActive = row.sipStepUpActive;
+        const isStopYear = optimalStopYear !== null && idx === optimalStopYear;
+        const isAfterStop = optimalStopYear !== null && idx > optimalStopYear;
+        
+        // Calculate "if stopped" values for comparison (what would happen if we stopped step-up)
+        const ifStopped = calculateIfStopped(idx);
+        
+        let stepUpDisplay = '';
+        if (idx === 0) {
+            stepUpDisplay = '<span class="text-slate-400">-</span>';
+        } else if (isStopYear) {
+            stepUpDisplay = '<span class="px-2 py-0.5 text-xs rounded bg-amber-100 text-amber-700 font-medium">🛑 STOP</span>';
+        } else if (isStepUpActive || (optimalStopYear !== null && idx < optimalStopYear)) {
+            stepUpDisplay = '<span class="px-2 py-0.5 text-xs rounded bg-emerald-100 text-emerald-700">📈 +10%</span>';
+        } else if (isAfterStop) {
+            // Show continuing step-up indicator (matrix continues step-up)
+            stepUpDisplay = '<span class="px-2 py-0.5 text-xs rounded bg-emerald-100 text-emerald-700">📈 +10%</span>';
+        } else {
+            stepUpDisplay = '<span class="text-slate-400">-</span>';
+        }
+        
+        // Show current SIP (with step-up) and what it would be IF STOPPED (flat) in grey
+        const sipDisplay = isAfterStop && ifStopped.flatSip ? `
+            ${formatCurrency(row.mfSip)}/mo
+            <div class="text-xs text-slate-400">↘ ${formatCurrency(ifStopped.flatSip)}/mo</div>
+        ` : `${formatCurrency(row.mfSip)}/mo`;
+        
+        // Show current corpus (with step-up) and what it would be IF STOPPED in grey
+        const corpusDisplay = isAfterStop && ifStopped.flatCorpus ? `
+            ${formatCurrency(row.netCorpus, true)}
+            <div class="text-xs text-slate-400">↘ ${formatCurrency(ifStopped.flatCorpus, true)}</div>
+        ` : formatCurrency(row.netCorpus, true);
+        
         return `
-        <tr class="hover:bg-slate-50 ${row.goalOutflow > 0 ? 'bg-danger-50' : ''} ${hasInflow ? 'bg-emerald-50' : ''}">
+        <tr class="hover:bg-slate-50 ${row.goalOutflow > 0 ? 'bg-danger-50' : ''} ${hasInflow ? 'bg-emerald-50' : ''} ${isStopYear ? 'bg-amber-50 border-l-4 border-amber-400' : ''}">
             <td class="px-4 py-3 font-medium text-slate-800">${row.year}</td>
             <td class="px-4 py-3 text-slate-600">${row.age}</td>
             <td class="px-4 py-3 text-right font-mono text-slate-700">
@@ -799,7 +1015,8 @@ function renderRetirementMatrix(data) {
                     Cash: ${formatCurrency(startBal.cash || 0)}
                 </div>` : ''}
             </td>
-            <td class="px-4 py-3 text-right font-mono text-slate-500">${formatCurrency(row.mfSip)}/mo</td>
+            <td class="px-4 py-3 text-right font-mono text-slate-500">${sipDisplay}</td>
+            <td class="px-4 py-3 text-center">${stepUpDisplay}</td>
             <td class="px-4 py-3 text-right font-mono ${hasInflow ? 'text-emerald-600' : 'text-slate-400'}">
                 ${hasInflow ? '+' + formatCurrency(totalInflow, true) : '-'}
                 ${row.maturingPolicies?.length ? `<div class="text-xs text-emerald-500">${row.maturingPolicies.join(', ')}</div>` : ''}
@@ -809,7 +1026,7 @@ function renderRetirementMatrix(data) {
                 ${row.goalOutflow > 0 ? '-' + formatCurrency(row.goalOutflow, true) : '-'}
                 ${row.goalsThisYear?.length ? `<div class="text-xs text-slate-500">${row.goalsThisYear.join(', ')}</div>` : ''}
             </td>
-            <td class="px-4 py-3 text-right font-mono font-bold text-primary-600">${formatCurrency(row.netCorpus, true)}</td>
+            <td class="px-4 py-3 text-right font-mono font-bold text-primary-600">${corpusDisplay}</td>
         </tr>
     `}).join('');
 }
@@ -949,20 +1166,595 @@ function formatDate(dateStr) {
     return date.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
 }
 
+// ==================== WITHDRAWAL STRATEGY ====================
+
+// Render personalized withdrawal schedule based on backend API
+async function renderWithdrawalSchedule() {
+    const container = document.getElementById('withdrawal-schedule');
+    if (!container) return;
+    
+    container.innerHTML = '<div class="text-center py-4 text-slate-400">Loading your withdrawal strategy...</div>';
+    
+    try {
+        // If cached data not available, fetch it first
+        let retirementData = window.cachedRetirementData;
+        if (!retirementData || !retirementData.summary) {
+            console.log('Fetching matrix data for withdrawal strategy...');
+            retirementData = await api.retirement.getMatrix();
+            window.cachedRetirementData = retirementData;
+        }
+        
+        const matrixSummary = retirementData?.summary || {};
+        const currentAge = matrixSummary.currentAge || currentParams.currentAge || 35;
+        const retirementAge = matrixSummary.retirementAge || currentParams.retirementAge || 60;
+        const lifeExpectancy = matrixSummary.lifeExpectancy || currentParams.lifeExpectancy || 85;
+        
+        // Get the MATRIX's projected corpus (includes SIP step-up, etc.)
+        // Matrix uses 'finalCorpus' in summary, or 'projectedCorpus' in gapAnalysis
+        const gapAnalysis = retirementData?.gapAnalysis || {};
+        const matrixProjectedCorpus = matrixSummary.finalCorpus || gapAnalysis.projectedCorpus || 0;
+        
+        console.log('Withdrawal Strategy - Matrix corpus:', matrixProjectedCorpus, 'finalCorpus:', matrixSummary.finalCorpus, 'gapAnalysis.projectedCorpus:', gapAnalysis.projectedCorpus);
+        
+        // Fetch withdrawal strategy from backend
+        const strategy = await api.retirement.getWithdrawalStrategy(currentAge, retirementAge, lifeExpectancy);
+        
+        if (!strategy || !strategy.phases || strategy.phases.length === 0) {
+            container.innerHTML = '<div class="text-center py-4 text-slate-400">Add investments to see your personalized withdrawal schedule.</div>';
+            return;
+        }
+        
+        const phases = strategy.phases;
+        const strategySummary = strategy.summary || {};
+        
+        // Use MATRIX's projected corpus for sustainability calculation (more accurate with SIP step-up)
+        const corpusToUse = matrixProjectedCorpus > 0 ? matrixProjectedCorpus : (strategySummary.totalCorpusAtRetirement || 0);
+        
+        // Get corpus values
+        const backendCorpus = strategySummary.totalCorpusAtRetirement || 0;
+        
+        // Get SIP step-up optimization data
+        const sipOptimization = matrixSummary.sipStepUpOptimization || {};
+        const corpusIfStopped = sipOptimization.corpusAtOptimalStop || backendCorpus;
+        const optimalStopYear = sipOptimization.optimalStopYear;
+        const canStopEarly = sipOptimization.canStopEarly;
+        
+        // Calculate total phase values
+        let totalPhaseValue = 0;
+        phases.forEach(p => totalPhaseValue += (p.total || 0));
+        
+        // Build the phase summary table with better explanations
+        let scheduleHTML = `
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-slate-100">
+                        <tr>
+                            <th class="px-3 py-2 text-left text-slate-600">Phase</th>
+                            <th class="px-3 py-2 text-left text-slate-600">Age Range</th>
+                            <th class="px-3 py-2 text-left text-slate-600">Assets to Use</th>
+                            <th class="px-3 py-2 text-right text-slate-600">Projected Value</th>
+                            <th class="px-3 py-2 text-left text-slate-600">Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+        `;
+        
+        const colorMap = { emerald: 'emerald', blue: 'blue', purple: 'purple' };
+        let runningTotal = corpusToUse; // Track remaining corpus
+        
+        for (let i = 0; i < phases.length; i++) {
+            const phase = phases[i];
+            const color = colorMap[phase.color] || 'slate';
+            const assetNames = phase.assets?.map(a => a.name || a.type).slice(0, 3).join(', ') || 'None';
+            const moreCount = (phase.assets?.length || 0) - 3;
+            
+            // Calculate note based on phase status
+            let phaseNote = '';
+            const phaseTotal = phase.total || 0;
+            
+            if (phaseTotal === 0 && i === 0) {
+                phaseNote = '<span class="text-amber-600">No liquid assets - use SIP corpus</span>';
+            } else if (phaseTotal === 0 && i > 0) {
+                phaseNote = '<span class="text-blue-600">Continue from previous phase corpus</span>';
+            } else if (phase.yearsCovered >= 10) {
+                phaseNote = '<span class="text-emerald-600">✓ Well covered</span>';
+            } else if (phase.yearsCovered < 5) {
+                phaseNote = '<span class="text-amber-600">⚠️ May need supplement</span>';
+            } else {
+                phaseNote = '<span class="text-slate-500">Partial coverage</span>';
+            }
+            
+            scheduleHTML += `
+                <tr class="bg-${color}-50">
+                    <td class="px-3 py-2">
+                        <span class="px-2 py-1 text-xs rounded bg-${color}-200 text-${color}-700 font-medium">Phase ${phase.priority}</span>
+                    </td>
+                    <td class="px-3 py-2 text-slate-700">${phase.suggestedAgeRange || 'N/A'}</td>
+                    <td class="px-3 py-2 text-slate-600">
+                        ${assetNames}${moreCount > 0 ? ` +${moreCount} more` : ''}
+                    </td>
+                    <td class="px-3 py-2 text-right font-mono text-${color}-700 font-medium">${formatCurrency(phaseTotal, true)}</td>
+                    <td class="px-3 py-2 text-xs">${phaseNote}</td>
+                </tr>
+            `;
+        }
+        
+        // Show both corpus values - WITH step-up vs IF STOPPED
+        const corpusDifference = corpusToUse - backendCorpus;
+        const showDifference = Math.abs(corpusDifference) > 100000; // Show if >1L difference
+        
+        scheduleHTML += `
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Corpus Comparison: With Step-Up vs If Stopped -->
+            <div class="mt-4 grid grid-cols-2 gap-4">
+                <div class="p-4 bg-emerald-50 rounded-lg border border-emerald-200">
+                    <div class="text-xs text-emerald-600 mb-1">📈 With Continued SIP Step-Up</div>
+                    <div class="text-xl font-bold text-emerald-700">${formatCurrency(corpusToUse, true)}</div>
+                    ${showDifference ? `<div class="text-xs text-emerald-600">Investments: ${formatCurrency(backendCorpus, true)} + SIPs: ${formatCurrency(corpusDifference, true)}</div>` : ''}
+                    <div class="text-xs text-slate-500 mt-1">If you continue ${matrixSummary.sipStepUpPercent || 10}% annual SIP increase</div>
+                </div>
+                <div class="p-4 ${canStopEarly ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200'} rounded-lg border">
+                    <div class="text-xs ${canStopEarly ? 'text-amber-600' : 'text-slate-500'} mb-1">🛑 If SIP Step-Up Stops ${optimalStopYear ? `(Year ${optimalStopYear})` : ''}</div>
+                    <div class="text-xl font-bold ${canStopEarly ? 'text-amber-700' : 'text-slate-700'}">${formatCurrency(corpusIfStopped, true)}</div>
+                    <div class="text-xs ${canStopEarly ? 'text-amber-600' : 'text-slate-500'}">
+                        ${canStopEarly 
+                            ? `Save ${formatCurrency(sipOptimization.monthlyReliefFromStoppingEarly || 0)}/mo after stopping` 
+                            : 'Keep step-up to maximize corpus'}
+                    </div>
+                    <div class="text-xs text-slate-500 mt-1">Difference: ${formatCurrency(corpusToUse - corpusIfStopped, true)} less</div>
+                </div>
+            </div>
+            
+            <!-- Important Note about Phase Coverage -->
+            <div class="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <div class="flex items-start gap-2 text-blue-700">
+                    <span>💡</span>
+                    <div class="text-sm">
+                        <strong>How it works:</strong> Your total corpus (${formatCurrency(corpusToUse, true)}) funds ALL phases. 
+                        Phases show which assets to withdraw FIRST, not separate pools. 
+                        If Phase 1/2 assets run out, the remaining corpus continues to fund expenses.
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Add monthly withdrawal summary
+        // Use MATRIX's inflated expense for consistency with GAP Analysis
+        // Backend sends 'inflatedMonthlyExpenses' in gapAnalysis which is the same expense used for required corpus calc
+        const inflatedExpenseFromGap = gapAnalysis.inflatedMonthlyExpenses || 0;
+        const expenseFromWithdrawalAPI = strategySummary.monthlyExpenseAtRetirement || 0;
+        
+        // Use GAP Analysis expense for consistency - this is what required corpus is based on
+        const monthlyExpense = inflatedExpenseFromGap > 0 ? inflatedExpenseFromGap : expenseFromWithdrawalAPI;
+        
+        console.log('Withdrawal Strategy - Expense comparison:', {
+            fromGapAnalysis_inflated: inflatedExpenseFromGap,
+            fromWithdrawalAPI: expenseFromWithdrawalAPI,
+            usingExpense: monthlyExpense,
+            requiredCorpus: gapAnalysis.requiredCorpus,
+            selectedStrategy: matrixSummary.incomeStrategy
+        });
+        
+        // Get selected income strategy from matrix data
+        const selectedStrategy = matrixSummary.incomeStrategy || currentParams.incomeStrategy || 'SUSTAINABLE';
+        const corpusReturnRate = matrixSummary.corpusReturnRate || 10;
+        const withdrawalRate = matrixSummary.withdrawalRate || 8;
+        const yearsInRetirement = lifeExpectancy - retirementAge;
+        
+        // Calculate withdrawals based on SELECTED strategy (not hardcoded 4%)
+        let strategyWithdrawal, strategyLabel, strategyDescription;
+        
+        if (selectedStrategy === 'SIMPLE_DEPLETION') {
+            // Simple depletion: Corpus / Years / 12 months
+            strategyWithdrawal = Math.round(corpusToUse / yearsInRetirement / 12);
+            strategyLabel = 'Simple Depletion';
+            strategyDescription = `Corpus ÷ ${yearsInRetirement} years`;
+        } else if (selectedStrategy === 'SAFE_4_PERCENT') {
+            // 4% rule
+            strategyWithdrawal = Math.round(corpusToUse * 0.04 / 12);
+            strategyLabel = '4% Safe Withdrawal';
+            strategyDescription = '4% annually (most conservative)';
+        } else {
+            // SUSTAINABLE - uses custom rates
+            strategyWithdrawal = Math.round(corpusToUse * (withdrawalRate / 100) / 12);
+            strategyLabel = `${corpusReturnRate}% Return, ${withdrawalRate}% Withdrawal`;
+            strategyDescription = `Net ${corpusReturnRate - withdrawalRate >= 0 ? '+' : ''}${corpusReturnRate - withdrawalRate}% corpus growth`;
+        }
+        
+        // Also calculate 4% rule for comparison (conservative baseline)
+        const safe4PercentWithdrawal = Math.round(corpusToUse * 0.04 / 12);
+        
+        // Determine sustainability based on selected strategy
+        const isSustainable = strategyWithdrawal >= monthlyExpense;
+        const shortfall = strategyWithdrawal - monthlyExpense;
+        
+        // Check if using aggressive assumptions (sustainable with >6% withdrawal rate)
+        const isAggressive = selectedStrategy === 'SUSTAINABLE' && withdrawalRate > 6;
+        const is4PercentSustainable = safe4PercentWithdrawal >= monthlyExpense;
+        
+        scheduleHTML += `
+            <div class="mt-4 grid grid-cols-3 gap-3">
+                <div class="p-3 bg-slate-50 rounded-lg text-center">
+                    <div class="text-xs text-slate-500">Monthly Expense (Inflated)</div>
+                    <div class="text-lg font-bold text-slate-700">${formatCurrency(monthlyExpense)}</div>
+                </div>
+                <div class="p-3 bg-primary-50 rounded-lg text-center border-2 border-primary-300">
+                    <div class="text-xs text-primary-600">${strategyLabel}</div>
+                    <div class="text-lg font-bold text-primary-700">${formatCurrency(strategyWithdrawal)}</div>
+                    <div class="text-xs text-primary-500">${strategyDescription}</div>
+                </div>
+                <div class="p-3 ${isSustainable ? 'bg-emerald-50' : 'bg-amber-50'} rounded-lg text-center">
+                    <div class="text-xs ${isSustainable ? 'text-emerald-600' : 'text-amber-600'}">Status</div>
+                    <div class="text-lg font-bold ${isSustainable ? 'text-emerald-700' : 'text-amber-700'}">
+                        ${isSustainable ? '✓ Sustainable' : '⚠️ Review Needed'}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Show comparison with 4% rule if using aggressive strategy
+        if (isAggressive) {
+            const conservativeShortfall = safe4PercentWithdrawal - monthlyExpense;
+            scheduleHTML += `
+                <div class="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                    <div class="flex items-center gap-2 text-amber-700 mb-2">
+                        <span>⚠️</span>
+                        <span class="text-sm font-medium">Aggressive Assumptions Warning</span>
+                    </div>
+                    <div class="text-xs text-amber-700 mb-2">
+                        Your selected strategy assumes ${corpusReturnRate}% returns and ${withdrawalRate}% withdrawal. 
+                        This is optimistic - markets may not always deliver ${corpusReturnRate}% returns.
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div class="p-2 bg-white rounded">
+                            <div class="text-slate-500">Conservative (4% Rule)</div>
+                            <div class="font-bold ${is4PercentSustainable ? 'text-emerald-700' : 'text-danger-600'}">${formatCurrency(safe4PercentWithdrawal)}/mo</div>
+                            <div class="${is4PercentSustainable ? 'text-emerald-600' : 'text-danger-500'}">
+                                ${is4PercentSustainable ? '✓ Covers expenses' : `₹${formatCurrency(Math.abs(conservativeShortfall))} short`}
+                            </div>
+                        </div>
+                        <div class="p-2 bg-white rounded">
+                            <div class="text-slate-500">Your Strategy (${withdrawalRate}%)</div>
+                            <div class="font-bold ${isSustainable ? 'text-emerald-700' : 'text-danger-600'}">${formatCurrency(strategyWithdrawal)}/mo</div>
+                            <div class="${isSustainable ? 'text-emerald-600' : 'text-danger-500'}">
+                                ${isSustainable ? '✓ Covers expenses' : `₹${formatCurrency(Math.abs(shortfall))} short`}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-xs text-amber-600">
+                        💡 The 4% rule has historically survived 30+ year retirements. Higher withdrawal rates increase the risk of running out of money.
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Add simple status message (only if not showing aggressive warning)
+        if (shortfall < 0 && !isAggressive) {
+            scheduleHTML += `
+                <div class="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                    <div class="flex items-center gap-2 text-amber-700">
+                        <span>⚠️</span>
+                        <span class="text-sm">Your withdrawal (${strategyLabel}) is ${formatCurrency(Math.abs(shortfall))}/mo less than projected expenses. 
+                        Consider: increasing SIP, extending working years, or reducing retirement expenses.</span>
+                    </div>
+                </div>
+            `;
+        } else if (shortfall >= 0 && !isAggressive) {
+            scheduleHTML += `
+                <div class="mt-4 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                    <div class="flex items-center gap-2 text-emerald-700">
+                        <span>✓</span>
+                        <span class="text-sm">Your corpus supports ${formatCurrency(shortfall)}/mo above expenses using ${strategyLabel}. 
+                        This gives you buffer for inflation, healthcare, and unexpected expenses.</span>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Detailed asset breakdown per phase
+        scheduleHTML += `
+            <div class="mt-6">
+                <h5 class="font-semibold text-slate-700 mb-3">📋 Detailed Asset Withdrawal Guide</h5>
+                <div class="space-y-3">
+        `;
+        
+        for (const phase of phases) {
+            if (!phase.assets || phase.assets.length === 0) continue;
+            
+            const color = colorMap[phase.color] || 'slate';
+            scheduleHTML += `
+                <div class="p-3 bg-${color}-50 rounded-lg border border-${color}-200">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="px-2 py-0.5 text-xs rounded bg-${color}-200 text-${color}-700 font-medium">Phase ${phase.priority}</span>
+                        <span class="text-sm font-medium text-${color}-800">${phase.name}</span>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+            `;
+            
+            for (const asset of phase.assets.slice(0, 6)) {
+                scheduleHTML += `
+                    <div class="p-2 bg-white rounded border border-${color}-100">
+                        <div class="flex justify-between items-center">
+                            <span class="font-medium text-slate-700">${asset.name || asset.type}</span>
+                            <span class="font-mono text-${color}-700">${formatCurrency(asset.projectedValueAtRetirement, true)}</span>
+                        </div>
+                        ${asset.withdrawalTip ? `<div class="text-slate-500 mt-1">💡 ${asset.withdrawalTip}</div>` : ''}
+                    </div>
+                `;
+            }
+            
+            if (phase.assets.length > 6) {
+                scheduleHTML += `<div class="p-2 text-slate-500">+${phase.assets.length - 6} more assets...</div>`;
+            }
+            
+            scheduleHTML += `
+                    </div>
+                </div>
+            `;
+        }
+        
+        scheduleHTML += `
+                </div>
+            </div>
+        `;
+        
+        // Tax optimization tips from backend
+        if (strategy.taxOptimizationTips && strategy.taxOptimizationTips.length > 0) {
+            scheduleHTML += `
+                <div class="mt-6 p-4 bg-gradient-to-r from-amber-50 to-yellow-50 rounded-lg border border-amber-200">
+                    <h5 class="font-semibold text-amber-800 mb-3">🎯 Tax Optimization Tips</h5>
+                    <div class="grid grid-cols-2 gap-3">
+            `;
+            
+            for (const tip of strategy.taxOptimizationTips) {
+                scheduleHTML += `
+                    <div class="p-2 bg-white rounded border border-amber-100">
+                        <div class="font-medium text-sm text-slate-700">${tip.title}</div>
+                        <div class="text-xs text-slate-500 mt-1">${tip.description}</div>
+                        <div class="text-xs text-amber-600 mt-1 font-medium">${tip.savingsEstimate}</div>
+                    </div>
+                `;
+            }
+            
+            scheduleHTML += `
+                    </div>
+                </div>
+            `;
+        }
+        
+        container.innerHTML = scheduleHTML;
+        
+    } catch (error) {
+        console.error('Error rendering withdrawal schedule:', error);
+        container.innerHTML = '<div class="text-center py-4 text-danger-500">Error loading data. Please refresh.</div>';
+    }
+}
+
+// ==================== ENDING EXPENSES ====================
+
+// Load and render ending expenses (time-bound expenses with investment opportunities)
+async function loadEndingExpensesData() {
+    const container = document.getElementById('ending-expenses-container');
+    if (!container) return;
+    
+    container.innerHTML = '<div class="text-center py-6 text-slate-400">Loading...</div>';
+    
+    try {
+        const params = getParamsFromInputs();
+        const currentAge = params.currentAge || 35;
+        const retirementAge = params.retirementAge || 60;
+        
+        const response = await api.expenses.getInvestmentOpportunities(currentAge, retirementAge);
+        // API returns { freedUpByYear: [...], totalMonthlyFreedUpByRetirement: ..., etc }
+        const opportunities = response?.freedUpByYear || [];
+        
+        renderEndingExpenses(container, opportunities, currentAge, retirementAge);
+    } catch (error) {
+        console.error('Error loading ending expenses:', error);
+        container.innerHTML = `
+            <div class="text-center py-6 text-slate-400">
+                <div class="text-4xl mb-2">🎓</div>
+                <div>No time-bound expenses found</div>
+                <div class="text-xs mt-1">Add school fees, tuition, or other temporary expenses to see investment opportunities</div>
+                <a href="expenses.html" class="mt-4 inline-block px-4 py-2 bg-primary-500 text-white rounded-lg text-sm">
+                    Add Expense →
+                </a>
+            </div>
+        `;
+    }
+}
+
+// Render ending expenses with investment opportunity analysis
+function renderEndingExpenses(container, opportunities, currentAge, retirementAge) {
+    if (!opportunities || opportunities.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-6 text-slate-400">
+                <div class="text-4xl mb-2">🎓</div>
+                <div>No time-bound expenses found</div>
+                <div class="text-xs mt-1">Add school fees, tuition, or other temporary expenses to see investment opportunities</div>
+                <a href="expenses.html" class="mt-4 inline-block px-4 py-2 bg-primary-500 text-white rounded-lg text-sm">
+                    Add Expense →
+                </a>
+            </div>
+        `;
+        return;
+    }
+    
+    // Calculate totals
+    // Backend returns: monthlyFreedUp, potentialCorpusAt12Percent
+    let totalFreedUpMonthly = 0;
+    let totalPotentialCorpus = 0;
+    opportunities.forEach(opp => {
+        totalFreedUpMonthly += opp.monthlyFreedUp || opp.freedMonthlyAmount || 0;
+        totalPotentialCorpus += opp.potentialCorpusAt12Percent || opp.potentialCorpusIfInvested || 0;
+    });
+    
+    const currentYear = new Date().getFullYear();
+    const retirementYear = currentYear + (retirementAge - currentAge);
+    
+    let html = `
+        <!-- Summary Banner -->
+        <div class="mb-6 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-200">
+            <div class="flex items-center justify-between">
+                <div>
+                    <div class="text-sm text-purple-600 font-medium">💡 Investment Opportunity from Ending Expenses</div>
+                    <div class="text-2xl font-bold text-purple-700">${formatCurrency(totalPotentialCorpus, true)}</div>
+                    <div class="text-xs text-purple-500">Potential additional corpus if invested</div>
+                </div>
+                <div class="text-right">
+                    <div class="text-sm text-slate-600">${opportunities.length} expense(s) ending before retirement</div>
+                    <div class="text-lg font-semibold text-slate-700">${formatCurrency(totalFreedUpMonthly)}/mo freed up</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Explanation -->
+        <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <h4 class="text-sm font-semibold text-blue-700 mb-2">📚 How This Works</h4>
+            <p class="text-sm text-blue-600">
+                Time-bound expenses (like school fees, coaching) will end at a certain date. 
+                When they end, that money can be redirected to investments. 
+                If invested at 12% returns, this freed-up amount can generate significant corpus by retirement!
+            </p>
+        </div>
+        
+        <!-- Timeline -->
+        <h4 class="text-lg font-semibold text-slate-800 mb-4">📅 Expense End Timeline</h4>
+        <div class="space-y-4 mb-6">
+    `;
+    
+    // Sort by end year (backend returns 'year', frontend may use 'endsInYear')
+    opportunities.sort((a, b) => (a.year || a.endsInYear || 0) - (b.year || b.endsInYear || 0));
+    
+    opportunities.forEach(opp => {
+        // Backend returns: year, monthlyFreedUp, potentialCorpusAt12Percent, endingExpenses[]
+        const endYear = opp.year || opp.endsInYear || currentYear;
+        const yearsLeft = endYear - currentYear;
+        const yearsToInvest = retirementYear - endYear;
+        
+        // Get expense names from endingExpenses array
+        const expenseNames = (opp.endingExpenses || []).map(e => e.name).join(', ') || opp.expenseName || 'Expense';
+        const categories = (opp.endingExpenses || []).map(e => e.category).filter(Boolean);
+        const category = categories[0] || opp.category || '';
+        const categoryIcon = getCategoryIcon(category);
+        const categoryDisplay = category ? category.replace(/_/g, ' ') : 'Other';
+        
+        // Use correct field names
+        const monthlyFreedUp = opp.monthlyFreedUp || opp.freedMonthlyAmount || 0;
+        const potentialCorpus = opp.potentialCorpusAt12Percent || opp.potentialCorpusIfInvested || 0;
+        
+        html += `
+            <div class="flex items-center gap-4 p-4 bg-white rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                <div class="w-16 h-16 rounded-full bg-purple-100 text-purple-700 flex flex-col items-center justify-center flex-shrink-0">
+                    <span class="text-lg font-bold">${endYear}</span>
+                    <span class="text-xs">${yearsLeft}y left</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                        <span class="text-lg">${categoryIcon}</span>
+                        <span class="font-semibold text-slate-800 truncate">${expenseNames}</span>
+                        <span class="px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-600">${categoryDisplay}</span>
+                    </div>
+                    <div class="text-sm text-slate-500 mt-1">
+                        ${formatCurrency(monthlyFreedUp)}/month will be available after ${endYear}
+                    </div>
+                </div>
+                <div class="text-right flex-shrink-0">
+                    <div class="font-mono text-lg font-bold text-emerald-600">+${formatCurrency(potentialCorpus, true)}</div>
+                    <div class="text-xs text-slate-400">If invested for ${yearsToInvest} years @ 12%</div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += `
+        </div>
+        
+        <!-- Action Card -->
+        <div class="p-4 bg-emerald-50 rounded-lg border border-emerald-200">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h4 class="font-semibold text-emerald-800">🚀 Recommended Action</h4>
+                    <p class="text-sm text-emerald-600 mt-1">
+                        When these expenses end, set up automatic SIP transfers for the freed-up amount. 
+                        This will significantly boost your retirement corpus!
+                    </p>
+                </div>
+                <button onclick="switchAnalysisTab('strategy')" class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 flex-shrink-0">
+                    Add to Strategy →
+                </button>
+            </div>
+        </div>
+        
+        <!-- Calculation Breakdown -->
+        <div class="mt-6 p-4 bg-slate-50 rounded-lg">
+            <h4 class="text-sm font-semibold text-slate-700 mb-3">📊 Calculation Assumptions</h4>
+            <div class="grid grid-cols-3 gap-4 text-sm">
+                <div>
+                    <span class="text-slate-500">Investment Return:</span>
+                    <span class="font-medium text-slate-700 ml-2">12% p.a.</span>
+                </div>
+                <div>
+                    <span class="text-slate-500">Retirement Year:</span>
+                    <span class="font-medium text-slate-700 ml-2">${retirementYear}</span>
+                </div>
+                <div>
+                    <span class="text-slate-500">Retirement Age:</span>
+                    <span class="font-medium text-slate-700 ml-2">${retirementAge}</span>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+// Helper function to get category icon
+function getCategoryIcon(category) {
+    const icons = {
+        'SCHOOL_FEE': '🎒',
+        'COLLEGE_FEE': '🎓',
+        'TUITION': '📖',
+        'COACHING': '✏️',
+        'BOOKS_SUPPLIES': '📕',
+        'HOSTEL': '🏨',
+        'EDUCATION': '📚',
+        'CHILDCARE': '👶',
+        'DAYCARE': '🧒',
+        'ELDERLY_CARE': '👴',
+        'RENT': '🏠',
+        'OTHER': '📋'
+    };
+    return icons[category] || '📋';
+}
+
 // ==================== STRATEGY PLANNER ====================
 
 // Load additional data needed for strategy planner
 async function loadStrategyData(retirementData) {
     try {
-        const [netWorth, loans, goals] = await Promise.all([
+        // Get current params for expense opportunities
+        const params = getParamsFromInputs();
+        const currentAge = params.currentAge || 35;
+        const retirementAge = params.retirementAge || 60;
+        
+        const [netWorth, loans, goals, expenseOpportunitiesResponse] = await Promise.all([
             api.analysis.getNetWorth().catch(() => null),
             api.loans.getAll().catch(() => []),
-            api.goals.getAll().catch(() => [])
+            api.goals.getAll().catch(() => []),
+            api.expenses.getInvestmentOpportunities(currentAge, retirementAge).catch(() => ({}))
         ]);
+        
+        // API returns { freedUpByYear: [...], totalMonthlyFreedUpByRetirement: ..., etc }
+        const expenseOpportunities = expenseOpportunitiesResponse?.freedUpByYear || [];
         
         strategyData.netWorth = netWorth;
         strategyData.loans = loans || [];
         strategyData.goals = goals || [];
+        strategyData.expenseOpportunities = expenseOpportunities;
         
         // If strategy tab is visible, render it
         const strategyPanel = document.getElementById('panel-strategy');
@@ -1202,7 +1994,10 @@ function renderActionTimeline(retirementData, stratData, gapAnalysis) {
     
     const matrix = retirementData?.matrix || [];
     const maturingData = retirementData?.maturingBeforeRetirement || {};
+    const summary = retirementData?.summary || {};
     const currentYear = new Date().getFullYear();
+    const yearsToRetirement = summary.yearsToRetirement || 25;
+    const retirementYear = currentYear + yearsToRetirement;
     
     let timelineItems = [];
     
@@ -1273,6 +2068,25 @@ function renderActionTimeline(retirementData, stratData, gapAnalysis) {
                 description: `${formatCurrency(goal.targetAmount)} needed`,
                 action: 'Ensure funds are available',
                 actionColor: 'text-amber-600'
+            });
+        }
+    });
+    
+    // 5. Add expense end dates (time-bound expenses)
+    const expenseOpportunities = stratData?.expenseOpportunities || [];
+    expenseOpportunities.forEach(opp => {
+        // Backend returns: year, monthlyFreedUp, potentialCorpusAt12Percent, endingExpenses[]
+        const oppYear = opp.year || opp.endsInYear;
+        if (oppYear && oppYear > currentYear && oppYear < retirementYear) {
+            const expenseNames = (opp.endingExpenses || []).map(e => e.name).join(', ') || 'Expense';
+            timelineItems.push({
+                year: oppYear,
+                type: 'expense_end',
+                icon: '🎓',
+                title: `${expenseNames} Ends`,
+                description: `${formatCurrency(opp.monthlyFreedUp || opp.freedMonthlyAmount || 0)}/mo freed up`,
+                action: `Invest for ${formatCurrency(opp.potentialCorpusAt12Percent || opp.potentialCorpusIfInvested || 0, true)} corpus`,
+                actionColor: 'text-purple-600'
             });
         }
     });
@@ -1499,6 +2313,55 @@ function renderWhatIfScenarios(summary, gapAnalysis, maturingData) {
         value: sipIncrease
     });
     
+    // Scenario 5: Invest Freed-Up Expenses (from time-bound expenses like school fees)
+    const expenseOpportunities = strategyData?.expenseOpportunities || [];
+    if (expenseOpportunities.length > 0) {
+        // Calculate total potential corpus from all ending expenses
+        // Backend returns: year, monthlyFreedUp, potentialCorpusAt12Percent, endingExpenses[]
+        let totalFreedUpMonthly = 0;
+        let totalPotentialCorpus = 0;
+        let earliestEndYear = retirementYear;
+        let latestEndYear = currentYear;
+        
+        expenseOpportunities.forEach(opp => {
+            totalFreedUpMonthly += opp.monthlyFreedUp || opp.freedMonthlyAmount || 0;
+            totalPotentialCorpus += opp.potentialCorpusAt12Percent || opp.potentialCorpusIfInvested || 0;
+            const oppYear = opp.year || opp.endsInYear || retirementYear;
+            if (oppYear < earliestEndYear) earliestEndYear = oppYear;
+            if (oppYear > latestEndYear) latestEndYear = oppYear;
+        });
+        
+        if (totalFreedUpMonthly > 0) {
+            const newCorpusFromExpenses = projected + totalPotentialCorpus;
+            const canMeetWithExpenses = newCorpusFromExpenses >= required;
+            
+            // Build description with expense names (from endingExpenses array)
+            const allExpenseNames = expenseOpportunities.flatMap(o => 
+                (o.endingExpenses || []).map(e => e.name) || [o.expenseName]
+            ).filter(Boolean);
+            const expenseNames = allExpenseNames.slice(0, 3).join(', ');
+            const moreCount = allExpenseNames.length > 3 ? ` +${allExpenseNames.length - 3} more` : '';
+            
+            scenarios.push({
+                id: 'freed_expenses',
+                icon: '🎓',
+                title: 'Invest Freed-Up Expenses',
+                description: `${expenseNames}${moreCount} (${formatCurrency(totalFreedUpMonthly)}/mo total)`,
+                impact: `+${formatCurrency(totalPotentialCorpus, true)} additional corpus`,
+                timing: `📅 Expenses end: ${earliestEndYear}${latestEndYear > earliestEndYear ? ' - ' + latestEndYear : ''}`,
+                result: canMeetWithExpenses ? '✅ Would meet required corpus' : `⚠️ Still ${formatCurrency(required - newCorpusFromExpenses, true)} short`,
+                resultClass: canMeetWithExpenses ? 'text-emerald-600' : 'text-amber-600',
+                bgClass: 'bg-purple-50 border-purple-200',
+                chartData: null,
+                enabled: false,
+                value: totalFreedUpMonthly,
+                potentialCorpus: totalPotentialCorpus,
+                opportunities: expenseOpportunities,
+                startYear: earliestEndYear
+            });
+        }
+    }
+    
     // Store scenarios for later use
     window.whatIfScenarios = scenarios;
     
@@ -1660,6 +2523,10 @@ function showScenarioChart(scenarioId) {
         deploymentYear = currentYear; // Start immediately
         scenarioType = 'sip';
         scenarioValue = scenario.value || 0; // This is the INCREMENTAL SIP (20% increase)
+    } else if (scenario.id === 'freed_expenses') {
+        deploymentYear = scenario.startYear || currentYear + 5;
+        scenarioType = 'sip';
+        scenarioValue = scenario.value || 0; // Monthly amount freed up from expenses
     }
     
     // Generate chart data with proper baseline vs strategy comparison
@@ -1754,6 +2621,8 @@ async function saveUserStrategy() {
         return;
     }
     
+    const freedExpensesScenario = enabledScenarios.find(s => s.id === 'freed_expenses');
+    
     const strategy = {
         selectedIncomeStrategy: currentParams.incomeStrategy || 'SUSTAINABLE',
         sellIlliquidAssets: enabledScenarios.some(s => s.id === 'sell_illiquid'),
@@ -1767,6 +2636,17 @@ async function saveUserStrategy() {
         increaseSIP: enabledScenarios.some(s => s.id === 'increase_sip'),
         sipIncreasePercent: 20,
         newSIPAmount: enabledScenarios.find(s => s.id === 'increase_sip')?.value,
+        // New: Freed expenses investment opportunity
+        investFreedExpenses: enabledScenarios.some(s => s.id === 'freed_expenses'),
+        freedExpensesMonthly: freedExpensesScenario?.value,
+        freedExpensesPotentialCorpus: freedExpensesScenario?.potentialCorpus,
+        freedExpensesStartYear: freedExpensesScenario?.startYear,
+        freedExpensesDetails: freedExpensesScenario?.opportunities?.map(o => ({
+            name: o.expenseName,
+            category: o.category,
+            endYear: o.endsInYear,
+            monthlyAmount: o.freedMonthlyAmount
+        })),
         strategyNotes: `Selected ${enabledScenarios.length} strategies`
     };
     

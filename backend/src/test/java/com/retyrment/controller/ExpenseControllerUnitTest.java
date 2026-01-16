@@ -104,15 +104,9 @@ class ExpenseControllerUnitTest {
                     .name("Groceries 2")
                     .category(ExpenseCategory.GROCERIES)
                     .build();
-            Expense rent = Expense.builder()
-                    .id("exp-3")
-                    .userId("user-1")
-                    .name("Rent")
-                    .category(ExpenseCategory.RENT)
-                    .build();
 
-            when(expenseRepository.findByUserId("user-1"))
-                    .thenReturn(Arrays.asList(groceries1, groceries2, rent));
+            when(expenseRepository.findByUserIdAndCategory("user-1", ExpenseCategory.GROCERIES))
+                    .thenReturn(Arrays.asList(groceries1, groceries2));
 
             List<Expense> result = expenseController.getExpensesByCategory(ExpenseCategory.GROCERIES);
 
@@ -123,15 +117,8 @@ class ExpenseControllerUnitTest {
         @Test
         @DisplayName("should return empty list when no expenses match category")
         void shouldReturnEmptyListWhenNoMatch() {
-            Expense rent = Expense.builder()
-                    .id("exp-1")
-                    .userId("user-1")
-                    .name("Rent")
-                    .category(ExpenseCategory.RENT)
-                    .build();
-
-            when(expenseRepository.findByUserId("user-1"))
-                    .thenReturn(Arrays.asList(rent));
+            when(expenseRepository.findByUserIdAndCategory("user-1", ExpenseCategory.GROCERIES))
+                    .thenReturn(Arrays.asList());
 
             List<Expense> result = expenseController.getExpensesByCategory(ExpenseCategory.GROCERIES);
 

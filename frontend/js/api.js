@@ -121,7 +121,12 @@ const api = {
                 const errorText = await response.text().catch(() => '');
                 throw new Error(`HTTP ${response.status}: ${errorText || 'Unknown error'}`);
             }
-            return await response.json();
+            // Handle empty responses (204 No Content)
+            if (response.status === 204 || response.headers.get('content-length') === '0') {
+                return null;
+            }
+            const text = await response.text();
+            return text ? JSON.parse(text) : null;
         } catch (error) {
             // Only log if it's not a redirect
             if (error.message !== 'Not authenticated') {
@@ -156,7 +161,12 @@ const api = {
                 const errorText = await response.text().catch(() => '');
                 throw new Error(`HTTP ${response.status}: ${errorText || 'Unknown error'}`);
             }
-            return await response.json();
+            // Handle empty responses (204 No Content)
+            if (response.status === 204 || response.headers.get('content-length') === '0') {
+                return null;
+            }
+            const text = await response.text();
+            return text ? JSON.parse(text) : null;
         } catch (error) {
             // Only log if it's not a redirect
             if (error.message !== 'Not authenticated') {
@@ -178,7 +188,12 @@ const api = {
                 throw new Error('Session expired');
             }
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            return await response.json();
+            // Handle empty responses (204 No Content)
+            if (response.status === 204 || response.headers.get('content-length') === '0') {
+                return null;
+            }
+            const text = await response.text();
+            return text ? JSON.parse(text) : null;
         } catch (error) {
             console.error(`PUT ${endpoint} failed:`, error);
             throw error;
@@ -247,6 +262,19 @@ const api = {
         getAll: () => api.get('/expenses'),
         getFixed: () => api.get('/expenses/fixed'),
         getVariable: () => api.get('/expenses/variable'),
+        getTimeBound: () => api.get('/expenses/time-bound'),
+        getRecurring: () => api.get('/expenses/recurring'),
+        getEducation: () => api.get('/expenses/education'),
+        getByCategory: (category) => api.get(`/expenses/category/${category}`),
+        getByDependent: (name) => api.get(`/expenses/dependent/${encodeURIComponent(name)}`),
+        getSummary: () => api.get('/expenses/summary'),
+        getInvestmentOpportunities: (currentAge = 35, retirementAge = 60) => 
+            api.get(`/expenses/investment-opportunities?currentAge=${currentAge}&retirementAge=${retirementAge}`),
+        getProjection: (currentAge = 35, retirementAge = 60, inflationRate = 6) => 
+            api.get(`/expenses/projection?currentAge=${currentAge}&retirementAge=${retirementAge}&inflationRate=${inflationRate}`),
+        getDependents: () => api.get('/expenses/dependents'),
+        getFrequencyOptions: () => api.get('/expenses/options/frequencies'),
+        getCategoryOptions: () => api.get('/expenses/options/categories'),
         create: (data) => api.post('/expenses', data),
         update: (id, data) => api.put(`/expenses/${id}`, data),
         delete: (id) => api.delete(`/expenses/${id}`)
@@ -284,7 +312,10 @@ const api = {
         // User strategy
         getStrategy: () => api.get('/retirement/strategy'),
         saveStrategy: (data) => api.post('/retirement/strategy', data),
-        deleteStrategy: () => api.delete('/retirement/strategy')
+        deleteStrategy: () => api.delete('/retirement/strategy'),
+        // Withdrawal strategy
+        getWithdrawalStrategy: (currentAge = 35, retirementAge = 60, lifeExpectancy = 85) =>
+            api.get(`/retirement/withdrawal-strategy?currentAge=${currentAge}&retirementAge=${retirementAge}&lifeExpectancy=${lifeExpectancy}`)
     },
 
     // Analysis

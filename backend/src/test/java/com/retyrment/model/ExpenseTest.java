@@ -117,7 +117,7 @@ class ExpenseTest {
             Expense expense = Expense.builder()
                     .name("Valid Expense")
                     .category(Expense.ExpenseCategory.UTILITIES)
-                    .monthlyAmount(5000.0)
+                    .amount(5000.0)  // Use new 'amount' field
                     .build();
 
             Set<ConstraintViolation<Expense>> violations = validator.validate(expense);
@@ -138,12 +138,26 @@ class ExpenseTest {
                     Expense.ExpenseCategory.GROCERIES,
                     Expense.ExpenseCategory.TRANSPORT,
                     Expense.ExpenseCategory.ENTERTAINMENT,
-                    Expense.ExpenseCategory.EDUCATION,
                     Expense.ExpenseCategory.HEALTHCARE,
                     Expense.ExpenseCategory.SHOPPING,
                     Expense.ExpenseCategory.DINING,
                     Expense.ExpenseCategory.TRAVEL,
                     Expense.ExpenseCategory.SUBSCRIPTIONS,
+                    // Education-related (time-bound)
+                    Expense.ExpenseCategory.SCHOOL_FEE,
+                    Expense.ExpenseCategory.COLLEGE_FEE,
+                    Expense.ExpenseCategory.TUITION,
+                    Expense.ExpenseCategory.COACHING,
+                    Expense.ExpenseCategory.BOOKS_SUPPLIES,
+                    Expense.ExpenseCategory.HOSTEL,
+                    // Dependent care (time-bound)
+                    Expense.ExpenseCategory.CHILDCARE,
+                    Expense.ExpenseCategory.DAYCARE,
+                    Expense.ExpenseCategory.ELDERLY_CARE,
+                    // Other
+                    Expense.ExpenseCategory.MAINTENANCE,
+                    Expense.ExpenseCategory.SOCIETY_CHARGES,
+                    Expense.ExpenseCategory.INSURANCE_PREMIUM,
                     Expense.ExpenseCategory.OTHER
             );
         }

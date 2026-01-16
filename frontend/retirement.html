@@ -233,9 +233,17 @@
                                 class="flex-1 px-6 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 border-b-2 border-transparent">
                             📅 Maturing Before Retirement
                         </button>
+                        <button onclick="switchAnalysisTab('ending-expenses')" id="tab-ending-expenses"
+                                class="flex-1 px-6 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 border-b-2 border-transparent">
+                            🎓 Ending Expenses
+                        </button>
                         <button onclick="switchAnalysisTab('strategy')" id="tab-strategy"
                                 class="flex-1 px-6 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 border-b-2 border-transparent">
                             🎯 Strategy Planner
+                        </button>
+                        <button onclick="switchAnalysisTab('withdrawal')" id="tab-withdrawal"
+                                class="flex-1 px-6 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 border-b-2 border-transparent">
+                            💸 Withdrawal Strategy
                         </button>
                     </div>
 
@@ -325,6 +333,32 @@
                         </div>
                     </div>
 
+                    <!-- Tab Content: Ending Expenses (Time-Bound Expenses) -->
+                    <div id="panel-ending-expenses" class="p-6 hidden">
+                        <div id="ending-expenses-container">
+                            <div class="text-center py-6 text-slate-400">Loading...</div>
+                        </div>
+                    </div>
+
+                    <!-- Tab Content: Withdrawal Strategy -->
+                    <div id="panel-withdrawal" class="p-6 hidden">
+                        <!-- Personalized Withdrawal Schedule -->
+                        <div id="withdrawal-schedule" class="text-sm text-slate-600">
+                            <div class="text-center py-4 text-slate-400">Loading your withdrawal strategy...</div>
+                        </div>
+
+                        <!-- Important Notes -->
+                        <div class="mt-6 p-4 bg-amber-50 rounded-lg border border-amber-200">
+                            <h4 class="font-semibold text-amber-800 mb-2">⚠️ Important Considerations</h4>
+                            <ul class="text-sm text-amber-700 space-y-1">
+                                <li>• <strong>Medical emergencies</strong> - Keep 1-2 years expenses in liquid form always</li>
+                                <li>• <strong>Inflation</strong> - Increase withdrawal by 5-6% annually to maintain lifestyle</li>
+                                <li>• <strong>Sequence of returns risk</strong> - Don't sell equity in down markets; use other assets</li>
+                                <li>• <strong>Consult a tax advisor</strong> - Tax laws change; optimize annually</li>
+                            </ul>
+                        </div>
+                    </div>
+
                     <!-- Tab Content: Strategy Planner -->
                     <div id="panel-strategy" class="p-6 hidden">
                         <!-- Corpus Status Summary -->
@@ -399,26 +433,91 @@
                     </div>
                 </div>
 
-                <!-- Matrix Table -->
-                <div class="card overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead class="bg-slate-50">
-                            <tr>
-                                <th class="px-4 py-3 text-left font-semibold text-slate-500">Year</th>
-                                <th class="px-4 py-3 text-left font-semibold text-slate-500">Age</th>
-                                <th class="px-4 py-3 text-right font-semibold text-slate-500" title="PPF + EPF combined">PPF + EPF</th>
-                                <th class="px-4 py-3 text-right font-semibold text-slate-500">Mutual Funds</th>
-                                <th class="px-4 py-3 text-right font-semibold text-slate-500" title="FD + RD + Stocks + Cash">Other Liquid</th>
-                                <th class="px-4 py-3 text-right font-semibold text-slate-500">SIP/mo</th>
-                                <th class="px-4 py-3 text-right font-semibold text-emerald-600" title="Insurance/Investment maturities">Inflows</th>
-                                <th class="px-4 py-3 text-right font-semibold text-danger-500">Goals</th>
-                                <th class="px-4 py-3 text-right font-semibold text-primary-600">Net Corpus</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100" id="matrix-body">
-                            <tr><td colspan="9" class="px-4 py-8 text-center text-slate-400">Loading...</td></tr>
-                        </tbody>
-                    </table>
+                <!-- SIP Step-Up Optimization Card -->
+                <div id="sip-stepup-optimization" class="card mb-8 hidden">
+                    <div class="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-indigo-200">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="text-2xl">📈</div>
+                                <div>
+                                    <h3 class="font-semibold text-indigo-800">SIP Step-Up Optimization</h3>
+                                    <p class="text-sm text-indigo-600" id="stepup-recommendation">Calculating optimal step-up period...</p>
+                                </div>
+                            </div>
+                            <button onclick="toggleStepUpDetails()" class="text-indigo-500 hover:text-indigo-700 text-sm underline">
+                                View Details
+                            </button>
+                        </div>
+                    </div>
+                    <div id="stepup-details" class="p-4 hidden">
+                        <div class="grid grid-cols-4 gap-4 mb-4">
+                            <div class="text-center p-3 bg-slate-50 rounded-lg">
+                                <div class="text-xs text-slate-500">Initial SIP</div>
+                                <div class="text-lg font-bold text-slate-700" id="stepup-initial-sip">₹0</div>
+                            </div>
+                            <div class="text-center p-3 bg-amber-50 rounded-lg">
+                                <div class="text-xs text-amber-600">SIP at Full Step-Up</div>
+                                <div class="text-lg font-bold text-amber-700" id="stepup-full-sip">₹0</div>
+                            </div>
+                            <div class="text-center p-3 bg-emerald-50 rounded-lg">
+                                <div class="text-xs text-emerald-600">SIP at Optimal Stop</div>
+                                <div class="text-lg font-bold text-emerald-700" id="stepup-optimal-sip">₹0</div>
+                            </div>
+                            <div class="text-center p-3 bg-purple-50 rounded-lg">
+                                <div class="text-xs text-purple-600">Monthly Relief</div>
+                                <div class="text-lg font-bold text-purple-700" id="stepup-relief">₹0</div>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs">
+                                <thead class="bg-slate-100">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-slate-600">Stop Year</th>
+                                        <th class="px-3 py-2 text-right text-slate-600">Final SIP</th>
+                                        <th class="px-3 py-2 text-right text-slate-600">Projected Corpus</th>
+                                        <th class="px-3 py-2 text-right text-slate-600">vs Target</th>
+                                        <th class="px-3 py-2 text-center text-slate-600">Meets Target?</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="stepup-scenarios" class="divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Matrix Table (Collapsible) -->
+                <div class="card">
+                    <!-- Collapsible Header -->
+                    <div id="matrix-header" class="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors">
+                        <div class="flex items-center gap-3">
+                            <span id="matrix-toggle" class="text-slate-400 font-mono text-sm">▼</span>
+                            <h3 class="font-semibold text-slate-700">📊 Year-by-Year Corpus Projection Matrix</h3>
+                        </div>
+                        <span class="text-xs text-slate-400">Click to collapse/expand</span>
+                    </div>
+                    
+                    <!-- Collapsible Content -->
+                    <div id="matrix-content" class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left font-semibold text-slate-500">Year</th>
+                                    <th class="px-4 py-3 text-left font-semibold text-slate-500">Age</th>
+                                    <th class="px-4 py-3 text-right font-semibold text-slate-500" title="PPF + EPF combined">PPF + EPF</th>
+                                    <th class="px-4 py-3 text-right font-semibold text-slate-500">Mutual Funds</th>
+                                    <th class="px-4 py-3 text-right font-semibold text-slate-500" title="FD + RD + Stocks + Cash">Other Liquid</th>
+                                    <th class="px-4 py-3 text-right font-semibold text-slate-500">SIP/mo</th>
+                                    <th class="px-4 py-3 text-center font-semibold text-indigo-500" title="SIP Step-Up Status">Step-Up</th>
+                                    <th class="px-4 py-3 text-right font-semibold text-emerald-600" title="Insurance/Investment maturities">Inflows</th>
+                                    <th class="px-4 py-3 text-right font-semibold text-danger-500">Goals</th>
+                                    <th class="px-4 py-3 text-right font-semibold text-primary-600">Net Corpus</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100" id="matrix-body">
+                                <tr><td colspan="10" class="px-4 py-8 text-center text-slate-400">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </main>

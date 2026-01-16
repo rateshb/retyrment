@@ -405,6 +405,29 @@ public class RetirementService {
         
         // Note about excluded assets
         summary.put("excludedFromCorpus", "Gold, Real Estate, Crypto (illiquid assets)");
+        
+        // Calculate SIP Step-Up Optimization: Find when step-up can stop
+        Map<String, Object> gapData = gapAnalysis;
+        double requiredCorpus = gapData.get("requiredCorpus") != null ? 
+                ((Number) gapData.get("requiredCorpus")).doubleValue() : finalCorpus;
+        
+        Map<String, Object> sipStepUpOptimization = calculateSipStepUpOptimization(
+                mfBalance, mfSipMonthly, simpleMfReturn, sipStepUp, 
+                yearsToRetirement, requiredCorpus, finalCorpus, effectiveFromYear
+        );
+        summary.put("sipStepUpOptimization", sipStepUpOptimization);
+        
+        // Add step-up info to each matrix row
+        Integer optimalStopYear = sipStepUpOptimization.get("optimalStopYear") != null ?
+                ((Number) sipStepUpOptimization.get("optimalStopYear")).intValue() : null;
+        for (int i = 0; i < matrix.size(); i++) {
+            Map<String, Object> row = matrix.get(i);
+            int year = i;
+            boolean isStepUpActive = (optimalStopYear == null || year < optimalStopYear) && year >= effectiveFromYear;
+            row.put("sipStepUpActive", isStepUpActive);
+            row.put("sipStepUpStopYear", optimalStopYear != null ? currentYear + optimalStopYear : null);
+        }
+        
         result.put("summary", summary);
         
         result.put("gapAnalysis", gapAnalysis);
@@ -494,6 +517,149 @@ public class RetirementService {
         
         return totalValue > 0 ? weightedReturn / totalValue : defaultRate;
     }
+
+    /**
+     * Calculate optimal year to stop SIP step-up while still achieving target corpus.
+     * Simulates different stop years and finds the earliest one that meets the required corpus.
+     */
+    private Map<String, Object> calculateSipStepUpOptimization(
+            double mfBalance, double mfSipMonthly, double mfReturn, double sipStepUp,
+            int yearsToRetirement, double requiredCorpus, double currentProjectedCorpus, int effectiveFromYear) {
+        
+        Map<String, Object> result = new LinkedHashMap<>();
+        
+        // If no step-up configured or already at target, no optimization needed
+        if (sipStepUp <= 0 || yearsToRetirement <= 0 || mfSipMonthly <= 0) {
+            result.put("optimalStopYear", null);
+            result.put("canStopEarly", false);
+            result.put("reason", "No SIP step-up configured or no SIP investments");
+            result.put("currentProjectedCorpus", Math.round(currentProjectedCorpus));
+            result.put("requiredCorpus", Math.round(requiredCorpus));
+            return result;
+        }
+        
+        // If already under required corpus even with full step-up, can't stop early
+        if (currentProjectedCorpus < requiredCorpus) {
+            result.put("optimalStopYear", null);
+            result.put("canStopEarly", false);
+            result.put("reason", "Current projection already below required corpus - continue step-up");
+            result.put("currentProjectedCorpus", Math.round(currentProjectedCorpus));
+            result.put("requiredCorpus", Math.round(requiredCorpus));
+            result.put("deficit", Math.round(requiredCorpus - currentProjectedCorpus));
+            return result;
+        }
+        
+        // Binary search to find optimal stop year (earliest year where we still meet target)
+        int optimalStopYear = yearsToRetirement; // Default: continue until retirement
+        double corpusAtOptimalStop = currentProjectedCorpus;
+        
+        // Calculate corpus for each possible stop year
+        List<Map<String, Object>> scenarioAnalysis = new ArrayList<>();
+        
+        for (int stopYear = effectiveFromYear; stopYear <= yearsToRetirement; stopYear++) {
+            double projectedCorpus = simulateCorpusWithStepUpStop(
+                    mfBalance, mfSipMonthly, mfReturn, sipStepUp, 
+                    yearsToRetirement, stopYear, effectiveFromYear
+            );
+            
+            Map<String, Object> scenario = new LinkedHashMap<>();
+            scenario.put("stopYear", stopYear);
+            scenario.put("projectedCorpus", Math.round(projectedCorpus));
+            scenario.put("meetsTarget", projectedCorpus >= requiredCorpus);
+            scenario.put("surplus", Math.round(projectedCorpus - requiredCorpus));
+            
+            // Calculate final SIP at stop point
+            double finalSip = mfSipMonthly;
+            for (int y = effectiveFromYear; y < stopYear; y++) {
+                finalSip = finalSip * (1 + sipStepUp / 100);
+            }
+            scenario.put("finalSipAtStop", Math.round(finalSip));
+            
+            scenarioAnalysis.add(scenario);
+            
+            // Find optimal (earliest year that still meets target)
+            if (projectedCorpus >= requiredCorpus && stopYear < optimalStopYear) {
+                optimalStopYear = stopYear;
+                corpusAtOptimalStop = projectedCorpus;
+            }
+        }
+        
+        // Find first year that meets target
+        Integer firstMeetingYear = null;
+        for (Map<String, Object> scenario : scenarioAnalysis) {
+            if ((Boolean) scenario.get("meetsTarget")) {
+                firstMeetingYear = ((Number) scenario.get("stopYear")).intValue();
+                break;
+            }
+        }
+        
+        // Calculate savings from stopping early
+        double sipAtFullStepUp = mfSipMonthly;
+        for (int y = effectiveFromYear; y < yearsToRetirement; y++) {
+            sipAtFullStepUp = sipAtFullStepUp * (1 + sipStepUp / 100);
+        }
+        
+        double sipAtOptimalStop = mfSipMonthly;
+        for (int y = effectiveFromYear; y < optimalStopYear; y++) {
+            sipAtOptimalStop = sipAtOptimalStop * (1 + sipStepUp / 100);
+        }
+        
+        double monthlyRelief = sipAtFullStepUp - sipAtOptimalStop;
+        
+        result.put("optimalStopYear", firstMeetingYear);
+        result.put("canStopEarly", firstMeetingYear != null && firstMeetingYear < yearsToRetirement);
+        result.put("currentProjectedCorpus", Math.round(currentProjectedCorpus));
+        result.put("corpusAtOptimalStop", Math.round(corpusAtOptimalStop));
+        result.put("requiredCorpus", Math.round(requiredCorpus));
+        result.put("sipAtStart", Math.round(mfSipMonthly));
+        result.put("sipAtFullStepUp", Math.round(sipAtFullStepUp));
+        result.put("sipAtOptimalStop", Math.round(sipAtOptimalStop));
+        result.put("monthlyReliefFromStoppingEarly", Math.round(monthlyRelief));
+        result.put("yearsOfStepUp", firstMeetingYear != null ? firstMeetingYear - effectiveFromYear : yearsToRetirement - effectiveFromYear);
+        result.put("yearsWithoutStepUp", firstMeetingYear != null ? yearsToRetirement - firstMeetingYear : 0);
+        result.put("scenarios", scenarioAnalysis);
+        
+        // Recommendation
+        if (firstMeetingYear != null && firstMeetingYear < yearsToRetirement) {
+            int yearsSaved = yearsToRetirement - firstMeetingYear;
+            result.put("recommendation", String.format(
+                    "You can stop SIP step-up after year %d (age %d) and still meet your target. " +
+                    "This saves %d years of step-up, reducing monthly SIP burden by ₹%,d in final years.",
+                    firstMeetingYear, firstMeetingYear + 35, yearsSaved, Math.round(monthlyRelief)
+            ));
+        } else {
+            result.put("recommendation", "Continue SIP step-up until retirement to meet your target corpus.");
+        }
+        
+        return result;
+    }
+    
+    /**
+     * Simulate corpus growth with SIP step-up stopping at a specific year.
+     */
+    private double simulateCorpusWithStepUpStop(
+            double mfBalance, double mfSipMonthly, double mfReturn, double sipStepUp,
+            int yearsToRetirement, int stepUpStopYear, int effectiveFromYear) {
+        
+        double corpus = mfBalance;
+        double currentSip = mfSipMonthly;
+        
+        for (int year = 1; year <= yearsToRetirement; year++) {
+            // Growth on existing corpus
+            corpus = corpus * (1 + mfReturn / 100);
+            
+            // SIP contribution for this year
+            double sipContribution = calculationService.calculateSIPFutureValue(currentSip, mfReturn, 1);
+            corpus += sipContribution;
+            
+            // Apply step-up only if before stop year and after effective year
+            if (year >= effectiveFromYear && year < stepUpStopYear) {
+                currentSip = currentSip * (1 + sipStepUp / 100);
+            }
+        }
+        
+        return corpus;
+    }
     
     /**
      * Calculate GAP analysis between projected corpus and required corpus
@@ -516,10 +682,57 @@ public class RetirementService {
         
         Map<String, Object> gap = new LinkedHashMap<>();
         
-        // Calculate current monthly expenses from expense table - filter by userId
-        double currentMonthlyExpenses = expenseRepository.findByUserId(userId).stream()
-                .mapToDouble(e -> e.getMonthlyAmount() != null ? e.getMonthlyAmount() : 0)
+        int currentYear = LocalDate.now().getYear();
+        int retirementYear = currentYear + yearsToRetirement;
+        
+        // Get all expenses and separate into time-bound and recurring
+        List<Expense> allExpenses = expenseRepository.findByUserId(userId);
+        
+        // Calculate current monthly expenses (using new getMonthlyEquivalent method)
+        double currentMonthlyExpenses = allExpenses.stream()
+                .mapToDouble(Expense::getMonthlyEquivalent)
                 .sum();
+        
+        // Separate time-bound expenses that end before retirement
+        List<Expense> timeBoundExpenses = allExpenses.stream()
+                .filter(e -> Boolean.TRUE.equals(e.getIsTimeBound()))
+                .toList();
+        
+        List<Expense> recurringExpenses = allExpenses.stream()
+                .filter(e -> !Boolean.TRUE.equals(e.getIsTimeBound()))
+                .toList();
+        
+        // Calculate expenses that continue after retirement
+        double expensesContinuingAfterRetirement = allExpenses.stream()
+                .filter(e -> e.willContinueAfterRetirement(retirementYear))
+                .mapToDouble(Expense::getMonthlyEquivalent)
+                .sum();
+        
+        // Calculate expenses that end before retirement (investment opportunity)
+        List<Map<String, Object>> endingExpenses = new ArrayList<>();
+        double monthlyFreedUpByRetirement = 0;
+        
+        for (Expense expense : timeBoundExpenses) {
+            Integer endYear = expense.calculateEndYear();
+            if (endYear != null && endYear < retirementYear) {
+                Map<String, Object> expenseInfo = new LinkedHashMap<>();
+                expenseInfo.put("name", expense.getName());
+                expenseInfo.put("category", expense.getCategory().toString());
+                expenseInfo.put("monthlyAmount", Math.round(expense.getMonthlyEquivalent()));
+                expenseInfo.put("yearlyAmount", Math.round(expense.getYearlyAmount()));
+                expenseInfo.put("endYear", endYear);
+                expenseInfo.put("dependentName", expense.getDependentName());
+                expenseInfo.put("yearsRemaining", endYear - currentYear);
+                
+                // Calculate potential corpus if this money is invested after expense ends
+                int yearsToInvest = retirementYear - endYear;
+                double potentialCorpus = calculateSIPFutureValue(expense.getMonthlyEquivalent(), 12.0, yearsToInvest);
+                expenseInfo.put("potentialCorpusIfInvested", Math.round(potentialCorpus));
+                
+                endingExpenses.add(expenseInfo);
+                monthlyFreedUpByRetirement += expense.getMonthlyEquivalent();
+            }
+        }
         
         // Calculate insurance premiums that continue after retirement - filter by userId
         List<Insurance> allInsurance = insuranceRepository.findByUserId(userId);
@@ -548,16 +761,19 @@ public class RetirementService {
         // Total monthly expenses including insurance premiums that continue
         double totalCurrentMonthlyExpenses = currentMonthlyExpenses + monthlyInsurancePremiumsAfterRetirement;
         
-        // Add monthly EMIs (loans)
-        double monthlyEMIs = 0; // Loans would have ended by retirement ideally
+        // Monthly expenses that will continue after retirement (excluding time-bound that end)
+        double monthlyExpensesContinuingAfterRetirement = expensesContinuingAfterRetirement + monthlyInsurancePremiumsAfterRetirement;
+        
+        // Note: Loans are assumed to have ended by retirement ideally
         
         // Calculate required corpus based on goals or expenses
         double totalGoalAmount = goals.stream()
                 .mapToDouble(g -> g.getTargetAmount() != null ? g.getTargetAmount() : 0)
                 .sum();
         
-        // Monthly expense at retirement = (current expense + continuing insurance) * (1 + inflation)^years
-        double inflatedMonthlyExpense = totalCurrentMonthlyExpenses * 
+        // Monthly expense at retirement = ONLY expenses that continue * (1 + inflation)^years
+        // This is more accurate as time-bound expenses (school fees, etc.) will have ended
+        double inflatedMonthlyExpense = monthlyExpensesContinuingAfterRetirement * 
                 Math.pow(1 + inflationRate / 100, yearsToRetirement);
         
         // Yearly expense at retirement
@@ -756,6 +972,20 @@ public class RetirementService {
         gap.put("suggestions", suggestions);
         gap.put("expenseProjection", expenseProjection);
         
+        // Time-bound expense analysis
+        gap.put("timeBoundExpenseCount", timeBoundExpenses.size());
+        gap.put("recurringExpenseCount", recurringExpenses.size());
+        gap.put("monthlyExpensesContinuingAfterRetirement", Math.round(monthlyExpensesContinuingAfterRetirement));
+        gap.put("monthlyFreedUpByRetirement", Math.round(monthlyFreedUpByRetirement));
+        gap.put("yearlyFreedUpByRetirement", Math.round(monthlyFreedUpByRetirement * 12));
+        gap.put("endingExpensesBeforeRetirement", endingExpenses);
+        
+        // Calculate total potential corpus from freed-up expenses
+        double totalPotentialFromFreedUp = endingExpenses.stream()
+                .mapToDouble(e -> ((Number) e.get("potentialCorpusIfInvested")).doubleValue())
+                .sum();
+        gap.put("potentialCorpusFromFreedUpExpenses", Math.round(totalPotentialFromFreedUp));
+        
         return gap;
     }
     
@@ -898,6 +1128,16 @@ public class RetirementService {
     }
     
     /**
+     * Calculate SIP future value for internal use
+     */
+    private double calculateSIPFutureValue(double monthlySIP, double annualRate, int years) {
+        if (years <= 0 || monthlySIP <= 0) return 0;
+        double monthlyRate = annualRate / 100 / 12;
+        int months = years * 12;
+        return monthlySIP * ((Math.pow(1 + monthlyRate, months) - 1) / monthlyRate) * (1 + monthlyRate);
+    }
+    
+    /**
      * Calculate expected maturity value for an investment based on its type.
      */
     private double calculateExpectedMaturityValue(Investment inv) {
@@ -948,5 +1188,375 @@ public class RetirementService {
         // Default: assume current value grows at expected return
         double rate = inv.getExpectedReturn() != null ? inv.getExpectedReturn() : 7.0;
         return calculationService.calculateFutureValue(currentValue, rate, (int) yearsToMaturity);
+    }
+
+    /**
+     * Generate withdrawal strategy recommendations for retirement.
+     * Provides optimal order of fund withdrawal to maximize tax efficiency and corpus longevity.
+     */
+    public Map<String, Object> generateWithdrawalStrategy(String userId, int currentAge, int retirementAge, int lifeExpectancy) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        
+        int yearsToRetirement = retirementAge - currentAge;
+        int retirementYears = lifeExpectancy - retirementAge;
+        
+        // Get all investments
+        List<Investment> investments = investmentRepository.findByUserId(userId);
+        
+        // Categorize assets by withdrawal phase
+        Map<String, Object> phase1 = new LinkedHashMap<>(); // Taxable & Liquid (first)
+        Map<String, Object> phase2 = new LinkedHashMap<>(); // Tax-Deferred (second)
+        Map<String, Object> phase3 = new LinkedHashMap<>(); // Tax-Free & Long-Term (last)
+        
+        List<Map<String, Object>> phase1Assets = new ArrayList<>();
+        List<Map<String, Object>> phase2Assets = new ArrayList<>();
+        List<Map<String, Object>> phase3Assets = new ArrayList<>();
+        
+        double phase1Total = 0, phase2Total = 0, phase3Total = 0;
+        
+        for (Investment inv : investments) {
+            double futureValue = calculateProjectedValueAtRetirement(inv, yearsToRetirement);
+            if (futureValue <= 0) continue;
+            
+            Map<String, Object> asset = new LinkedHashMap<>();
+            asset.put("id", inv.getId());
+            asset.put("name", inv.getName());
+            asset.put("type", inv.getType() != null ? inv.getType().name() : "OTHER");
+            asset.put("currentValue", Math.round(inv.getCurrentValue() != null ? inv.getCurrentValue() : 0));
+            asset.put("projectedValueAtRetirement", Math.round(futureValue));
+            
+            Investment.InvestmentType type = inv.getType();
+            
+            if (type == null) {
+                phase2Assets.add(asset);
+                asset.put("reason", "Default category for unspecified type");
+                asset.put("taxTreatment", "Varies");
+                phase2Total += futureValue;
+            } else {
+                switch (type) {
+                    case CASH:
+                        phase1Assets.add(asset);
+                        asset.put("reason", "Already taxed, no growth benefit from deferral");
+                        asset.put("taxTreatment", "Interest taxed as income");
+                        asset.put("withdrawalTip", "Use for immediate expenses in early retirement");
+                        phase1Total += futureValue;
+                        break;
+                        
+                    case FD:
+                    case RD:
+                        phase1Assets.add(asset);
+                        asset.put("reason", "Low returns, interest taxed annually");
+                        asset.put("taxTreatment", "Interest taxed as per income slab");
+                        asset.put("withdrawalTip", "Withdraw as they mature, don't renew");
+                        phase1Total += futureValue;
+                        break;
+                        
+                    case STOCK:
+                        phase1Assets.add(asset);
+                        asset.put("reason", "Taxable gains, harvest losses strategically");
+                        asset.put("taxTreatment", "LTCG above ₹1L taxed at 10%");
+                        asset.put("withdrawalTip", "Harvest ₹1L LTCG tax-free each year");
+                        phase1Total += futureValue;
+                        break;
+                        
+                    case EPF:
+                        phase2Assets.add(asset);
+                        asset.put("reason", "Tax-free after 5 years, withdraw gradually");
+                        asset.put("taxTreatment", "Tax-free if 5+ years of service");
+                        asset.put("withdrawalTip", "Consider pension option for regular income");
+                        phase2Total += futureValue;
+                        break;
+                        
+                    case NPS:
+                        phase2Assets.add(asset);
+                        asset.put("reason", "40% mandatory annuity, 60% tax-free");
+                        asset.put("taxTreatment", "60% tax-free, annuity income taxable");
+                        asset.put("withdrawalTip", "Choose annuity with return of purchase price");
+                        asset.put("mandatoryAnnuityPercent", 40);
+                        phase2Total += futureValue;
+                        break;
+                        
+                    case MUTUAL_FUND:
+                        phase2Assets.add(asset);
+                        asset.put("reason", "Tax-efficient if held long-term");
+                        asset.put("taxTreatment", "LTCG after 1 year, indexed for debt");
+                        asset.put("withdrawalTip", "SWP for tax-efficient regular income");
+                        phase2Total += futureValue;
+                        break;
+                        
+                    case PPF:
+                        phase3Assets.add(asset);
+                        asset.put("reason", "Completely tax-free, continue to grow");
+                        asset.put("taxTreatment", "100% tax-free (EEE status)");
+                        asset.put("withdrawalTip", "Extend in 5-year blocks, withdraw last");
+                        phase3Total += futureValue;
+                        break;
+                        
+                    case GOLD:
+                        phase3Assets.add(asset);
+                        asset.put("reason", "Inflation hedge, emergency reserve");
+                        asset.put("taxTreatment", "SGB maturity tax-free, physical gold LTCG after 3 years");
+                        asset.put("withdrawalTip", "Sell only in emergencies or for legacy");
+                        phase3Total += futureValue;
+                        break;
+                        
+                    case REAL_ESTATE:
+                        phase3Assets.add(asset);
+                        asset.put("reason", "Legacy asset, consider rental income");
+                        asset.put("taxTreatment", "LTCG after 2 years with indexation");
+                        asset.put("withdrawalTip", "Rental income or reverse mortgage option");
+                        phase3Total += futureValue;
+                        break;
+                        
+                    case CRYPTO:
+                        phase1Assets.add(asset);
+                        asset.put("reason", "High volatility, use during favorable markets");
+                        asset.put("taxTreatment", "30% flat tax on gains");
+                        asset.put("withdrawalTip", "Sell during bull markets, use for discretionary");
+                        phase1Total += futureValue;
+                        break;
+                        
+                    default:
+                        phase2Assets.add(asset);
+                        asset.put("reason", "Standard tax treatment");
+                        asset.put("taxTreatment", "Varies by holding period");
+                        phase2Total += futureValue;
+                        break;
+                }
+            }
+        }
+        
+        // Build phase summaries
+        phase1.put("name", "Taxable & Liquid Assets");
+        phase1.put("description", "Use first - already taxed, let other assets grow");
+        phase1.put("suggestedAgeRange", retirementAge + " - " + Math.min(retirementAge + 5, lifeExpectancy));
+        phase1.put("total", Math.round(phase1Total));
+        phase1.put("assets", phase1Assets);
+        phase1.put("priority", 1);
+        phase1.put("color", "emerald");
+        
+        phase2.put("name", "Tax-Deferred Accounts");
+        phase2.put("description", "Mandatory withdrawals, plan around them");
+        phase2.put("suggestedAgeRange", Math.min(retirementAge + 5, lifeExpectancy) + " - " + Math.min(retirementAge + 15, lifeExpectancy));
+        phase2.put("total", Math.round(phase2Total));
+        phase2.put("assets", phase2Assets);
+        phase2.put("priority", 2);
+        phase2.put("color", "blue");
+        
+        phase3.put("name", "Tax-Free & Long-Term");
+        phase3.put("description", "Keep growing tax-free, use as backup");
+        phase3.put("suggestedAgeRange", Math.min(retirementAge + 15, lifeExpectancy) + " - " + lifeExpectancy + "+");
+        phase3.put("total", Math.round(phase3Total));
+        phase3.put("assets", phase3Assets);
+        phase3.put("priority", 3);
+        phase3.put("color", "purple");
+        
+        // Calculate withdrawal schedule
+        double totalCorpus = phase1Total + phase2Total + phase3Total;
+        
+        // Get monthly expenses from expenses
+        List<Expense> expenses = expenseRepository.findByUserId(userId);
+        double monthlyExpenses = expenses.stream()
+                .filter(e -> e.getAmount() != null)
+                .mapToDouble(e -> {
+                    double amount = e.getAmount();
+                    Expense.ExpenseFrequency freq = e.getFrequency();
+                    if (freq == null) freq = Expense.ExpenseFrequency.MONTHLY;
+                    switch (freq) {
+                        case MONTHLY: return amount;
+                        case QUARTERLY: return amount / 3;
+                        case HALF_YEARLY: return amount / 6;
+                        case YEARLY: return amount / 12;
+                        case ONE_TIME: return 0; // One-time expenses not included in monthly
+                        default: return amount;
+                    }
+                })
+                .sum();
+        
+        // Project expenses to retirement
+        double inflationRate = 0.06;
+        double monthlyExpenseAtRetirement = monthlyExpenses * Math.pow(1 + inflationRate, yearsToRetirement);
+        double yearlyExpenseAtRetirement = monthlyExpenseAtRetirement * 12;
+        
+        // Calculate years each phase can support
+        int phase1Years = yearlyExpenseAtRetirement > 0 ? (int) Math.floor(phase1Total / yearlyExpenseAtRetirement) : 0;
+        int phase2Years = yearlyExpenseAtRetirement > 0 ? (int) Math.floor(phase2Total / yearlyExpenseAtRetirement) : 0;
+        int phase3Years = yearlyExpenseAtRetirement > 0 ? (int) Math.floor(phase3Total / yearlyExpenseAtRetirement) : 0;
+        int totalYearsCovered = phase1Years + phase2Years + phase3Years;
+        
+        phase1.put("yearsCovered", phase1Years);
+        phase2.put("yearsCovered", phase2Years);
+        phase3.put("yearsCovered", phase3Years);
+        
+        // Calculate safe withdrawal rate metrics
+        double safeWithdrawalRate = 0.04; // 4% rule
+        double safeMonthlyWithdrawal = totalCorpus * safeWithdrawalRate / 12;
+        double sustainableRate = 0.06; // Assuming 8% return, 6% withdrawal
+        double sustainableMonthlyWithdrawal = totalCorpus * sustainableRate / 12;
+        
+        // Withdrawal schedule by year
+        List<Map<String, Object>> withdrawalSchedule = new ArrayList<>();
+        double remainingCorpus = totalCorpus;
+        double currentPhase1 = phase1Total;
+        double currentPhase2 = phase2Total;
+        double currentPhase3 = phase3Total;
+        
+        for (int year = 0; year < retirementYears && year < 30; year++) {
+            Map<String, Object> yearData = new LinkedHashMap<>();
+            int age = retirementAge + year;
+            double yearlyExpense = yearlyExpenseAtRetirement * Math.pow(1 + inflationRate, year);
+            
+            yearData.put("year", year + 1);
+            yearData.put("age", age);
+            yearData.put("yearlyExpense", Math.round(yearlyExpense));
+            yearData.put("corpusAtStart", Math.round(remainingCorpus));
+            
+            // Determine which phase to withdraw from
+            String withdrawFrom;
+            if (currentPhase1 > 0) {
+                withdrawFrom = "Phase 1";
+                double withdrawal = Math.min(yearlyExpense, currentPhase1);
+                currentPhase1 -= withdrawal;
+                remainingCorpus -= withdrawal;
+                // Other phases continue to grow
+                currentPhase2 *= 1.08;
+                currentPhase3 *= 1.07;
+            } else if (currentPhase2 > 0) {
+                withdrawFrom = "Phase 2";
+                double withdrawal = Math.min(yearlyExpense, currentPhase2);
+                currentPhase2 -= withdrawal;
+                remainingCorpus -= withdrawal;
+                currentPhase3 *= 1.07;
+            } else {
+                withdrawFrom = "Phase 3";
+                double withdrawal = Math.min(yearlyExpense, currentPhase3);
+                currentPhase3 -= withdrawal;
+                remainingCorpus -= withdrawal;
+            }
+            
+            yearData.put("withdrawFrom", withdrawFrom);
+            yearData.put("corpusAtEnd", Math.round(Math.max(0, currentPhase1 + currentPhase2 + currentPhase3)));
+            
+            // Check if corpus depleted
+            if (remainingCorpus <= 0) {
+                yearData.put("warning", "Corpus depleted");
+                withdrawalSchedule.add(yearData);
+                break;
+            }
+            
+            withdrawalSchedule.add(yearData);
+        }
+        
+        // Tax optimization tips
+        List<Map<String, Object>> taxTips = new ArrayList<>();
+        
+        Map<String, Object> tip1 = new LinkedHashMap<>();
+        tip1.put("title", "Stay under ₹7L taxable income");
+        tip1.put("description", "Senior citizens (60+) get higher basic exemption. Plan withdrawals to stay under limit.");
+        tip1.put("savingsEstimate", "Up to ₹31,200/year in tax savings");
+        taxTips.add(tip1);
+        
+        Map<String, Object> tip2 = new LinkedHashMap<>();
+        tip2.put("title", "Harvest LTCG up to ₹1L/year");
+        tip2.put("description", "Sell and rebuy equity investments to reset cost basis and use tax-free LTCG limit.");
+        tip2.put("savingsEstimate", "₹10,000/year in tax savings");
+        taxTips.add(tip2);
+        
+        Map<String, Object> tip3 = new LinkedHashMap<>();
+        tip3.put("title", "Use SCSS & PMVVY");
+        tip3.put("description", "Senior Citizen Savings Scheme and Pradhan Mantri Vaya Vandana Yojana offer 8%+ returns.");
+        tip3.put("savingsEstimate", "1-2% higher returns than FD");
+        taxTips.add(tip3);
+        
+        Map<String, Object> tip4 = new LinkedHashMap<>();
+        tip4.put("title", "Health insurance premium deduction");
+        tip4.put("description", "Deduction up to ₹50,000 for senior citizens under Section 80D.");
+        tip4.put("savingsEstimate", "Up to ₹15,600/year in tax savings");
+        taxTips.add(tip4);
+        
+        // Build result
+        result.put("phases", List.of(phase1, phase2, phase3));
+        result.put("summary", Map.of(
+                "totalCorpusAtRetirement", Math.round(totalCorpus),
+                "monthlyExpenseAtRetirement", Math.round(monthlyExpenseAtRetirement),
+                "yearlyExpenseAtRetirement", Math.round(yearlyExpenseAtRetirement),
+                "totalYearsCovered", totalYearsCovered,
+                "retirementYears", retirementYears,
+                "safeMonthlyWithdrawal", Math.round(safeMonthlyWithdrawal),
+                "sustainableMonthlyWithdrawal", Math.round(sustainableMonthlyWithdrawal),
+                "isSustainable", safeMonthlyWithdrawal >= monthlyExpenseAtRetirement,
+                "shortfallOrSurplus", Math.round(safeMonthlyWithdrawal - monthlyExpenseAtRetirement)
+        ));
+        result.put("withdrawalSchedule", withdrawalSchedule);
+        result.put("taxOptimizationTips", taxTips);
+        
+        // Important notes
+        List<String> importantNotes = List.of(
+                "Keep 1-2 years expenses in liquid form for emergencies",
+                "Increase withdrawal by 5-6% annually to maintain lifestyle against inflation",
+                "Avoid selling equity in down markets - use other assets temporarily",
+                "Review and rebalance portfolio annually",
+                "Consult a tax advisor as tax laws change frequently"
+        );
+        result.put("importantNotes", importantNotes);
+        
+        return result;
+    }
+    
+    /**
+     * Calculate projected value of investment at retirement.
+     */
+    private double calculateProjectedValueAtRetirement(Investment inv, int yearsToRetirement) {
+        double currentValue = inv.getCurrentValue() != null ? inv.getCurrentValue() : 0;
+        if (currentValue <= 0 && inv.getInvestedAmount() != null) {
+            currentValue = inv.getInvestedAmount();
+        }
+        if (currentValue <= 0) return 0;
+        
+        double expectedReturn = inv.getExpectedReturn() != null ? inv.getExpectedReturn() : getDefaultReturnForType(inv.getType());
+        double monthlySip = inv.getMonthlySip() != null ? inv.getMonthlySip() : 0;
+        
+        // Lump sum growth
+        double futureValue = calculationService.calculateFutureValue(currentValue, expectedReturn, yearsToRetirement);
+        
+        // SIP growth
+        if (monthlySip > 0) {
+            futureValue += calculationService.calculateSIPFutureValue(monthlySip, expectedReturn, yearsToRetirement);
+        }
+        
+        return futureValue;
+    }
+    
+    /**
+     * Get default expected return for investment type.
+     */
+    private double getDefaultReturnForType(Investment.InvestmentType type) {
+        if (type == null) return 7.0;
+        switch (type) {
+            case STOCK:
+                return 12.0;
+            case MUTUAL_FUND:
+                return 10.0;
+            case FD:
+                return 6.5;
+            case RD:
+                return 6.0;
+            case PPF:
+                return defaultPpfReturn;
+            case EPF:
+                return defaultEpfReturn;
+            case NPS:
+                return 10.0;
+            case GOLD:
+                return 8.0;
+            case REAL_ESTATE:
+                return 7.0;
+            case CASH:
+                return 3.5;
+            case CRYPTO:
+                return 15.0; // High volatility, high potential return
+            default:
+                return 7.0;
+        }
     }
 }

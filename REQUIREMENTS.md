@@ -1,4 +1,4 @@
-# WealthVision - Financial Planning Application
+# Retyrment - Financial Planning Application
 
 ## Project Overview
 
@@ -12,7 +12,7 @@ A comprehensive personal finance planning application to help individual users a
 |-------|-------|
 | **Status** | Final Draft - Phase 1 |
 | **Last Updated** | 2026-01-14 |
-| **Author** | WealthVision Team |
+| **Author** | Retyrment Team |
 
 ---
 
@@ -619,7 +619,7 @@ The dashboard displays actionable financial alerts:
 ### 6.1 Collections Overview
 
 ```
-wealthvision_db
+Retyrment_db
 ├── users (future - for multi-user)
 ├── income
 ├── investments
@@ -834,10 +834,10 @@ wealthvision_db
 ## 8. Project Structure
 
 ```
-wealthvision/
+Retyrment/
 ├── backend/
-│   ├── src/main/java/com/wealthvision/
-│   │   ├── WealthVisionApplication.java
+│   ├── src/main/java/com/Retyrment/
+│   │   ├── RetyrmentApplication.java
 │   │   ├── config/
 │   │   │   ├── MongoConfig.java
 │   │   │   └── CorsConfig.java

@@ -1,4 +1,4 @@
-# WealthVision - Complete Features Summary
+# Retyrment - Complete Features Summary
 
 **Last Updated:** January 15, 2026  
 **Version:** 1.0.0
@@ -7,7 +7,7 @@
 
 ## 🎯 Core Features Overview
 
-WealthVision is a comprehensive personal finance planning application designed for Indian investors. It provides complete tracking, analysis, and planning tools for managing personal finances, investments, and retirement planning.
+Retyrment is a comprehensive personal finance planning application designed for Indian investors. It provides complete tracking, analysis, and planning tools for managing personal finances, investments, and retirement planning.
 
 ---
 
@@ -389,7 +389,7 @@ Admins can control feature access on a per-user basis, overriding default role-b
 - **Product Page** (`product.html`) - Product details
 - **Features Page** (`features.html`) - Feature showcase
 - **Pricing Page** (`pricing.html`) - Pricing information
-- **About Page** (`about.html`) - About WealthVision
+- **About Page** (`about.html`) - About Retyrment
 
 ### Authenticated Pages
 - **Dashboard** (`index.html`) - Financial overview
@@ -559,4 +559,4 @@ Admins can control feature access on a per-user basis, overriding default role-b
 
 ---
 
-**WealthVision** - Plan Your Financial Future with Confidence
+**Retyrment** - Plan Your Financial Future with Confidence

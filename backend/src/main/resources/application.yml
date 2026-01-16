@@ -1,9 +1,9 @@
-# WealthVision - Common Configuration
+# Retyrment - Common Configuration
 # Profile-specific settings override these values
 
 spring:
   application:
-    name: wealthvision
+    name: retyrment
   
   # Default profile
   profiles:
@@ -37,16 +37,16 @@ server:
 
 # Application settings
 app:
-  name: WealthVision
+  name: Retyrment
   version: 1.0.0
   
   # JWT Settings
   jwt:
-    secret: wealthvision-secret-key-for-jwt-tokens-must-be-at-least-256-bits-long
+    secret: retyrment-secret-key-for-jwt-tokens-must-be-at-least-256-bits-long
     expiration: 86400000  # 24 hours in milliseconds
   
   # Frontend URL for OAuth2 redirect
-  frontend-url: http://localhost:5000
+  frontend-url: http://localhost:3000
   
   # Admin/Superuser configuration
   admin:

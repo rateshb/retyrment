@@ -26,6 +26,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -118,8 +119,8 @@ class ExpenseControllerIntegrationTest {
         @Test
         @DisplayName("should return expenses filtered by category")
         void shouldReturnExpensesByCategory() {
-            when(expenseRepository.findByUserId("user-1"))
-                    .thenReturn(Arrays.asList(user1Expense1, user1Expense2));
+            when(expenseRepository.findByUserIdAndCategory("user-1", ExpenseCategory.GROCERIES))
+                    .thenReturn(Arrays.asList(user1Expense1));
 
             List<Expense> result = expenseController.getExpensesByCategory(ExpenseCategory.GROCERIES);
 
@@ -131,8 +132,8 @@ class ExpenseControllerIntegrationTest {
         @Test
         @DisplayName("should return empty list when no expenses match category")
         void shouldReturnEmptyListWhenNoMatch() {
-            when(expenseRepository.findByUserId("user-1"))
-                    .thenReturn(Arrays.asList(user1Expense1, user1Expense2));
+            when(expenseRepository.findByUserIdAndCategory("user-1", ExpenseCategory.ENTERTAINMENT))
+                    .thenReturn(Collections.emptyList());
 
             List<Expense> result = expenseController.getExpensesByCategory(ExpenseCategory.ENTERTAINMENT);
 
@@ -142,8 +143,8 @@ class ExpenseControllerIntegrationTest {
         @Test
         @DisplayName("should handle all expense categories")
         void shouldHandleAllCategories() {
-            when(expenseRepository.findByUserId("user-1"))
-                    .thenReturn(Arrays.asList(user1Expense1));
+            when(expenseRepository.findByUserIdAndCategory(eq("user-1"), any(ExpenseCategory.class)))
+                    .thenReturn(Collections.emptyList());
 
             // Test each category - should not throw exceptions
             for (ExpenseCategory category : ExpenseCategory.values()) {

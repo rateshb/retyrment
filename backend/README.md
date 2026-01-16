@@ -1,6 +1,6 @@
-# WealthVision Backend
+# Retyrment Backend
 
-A Spring Boot backend for the WealthVision personal finance planning application.
+A Spring Boot backend for the Retyrment personal finance and retirement planning application.
 
 ## Technology Stack
 
@@ -68,8 +68,8 @@ mvn spring-boot:run -Dspring-boot.run.profiles=local
 ### Environment Variables (for dev/prod)
 
 ```bash
-export MONGO_URI=mongodb://your-server:27017/wealthvision
-export MONGO_DATABASE=wealthvision_prod
+export MONGO_URI=mongodb://your-server:27017/retyrment
+export MONGO_DATABASE=retyrment_prod
 ```
 
 ## API Endpoints
@@ -157,8 +157,8 @@ export MONGO_DATABASE=wealthvision_prod
 
 ```
 backend/
-├── src/main/java/com/wealthvision/
-│   ├── WealthVisionApplication.java
+├── src/main/java/com/retyrment/
+│   ├── RetyrmentApplication.java
 │   ├── config/
 │   │   ├── CorsConfig.java
 │   │   └── MongoConfig.java
@@ -207,13 +207,13 @@ backend/
 mvn clean package -DskipTests
 ```
 
-This creates `target/wealthvision-1.0.0.jar`
+This creates `target/retyrment-1.0.0.jar`
 
 ## Running in Production
 
 ```bash
 java -Xms512m -Xmx1024m \
-     -jar target/wealthvision-1.0.0.jar \
+     -jar target/retyrment-1.0.0.jar \
      --spring.profiles.active=prod
 ```
 

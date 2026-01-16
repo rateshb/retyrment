@@ -1,9 +1,9 @@
 @echo off
-REM WealthVision - Run Local Development Server
+REM Retyrment - Run Local Development Server
 REM Usage: run-local.bat
 
 echo ============================================
-echo   WealthVision - Local Development Mode
+echo   Retyrment - Local Development Mode
 echo ============================================
 echo.
 
@@ -16,7 +16,7 @@ if %ERRORLEVEL% NEQ 0 (
     echo.
 )
 
-echo Starting WealthVision with LOCAL profile...
+echo Starting Retyrment with LOCAL profile...
 echo.
 
 call mvn spring-boot:run -Dspring-boot.run.profiles=local

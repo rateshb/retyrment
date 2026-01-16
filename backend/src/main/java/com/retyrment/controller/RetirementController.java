@@ -108,6 +108,19 @@ public class RetirementController {
         return retirementService.calculateMaturingBeforeRetirement(userId, currentAge, retirementAge);
     }
 
+    /**
+     * Get withdrawal strategy recommendations.
+     * Provides optimal order of fund withdrawal after retirement.
+     */
+    @GetMapping("/withdrawal-strategy")
+    public Map<String, Object> getWithdrawalStrategy(
+            @RequestParam(defaultValue = "35") int currentAge,
+            @RequestParam(defaultValue = "60") int retirementAge,
+            @RequestParam(defaultValue = "85") int lifeExpectancy) {
+        String userId = getCurrentUserId();
+        return retirementService.generateWithdrawalStrategy(userId, currentAge, retirementAge, lifeExpectancy);
+    }
+
     // ==================== USER STRATEGY ENDPOINTS ====================
 
     /**

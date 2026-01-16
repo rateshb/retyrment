@@ -1,4 +1,4 @@
-# WealthVision - User Guide
+# Retyrment - User Guide
 
 ## Table of Contents
 1. [Getting Started](#getting-started)
@@ -35,7 +35,7 @@
 
 ### Login Process
 1. Click "Sign In with Google" on the login page
-2. Authorize WealthVision to access your Google account
+2. Authorize Retyrment to access your Google account
 3. You'll be redirected back with an authentication token
 4. Your session is stored in browser localStorage
 
@@ -496,7 +496,7 @@ For questions or issues:
 
 ## Mobile Access
 
-Currently, WealthVision is optimized for desktop browsers:
+Currently, Retyrment is optimized for desktop browsers:
 - Chrome (latest) ✅
 - Firefox (latest) ✅
 - Safari ❌

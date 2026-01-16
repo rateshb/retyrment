@@ -1,10 +1,10 @@
 #!/bin/bash
-# WealthVision - Run Production Server
+# Retyrment - Run Production Server
 # Usage: ./run-prod.sh
 # Requires: MONGO_URI, MONGO_DATABASE environment variables
 
 echo "============================================"
-echo "  WealthVision - Production Mode"
+echo "  Retyrment - Production Mode"
 echo "============================================"
 echo ""
 
@@ -22,9 +22,9 @@ echo ""
 echo "Building production JAR..."
 ./mvnw clean package -DskipTests -Pprod
 
-echo "Starting WealthVision with PROD profile..."
+echo "Starting Retyrment with PROD profile..."
 echo ""
 
 java -Xms512m -Xmx1024m \
-     -jar target/wealthvision-1.0.0.jar \
+     -jar target/retyrment-1.0.0.jar \
      --spring.profiles.active=prod

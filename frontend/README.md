@@ -1,4 +1,4 @@
-# WealthVision Frontend
+# Retyrment Frontend
 
 A modern, responsive personal finance planner built with HTML5, Tailwind CSS, Chart.js, and jsPDF.
 

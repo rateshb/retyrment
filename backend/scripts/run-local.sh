@@ -1,9 +1,9 @@
 #!/bin/bash
-# WealthVision - Run Local Development Server
+# Retyrment - Run Local Development Server
 # Usage: ./run-local.sh
 
 echo "============================================"
-echo "  WealthVision - Local Development Mode"
+echo "  Retyrment - Local Development Mode"
 echo "============================================"
 echo ""
 
@@ -16,7 +16,7 @@ if ! pgrep -x "mongod" > /dev/null; then
     echo ""
 fi
 
-echo "Starting WealthVision with LOCAL profile..."
+echo "Starting Retyrment with LOCAL profile..."
 echo ""
 
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
