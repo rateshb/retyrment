@@ -119,12 +119,6 @@ jobs:
           distribution: 'temurin'
           cache: maven
       
-      - name: Download test results and coverage
-        uses: actions/download-artifact@v4
-        with:
-          name: test-results
-          path: backend/target/
-      
       - name: Build project (for SonarCloud analysis)
         working-directory: backend
         run: mvn clean compile -DskipTests
@@ -132,6 +126,38 @@ jobs:
           SPRING_DATA_MONGODB_URI: mongodb://localhost:27017/retyrment_test
           APP_JWT_SECRET: test-secret-key-for-jwt-tokens-must-be-at-least-256-bits-long-for-testing-purposes
           APP_FRONTEND_URL: http://localhost:3000
+      
+      - name: Download test results and coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: test-results
+          path: backend/target/
+      
+      - name: Verify and regenerate coverage report
+        working-directory: backend
+        run: |
+          echo "Checking coverage files..."
+          if [ -f target/jacoco.exec ]; then
+            echo "✅ Jacoco exec file found"
+            echo "Regenerating XML report to ensure it matches current code..."
+            mvn jacoco:report -DskipTests
+            if [ -f target/site/jacoco/jacoco.xml ]; then
+              echo "✅ Coverage XML report generated successfully"
+            else
+              echo "❌ Failed to generate coverage XML report"
+              exit 1
+            fi
+          else
+            echo "❌ Jacoco exec file not found - coverage cannot be generated"
+            exit 1
+          fi
+      
+      - name: Set SonarCloud project key
+        id: sonar
+        run: |
+          REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
+          echo "projectKey=${{ github.repository_owner }}_${REPO_NAME}" >> $GITHUB_OUTPUT
+          echo "organization=${{ github.repository_owner }}" >> $GITHUB_OUTPUT
       
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
@@ -141,11 +167,12 @@ jobs:
         with:
           projectBaseDir: backend
           args: >
-            -Dsonar.organization=${{ github.repository_owner }} 
-            -Dsonar.projectKey=${{ github.repository_owner }}_${{ github.event.repository.name }} 
+            -Dsonar.organization=${{ steps.sonar.outputs.organization }}
+            -Dsonar.projectKey=${{ steps.sonar.outputs.projectKey }}
+            -Dsonar.sources=src/main/java
+            -Dsonar.tests=src/test/java
             -Dsonar.java.binaries=target/classes
             -Dsonar.java.test.binaries=target/test-classes
-            -Dsonar.projectName="${{ github.event.repository.name }}" 
             -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
             -Dsonar.java.coveragePlugin=jacoco
             -Dsonar.coverage.exclusions=**/model/**,**/security/**,**/exception/**,**/config/**,**/RetyrmentApplication.java
