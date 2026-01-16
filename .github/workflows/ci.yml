@@ -141,9 +141,9 @@ jobs:
         with:
           projectBaseDir: backend
           args: >
-            -Dsonar.organization=${{ github.repository_owner }} \
-            -Dsonar.projectKey=${{ github.repository_owner }}_${{ github.event.repository.name }} \
-            -Dsonar.projectName="${{ github.event.repository.name }}" \
+            -Dsonar.organization=${{ github.repository_owner }} 
+            -Dsonar.projectKey=${{ github.repository_owner }}_${{ github.event.repository.name }} 
+            -Dsonar.projectName="${{ github.event.repository.name }}" 
             -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
             -Dsonar.java.coveragePlugin=jacoco
             -Dsonar.coverage.exclusions=**/model/**,**/security/**,**/exception/**,**/config/**,**/RetyrmentApplication.java
