@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monte Carlo Simulation - Retyrment</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc', 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' },
+                        success: { 50: '#ecfdf5', 100: '#d1fae5', 400: '#34d399', 500: '#10b981', 600: '#059669' },
+                        warning: { 50: '#fffbeb', 100: '#fef3c7', 400: '#fbbf24', 500: '#f59e0b', 600: '#d97706' },
+                        danger: { 50: '#fef2f2', 100: '#fee2e2', 400: '#f87171', 500: '#ef4444', 600: '#dc2626' }
+                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen bg-pattern">
+    <div class="flex h-screen overflow-hidden">
+        <aside class="w-64 bg-white border-r border-slate-200 flex flex-col shadow-sm">
+            <div class="p-5 border-b border-slate-200">
+                <a href="index.html" class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg logo-gradient flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-primary-500/30">₹</div>
+                    <span class="text-xl font-bold bg-gradient-to-r from-primary-500 to-primary-700 bg-clip-text text-transparent">Retyrment</span>
+                </a>
+            </div>
+            <nav class="flex-1 py-4 overflow-y-auto scrollbar-thin">
+                <div class="px-4 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Overview</div>
+                <a href="index.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="dashboard"><span>📊</span> Dashboard</a>
+                <div class="px-4 mt-6 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Data Entry</div>
+                <a href="income.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="income"><span>💰</span> Income</a>
+                <a href="investments.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="investments"><span>📈</span> Investments</a>
+                <a href="loans.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="loans"><span>🏦</span> Loans</a>
+                <a href="insurance.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="insurance"><span>🛡️</span> Insurance</a>
+                <a href="expenses.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="expenses"><span>🛒</span> Expenses</a>
+                <a href="goals.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="goals"><span>🎯</span> Goals</a>
+                <div class="px-4 mt-6 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Analysis</div>
+                <a href="calendar.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="calendar"><span>📅</span> Calendar</a>
+                <a href="retirement.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="retirement"><span>🏖️</span> Retirement</a>
+                <a href="simulation.html" class="nav-item active flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-primary-500 bg-primary-50" data-page="simulation">
+                    <span>🎲</span> Simulation
+                    <span class="pro-badge text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded ml-auto">PRO</span>
+                </a>
+                <a href="reports.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="reports"><span>📑</span> Reports</a>
+            </nav>
+            <div class="p-4 border-t border-slate-200">
+                <a href="preferences.html" class="nav-item flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-slate-700 rounded" data-page="preferences"><span>⚙️</span> Preferences</a>
+                <a href="settings.html" class="nav-item flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-slate-700 rounded mt-1" data-page="settings"><span>🔧</span> Settings</a>
+            </div>
+        </aside>
+
+        <main class="flex-1 overflow-y-auto scrollbar-thin">
+            <header class="sticky top-0 z-10 header-blur border-b border-slate-200 px-8 py-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="text-2xl font-semibold text-slate-800">Monte Carlo Simulation</h1>
+                        <p class="text-sm text-slate-500">Project your portfolio's future with probabilistic modeling</p>
+                    </div>
+                </div>
+            </header>
+
+            <div class="p-8">
+                <!-- PRO Check -->
+                <div id="pro-check" class="hidden">
+                    <div class="card p-8 text-center">
+                        <div class="text-6xl mb-4">🔒</div>
+                        <h2 class="text-2xl font-semibold text-slate-800 mb-2">PRO Feature</h2>
+                        <p class="text-slate-600 mb-6">Monte Carlo Simulation is available for PRO users only.</p>
+                        <button onclick="showUpgradePrompt()" class="px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg font-medium shadow-lg hover:shadow-xl transition">
+                            Upgrade to PRO
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Main Content -->
+                <div id="simulation-content">
+                    <!-- Controls -->
+                    <div class="card p-6 mb-6">
+                        <h2 class="text-lg font-semibold text-slate-800 mb-4">⚙️ Simulation Parameters</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Number of Simulations</label>
+                                <input type="number" id="simulations" value="1000" min="100" max="10000" step="100"
+                                       class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-200">
+                                <p class="text-xs text-slate-500 mt-1">More simulations = more accurate results (slower)</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Projection Years</label>
+                                <input type="number" id="years" value="10" min="1" max="50"
+                                       class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-200">
+                                <p class="text-xs text-slate-500 mt-1">How many years into the future to project</p>
+                            </div>
+                            <div class="flex items-end">
+                                <button onclick="runSimulation()" id="btn-run" 
+                                        class="w-full px-6 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-medium shadow-md hover:shadow-lg transition flex items-center justify-center gap-2">
+                                    <span>▶️</span> Run Simulation
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Loading State -->
+                    <div id="loading" class="hidden text-center py-12">
+                        <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mb-4"></div>
+                        <p class="text-slate-600">Running simulation... This may take a moment.</p>
+                    </div>
+
+                    <!-- Results -->
+                    <div id="results" class="hidden">
+                        <!-- Summary Cards -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            <div class="card p-6 bg-gradient-to-br from-danger-50 to-danger-100 border-danger-200">
+                                <div class="text-sm text-danger-700 font-medium mb-1">Worst Case (10th Percentile)</div>
+                                <div id="percentile10" class="text-2xl font-bold text-danger-700">₹0</div>
+                                <p class="text-xs text-danger-600 mt-2">10% of outcomes will be worse</p>
+                            </div>
+                            <div class="card p-6 bg-gradient-to-br from-primary-50 to-primary-100 border-primary-200">
+                                <div class="text-sm text-primary-700 font-medium mb-1">Median (50th Percentile)</div>
+                                <div id="percentile50" class="text-2xl font-bold text-primary-700">₹0</div>
+                                <p class="text-xs text-primary-600 mt-2">Most likely outcome</p>
+                            </div>
+                            <div class="card p-6 bg-gradient-to-br from-success-50 to-success-100 border-success-200">
+                                <div class="text-sm text-success-700 font-medium mb-1">Best Case (90th Percentile)</div>
+                                <div id="percentile90" class="text-2xl font-bold text-success-700">₹0</div>
+                                <p class="text-xs text-success-600 mt-2">90% of outcomes will be worse</p>
+                            </div>
+                        </div>
+
+                        <!-- Detailed Percentiles -->
+                        <div class="card p-6 mb-6">
+                            <h3 class="text-lg font-semibold text-slate-800 mb-4">📊 Percentile Breakdown</h3>
+                            <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                                <div class="text-center p-4 bg-slate-50 rounded-lg">
+                                    <div class="text-xs text-slate-500 mb-1">10th</div>
+                                    <div id="p10" class="text-lg font-semibold text-slate-800">₹0</div>
+                                </div>
+                                <div class="text-center p-4 bg-slate-50 rounded-lg">
+                                    <div class="text-xs text-slate-500 mb-1">25th</div>
+                                    <div id="p25" class="text-lg font-semibold text-slate-800">₹0</div>
+                                </div>
+                                <div class="text-center p-4 bg-primary-50 rounded-lg border-2 border-primary-300">
+                                    <div class="text-xs text-primary-600 mb-1 font-medium">50th (Median)</div>
+                                    <div id="p50" class="text-xl font-bold text-primary-700">₹0</div>
+                                </div>
+                                <div class="text-center p-4 bg-slate-50 rounded-lg">
+                                    <div class="text-xs text-slate-500 mb-1">75th</div>
+                                    <div id="p75" class="text-lg font-semibold text-slate-800">₹0</div>
+                                </div>
+                                <div class="text-center p-4 bg-slate-50 rounded-lg">
+                                    <div class="text-xs text-slate-500 mb-1">90th</div>
+                                    <div id="p90" class="text-lg font-semibold text-slate-800">₹0</div>
+                                </div>
+                            </div>
+                            <div class="mt-4 pt-4 border-t border-slate-200">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-slate-600">Average across all simulations:</span>
+                                    <span id="average" class="text-lg font-semibold text-slate-800">₹0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Chart -->
+                        <div class="card p-6">
+                            <h3 class="text-lg font-semibold text-slate-800 mb-4">📈 Distribution Chart</h3>
+                            <canvas id="simulation-chart"></canvas>
+                        </div>
+
+                        <!-- Info Section -->
+                        <div class="card p-6 mt-6 bg-blue-50 border-blue-200">
+                            <h3 class="text-lg font-semibold text-blue-800 mb-2">ℹ️ Understanding Monte Carlo Simulation</h3>
+                            <div class="text-sm text-blue-700 space-y-2">
+                                <p><strong>What is it?</strong> Monte Carlo simulation runs thousands of scenarios with random market returns to show the range of possible outcomes for your portfolio.</p>
+                                <p><strong>How to read:</strong> The percentiles show different probability levels. For example, the 50th percentile (median) means 50% of simulations resulted in this value or higher.</p>
+                                <p><strong>Use it for:</strong> Understanding risk, planning for different market conditions, and making informed investment decisions.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/common.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/simulation.js"></script>
+</body>
+</html>

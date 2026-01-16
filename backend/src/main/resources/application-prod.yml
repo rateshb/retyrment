@@ -1,0 +1,107 @@
+# Production Configuration for Retyrment
+# All sensitive values should come from environment variables
+
+spring:
+  data:
+    mongodb:
+      uri: ${MONGO_URI:mongodb://localhost:27017}
+      database: ${MONGO_DATABASE:retyrment_prod}
+      auto-index-creation: false  # Indexes should be created via migration scripts
+  
+  # OAuth2 Configuration - Use production credentials
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            redirect-uri: ${APP_URL}/api/login/oauth2/code/google
+            scope:
+              - email
+              - profile
+
+# Server configuration
+server:
+  port: ${PORT:8080}
+  servlet:
+    context-path: /api
+  
+  # Enable compression for better performance
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+    min-response-size: 1024
+  
+  # SSL Configuration (uncomment when using HTTPS)
+  # ssl:
+  #   key-store: classpath:keystore.p12
+  #   key-store-password: ${SSL_KEYSTORE_PASSWORD}
+  #   key-store-type: PKCS12
+  #   key-alias: retyrment
+  
+  # Error handling - don't expose stack traces
+  error:
+    include-stacktrace: never
+    include-message: never
+
+# Application settings
+app:
+  name: Retyrment
+  version: 1.0.0
+  
+  # JWT Settings - MUST be set via environment variable in production
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration: 86400000  # 24 hours
+  
+  # Frontend URL
+  frontend-url: ${FRONTEND_URL:https://retyrment.com}
+  
+  # Admin emails
+  admin:
+    emails: ${ADMIN_EMAILS:admin@retyrment.com}
+  
+  # CORS - Only allow specific origins
+  cors:
+    allowed-origins: ${CORS_ORIGINS:https://retyrment.com}
+    allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+    allowed-headers: "*"
+
+# Logging - Production level
+logging:
+  level:
+    root: WARN
+    com.retyrment: INFO
+    org.springframework.security: WARN
+    org.springframework.web: WARN
+    org.mongodb: WARN
+  
+  # Log to file in production
+  file:
+    name: logs/retyrment.log
+  
+  # Log pattern
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Actuator endpoints for monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when_authorized
+  info:
+    env:
+      enabled: true
+
+# Info endpoint data
+info:
+  app:
+    name: ${app.name}
+    version: ${app.version}
+    environment: production

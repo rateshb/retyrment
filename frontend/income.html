@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Income - Retyrment</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc', 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' },
+                        success: { 50: '#ecfdf5', 100: '#d1fae5', 400: '#34d399', 500: '#10b981', 600: '#059669' },
+                        warning: { 50: '#fffbeb', 100: '#fef3c7', 400: '#fbbf24', 500: '#f59e0b', 600: '#d97706' },
+                        danger: { 50: '#fef2f2', 100: '#fee2e2', 400: '#f87171', 500: '#ef4444', 600: '#dc2626' }
+                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen bg-pattern">
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white border-r border-slate-200 flex flex-col shadow-sm">
+            <div class="p-5 border-b border-slate-200">
+                <a href="index.html" class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg logo-gradient flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-primary-500/30">₹</div>
+                    <span class="text-xl font-bold bg-gradient-to-r from-primary-500 to-primary-700 bg-clip-text text-transparent">Retyrment</span>
+                </a>
+            </div>
+            <nav class="flex-1 py-4 overflow-y-auto scrollbar-thin">
+                <div class="px-4 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Overview</div>
+                <a href="index.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="dashboard"><span>📊</span> Dashboard</a>
+                <div class="px-4 mt-6 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Data Entry</div>
+                <a href="income.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="income"><span>💰</span> Income</a>
+                <a href="investments.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="investments"><span>📈</span> Investments</a>
+                <a href="loans.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="loans"><span>🏦</span> Loans</a>
+                <a href="insurance.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="insurance"><span>🛡️</span> Insurance</a>
+                <a href="expenses.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="expenses"><span>🛒</span> Expenses</a>
+                <a href="goals.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="goals"><span>🎯</span> Goals</a>
+                <div class="px-4 mt-6 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Analysis</div>
+                <a href="calendar.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="calendar"><span>📅</span> Calendar</a>
+                <a href="retirement.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="retirement"><span>🏖️</span> Retirement</a>
+                <a href="reports.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="reports"><span>📑</span> Reports</a>
+            </nav>
+            <div class="p-4 border-t border-slate-200">
+                <a href="preferences.html" class="nav-item flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-slate-700 rounded" data-page="preferences"><span>⚙️</span> Preferences</a>
+                <a href="settings.html" class="nav-item flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-slate-700 rounded mt-1" data-page="settings"><span>🔧</span> Settings</a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto scrollbar-thin">
+            <header class="sticky top-0 z-10 header-blur border-b border-slate-200 px-8 py-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="text-2xl font-semibold text-slate-800">Income Sources</h1>
+                        <p class="text-sm text-slate-500">Manage your income streams</p>
+                    </div>
+                </div>
+            </header>
+
+            <div class="p-8">
+                <div class="flex justify-between items-center mb-6">
+                    <div class="text-sm text-slate-500" id="entry-count">0 entries</div>
+                    <button onclick="openAddIncomeModal()" class="px-4 py-2 btn-primary rounded-lg flex items-center gap-2 shadow-md">
+                        <span>+</span> Add Income
+                    </button>
+                </div>
+
+                <div class="card overflow-hidden">
+                    <table class="w-full">
+                        <thead class="bg-slate-50">
+                            <tr>
+                                <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Source</th>
+                                <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Monthly Amount</th>
+                                <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Annual Increment</th>
+                                <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100" id="income-table">
+                            <tr><td colspan="5" class="px-6 py-8 text-center text-slate-400">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="fixed inset-0 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-xl border border-slate-200 w-full max-w-lg max-h-[90vh] overflow-hidden shadow-2xl">
+            <div class="flex justify-between items-center px-6 py-4 border-b border-slate-200 bg-slate-50">
+                <h3 class="text-lg font-semibold text-slate-800" id="modal-title">Add Income</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
+            </div>
+            <form id="modal-form" class="p-6 overflow-y-auto max-h-[60vh]" onsubmit="handleIncomeSubmit(event)">
+                <div id="modal-fields"></div>
+            </form>
+            <div class="flex justify-end gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50">
+                <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-100">Cancel</button>
+                <button type="submit" form="modal-form" class="px-6 py-2 rounded-lg btn-primary">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-6 right-6 bg-white border border-slate-200 rounded-lg px-4 py-3 shadow-lg hidden">
+        <div class="flex items-center gap-3"><span id="toast-icon">✅</span><span id="toast-message" class="text-slate-700">Success!</span></div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/common.js"></script>
+    <script src="js/income.js"></script>
+</body>
+</html>

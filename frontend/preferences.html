@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preferences - Retyrment</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc', 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' },
+                        success: { 50: '#ecfdf5', 100: '#d1fae5', 400: '#34d399', 500: '#10b981', 600: '#059669' },
+                        warning: { 50: '#fffbeb', 100: '#fef3c7', 400: '#fbbf24', 500: '#f59e0b', 600: '#d97706' },
+                        danger: { 50: '#fef2f2', 100: '#fee2e2', 400: '#f87171', 500: '#ef4444', 600: '#dc2626' }
+                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen bg-pattern">
+    <div class="flex h-screen overflow-hidden">
+        <aside class="w-64 bg-white border-r border-slate-200 flex flex-col shadow-sm">
+            <div class="p-5 border-b border-slate-200">
+                <a href="index.html" class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg logo-gradient flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-primary-500/30">₹</div>
+                    <span class="text-xl font-bold bg-gradient-to-r from-primary-500 to-primary-700 bg-clip-text text-transparent">Retyrment</span>
+                </a>
+            </div>
+            <nav class="flex-1 py-4 overflow-y-auto scrollbar-thin">
+                <div class="px-4 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Overview</div>
+                <a href="index.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="dashboard"><span>📊</span> Dashboard</a>
+                <div class="px-4 mt-6 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Data Entry</div>
+                <a href="income.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="income"><span>💰</span> Income</a>
+                <a href="investments.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="investments"><span>📈</span> Investments</a>
+                <a href="loans.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="loans"><span>🏦</span> Loans</a>
+                <a href="insurance.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="insurance"><span>🛡️</span> Insurance</a>
+                <a href="expenses.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="expenses"><span>🛒</span> Expenses</a>
+                <a href="goals.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="goals"><span>🎯</span> Goals</a>
+                <div class="px-4 mt-6 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Analysis</div>
+                <a href="calendar.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="calendar"><span>📅</span> Calendar</a>
+                <a href="retirement.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="retirement"><span>🏖️</span> Retirement</a>
+                <a href="reports.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="reports"><span>📑</span> Reports</a>
+            </nav>
+            <div class="p-4 border-t border-slate-200">
+                <a href="preferences.html" class="nav-item flex items-center gap-3 px-3 py-2 text-primary-600 bg-primary-50 rounded font-medium" data-page="preferences"><span>⚙️</span> Preferences</a>
+                <a href="settings.html" class="nav-item flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-slate-700 rounded mt-1" data-page="settings"><span>🔧</span> Settings</a>
+            </div>
+        </aside>
+
+        <main class="flex-1 overflow-y-auto scrollbar-thin">
+            <header class="sticky top-0 z-10 header-blur border-b border-slate-200 px-8 py-4">
+                <div><h1 class="text-2xl font-semibold text-slate-800">Preferences</h1><p class="text-sm text-slate-500">Customize your Retyrment experience</p></div>
+            </header>
+
+            <div class="p-8 max-w-4xl">
+                <!-- Regional Settings -->
+                <div class="card p-6 mb-6">
+                    <h2 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                        <span class="text-2xl">🌍</span> Regional Settings
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-2">Country</label>
+                            <select id="pref-country" class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-200">
+                                <!-- Options populated by JS -->
+                            </select>
+                            <p class="text-xs text-slate-400 mt-1">Sets default currency and financial year</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-2">Currency</label>
+                            <select id="pref-currency" class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-200">
+                                <!-- Options populated by JS -->
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-2">Date Format</label>
+                            <select id="pref-dateFormat" class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-200">
+                                <!-- Options populated by JS -->
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-2">Number Format</label>
+                            <select id="pref-numberFormat" class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-200">
+                                <!-- Options populated by JS -->
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Display Settings -->
+                <div class="card p-6 mb-6">
+                    <h2 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                        <span class="text-2xl">🎨</span> Display Settings
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-2">Theme</label>
+                            <select id="pref-theme" class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-200">
+                                <!-- Options populated by JS -->
+                            </select>
+                        </div>
+                        <div class="flex items-center">
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" id="pref-showAmountInWords" class="w-5 h-5 rounded border-slate-300 text-primary-600 focus:ring-primary-500">
+                                <div>
+                                    <span class="text-sm font-medium text-slate-600">Show Amount in Words</span>
+                                    <p class="text-xs text-slate-400">Display "₹10,00,000" as "Ten Lakh Rupees"</p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Financial Defaults -->
+                <div class="card p-6 mb-6">
+                    <h2 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                        <span class="text-2xl">📊</span> Default Calculation Values
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-2">Inflation Rate (%)</label>
+                            <input type="number" id="pref-defaultInflationRate" step="0.1" min="0" max="20"
+                                   class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-200">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-2">Equity Return (%)</label>
+                            <input type="number" id="pref-defaultEquityReturn" step="0.1" min="0" max="30"
+                                   class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-200">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-2">Debt Return (%)</label>
+                            <input type="number" id="pref-defaultDebtReturn" step="0.1" min="0" max="20"
+                                   class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-200">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-2">Retirement Age</label>
+                            <input type="number" id="pref-defaultRetirementAge" min="40" max="80"
+                                   class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-200">
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-slate-600 mb-2">Financial Year Starts In</label>
+                        <select id="pref-financialYearStartMonth" class="w-full md:w-48 px-4 py-2.5 bg-white border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-200">
+                            <option value="1">January</option>
+                            <option value="2">February</option>
+                            <option value="3">March</option>
+                            <option value="4">April</option>
+                            <option value="5">May</option>
+                            <option value="6">June</option>
+                            <option value="7">July</option>
+                            <option value="8">August</option>
+                            <option value="9">September</option>
+                            <option value="10">October</option>
+                            <option value="11">November</option>
+                            <option value="12">December</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Notification Settings -->
+                <div class="card p-6 mb-6">
+                    <h2 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                        <span class="text-2xl">🔔</span> Notifications
+                    </h2>
+                    <div class="space-y-4">
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" id="pref-emailNotifications" class="w-5 h-5 rounded border-slate-300 text-primary-600 focus:ring-primary-500">
+                            <div>
+                                <span class="text-sm font-medium text-slate-600">Email Notifications</span>
+                                <p class="text-xs text-slate-400">Receive updates and alerts via email</p>
+                            </div>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" id="pref-paymentReminders" class="w-5 h-5 rounded border-slate-300 text-primary-600 focus:ring-primary-500">
+                            <div>
+                                <span class="text-sm font-medium text-slate-600">Payment Reminders</span>
+                                <p class="text-xs text-slate-400">Get reminded before SIPs, EMIs, and premiums are due</p>
+                            </div>
+                        </label>
+                        <div class="ml-8">
+                            <label class="block text-sm font-medium text-slate-600 mb-2">Remind me</label>
+                            <div class="flex items-center gap-2">
+                                <input type="number" id="pref-reminderDaysBefore" min="1" max="30" 
+                                       class="w-20 px-3 py-2 bg-white border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-200">
+                                <span class="text-sm text-slate-600">days before due date</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Save Button -->
+                <div class="flex justify-end gap-4">
+                    <button onclick="resetToDefaults()" class="px-6 py-2.5 border border-slate-300 text-slate-600 rounded-lg hover:bg-slate-100 font-medium">
+                        Reset to Defaults
+                    </button>
+                    <button onclick="savePreferences()" class="px-8 py-2.5 btn-primary rounded-lg font-medium shadow-lg shadow-primary-500/30">
+                        💾 Save Preferences
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="toast" class="fixed bottom-6 right-6 bg-white border border-slate-200 rounded-lg px-4 py-3 shadow-lg hidden">
+        <div class="flex items-center gap-3"><span id="toast-icon">✅</span><span id="toast-message" class="text-slate-700">Success!</span></div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/common.js"></script>
+    <script src="js/preferences.js"></script>
+</body>
+</html>

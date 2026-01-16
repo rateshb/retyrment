@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Features - Retyrment</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc', 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' },
+                        success: { 50: '#ecfdf5', 100: '#d1fae5', 400: '#34d399', 500: '#10b981', 600: '#059669' }
+                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <style>.gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }</style>
+</head>
+<body class="font-sans antialiased bg-slate-50">
+    <!-- Nav -->
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <a href="landing.html" class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg gradient-bg flex items-center justify-center text-white text-2xl font-bold">₹</div>
+                <span class="text-xl font-bold text-slate-800">Retyrment</span>
+            </a>
+            <div class="flex items-center gap-6">
+                <a href="product.html" class="text-slate-600 hover:text-slate-900">Product</a>
+                <a href="features.html" class="text-primary-600 font-medium">Features</a>
+                <a href="pricing.html" class="text-slate-600 hover:text-slate-900">Pricing</a>
+                <a href="about.html" class="text-slate-600 hover:text-slate-900">About</a>
+                <a href="login.html" class="px-4 py-2 bg-primary-500 text-white rounded-lg font-medium hover:bg-primary-600">Sign In</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="gradient-bg text-white py-20">
+        <div class="container mx-auto px-6 text-center">
+            <h1 class="text-5xl font-bold mb-4">Powerful Features</h1>
+            <p class="text-xl text-white/80 max-w-2xl mx-auto">Everything you need for comprehensive financial planning</p>
+        </div>
+    </section>
+
+    <!-- Features Grid -->
+    <section class="py-20">
+        <div class="container mx-auto px-6">
+            <!-- Income & Investments -->
+            <div class="mb-16">
+                <h2 class="text-2xl font-bold text-slate-800 mb-8 text-center">💰 Track Your Wealth</h2>
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm">
+                        <div class="text-3xl mb-3">💵</div>
+                        <h3 class="font-semibold text-slate-800 mb-2">Income Tracking</h3>
+                        <p class="text-sm text-slate-500">Track multiple income sources with automatic annual increment projections.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm">
+                        <div class="text-3xl mb-3">📈</div>
+                        <h3 class="font-semibold text-slate-800 mb-2">Investment Portfolio</h3>
+                        <p class="text-sm text-slate-500">Mutual Funds, Stocks, FDs, PPF, EPF, NPS, Real Estate - all in one place.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm">
+                        <div class="text-3xl mb-3">🏦</div>
+                        <h3 class="font-semibold text-slate-800 mb-2">Loan Management</h3>
+                        <p class="text-sm text-slate-500">Track EMIs, view amortization schedules, and plan prepayments.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm">
+                        <div class="text-3xl mb-3">🛡️</div>
+                        <h3 class="font-semibold text-slate-800 mb-2">Insurance Tracker</h3>
+                        <p class="text-sm text-slate-500">Term, Health, ULIP, Endowment - track premiums and maturity dates.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm">
+                        <div class="text-3xl mb-3">🛒</div>
+                        <h3 class="font-semibold text-slate-800 mb-2">Expense Tracking</h3>
+                        <p class="text-sm text-slate-500">Categorize fixed and variable expenses to understand your cash flow.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm">
+                        <div class="text-3xl mb-3">🏠</div>
+                        <h3 class="font-semibold text-slate-800 mb-2">Real Estate</h3>
+                        <p class="text-sm text-slate-500">Track property values, rental income, and appreciation.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Planning -->
+            <div class="mb-16">
+                <h2 class="text-2xl font-bold text-slate-800 mb-8 text-center">🎯 Plan Your Future</h2>
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border-2 border-primary-200">
+                        <div class="text-3xl mb-3">🏖️</div>
+                        <h3 class="font-semibold text-slate-800 mb-2">Retirement Planning</h3>
+                        <p class="text-sm text-slate-500">Year-by-year projections with multiple income strategies. GAP analysis shows if you're on track.</p>
+                        <span class="inline-block mt-2 text-xs bg-primary-100 text-primary-700 px-2 py-1 rounded">Popular</span>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm">
+                        <div class="text-3xl mb-3">🎓</div>
+                        <h3 class="font-semibold text-slate-800 mb-2">Education Planning</h3>
+                        <p class="text-sm text-slate-500">Calculate how much you need for children's higher education with inflation.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm">
+                        <div class="text-3xl mb-3">✈️</div>
+                        <h3 class="font-semibold text-slate-800 mb-2">Goal Tracking</h3>
+                        <p class="text-sm text-slate-500">Set any financial goal and track progress automatically.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm">
+                        <div class="text-3xl mb-3">📅</div>
+                        <h3 class="font-semibold text-slate-800 mb-2">Financial Calendar</h3>
+                        <p class="text-sm text-slate-500">See all SIPs, premiums, EMIs, and renewals on a yearly calendar.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm">
+                        <div class="text-3xl mb-3">💡</div>
+                        <h3 class="font-semibold text-slate-800 mb-2">Smart Suggestions</h3>
+                        <p class="text-sm text-slate-500">Get actionable recommendations to optimize your finances.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm">
+                        <div class="text-3xl mb-3">📊</div>
+                        <h3 class="font-semibold text-slate-800 mb-2">What-If Analysis</h3>
+                        <p class="text-sm text-slate-500">Adjust assumptions and see how changes affect your future.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analysis -->
+            <div>
+                <h2 class="text-2xl font-bold text-slate-800 mb-8 text-center">📑 Analysis & Reports</h2>
+                <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm text-center">
+                        <div class="text-3xl mb-3">📄</div>
+                        <h3 class="font-semibold text-slate-800">PDF Reports</h3>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm text-center">
+                        <div class="text-3xl mb-3">📊</div>
+                        <h3 class="font-semibold text-slate-800">Excel Export</h3>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm text-center">
+                        <div class="text-3xl mb-3">💾</div>
+                        <h3 class="font-semibold text-slate-800">JSON Backup</h3>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm text-center">
+                        <div class="text-3xl mb-3">📈</div>
+                        <h3 class="font-semibold text-slate-800">Charts</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="gradient-bg py-16">
+        <div class="container mx-auto px-6 text-center">
+            <h2 class="text-3xl font-bold text-white mb-4">Try All Features Free</h2>
+            <p class="text-white/80 mb-8">Start with our free plan and upgrade when you need more.</p>
+            <div class="flex gap-4 justify-center">
+                <a href="login.html" class="px-8 py-4 bg-white text-primary-600 rounded-xl font-semibold hover:bg-white/90">
+                    Get Started Free
+                </a>
+                <a href="pricing.html" class="px-8 py-4 border-2 border-white text-white rounded-xl font-semibold hover:bg-white/10">
+                    View Pricing
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-400 py-12">
+        <div class="container mx-auto px-6">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="flex items-center gap-3 mb-6 md:mb-0">
+                    <div class="w-8 h-8 rounded-lg bg-primary-500 flex items-center justify-center text-white font-bold">₹</div>
+                    <span class="text-white font-semibold">Retyrment</span>
+                </div>
+                <div class="flex gap-8 text-sm">
+                    <a href="about.html" class="hover:text-white">About</a>
+                    <a href="product.html" class="hover:text-white">Product</a>
+                    <a href="features.html" class="hover:text-white">Features</a>
+                    <a href="pricing.html" class="hover:text-white">Pricing</a>
+                    <a href="privacy.html" class="hover:text-white">Privacy Policy</a>
+                    <a href="terms.html" class="hover:text-white">Terms of Service</a>
+                    <a href="disclaimer.html" class="hover:text-white">Disclaimer</a>
+                </div>
+            </div>
+            <div class="border-t border-slate-800 mt-8 pt-8 text-center text-sm">
+                © 2026 Retyrment. All rights reserved. Made with ❤️ in India.
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retirement - Retyrment</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc', 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' },
+                        success: { 50: '#ecfdf5', 100: '#d1fae5', 400: '#34d399', 500: '#10b981', 600: '#059669' },
+                        warning: { 50: '#fffbeb', 100: '#fef3c7', 400: '#fbbf24', 500: '#f59e0b', 600: '#d97706' },
+                        danger: { 50: '#fef2f2', 100: '#fee2e2', 400: '#f87171', 500: '#ef4444', 600: '#dc2626' }
+                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen bg-pattern">
+    <div class="flex h-screen overflow-hidden">
+        <aside class="w-64 bg-white border-r border-slate-200 flex flex-col shadow-sm">
+            <div class="p-5 border-b border-slate-200">
+                <a href="index.html" class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg logo-gradient flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-primary-500/30">₹</div>
+                    <span class="text-xl font-bold bg-gradient-to-r from-primary-500 to-primary-700 bg-clip-text text-transparent">Retyrment</span>
+                </a>
+            </div>
+            <nav class="flex-1 py-4 overflow-y-auto scrollbar-thin">
+                <div class="px-4 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Overview</div>
+                <a href="index.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="dashboard"><span>📊</span> Dashboard</a>
+                <div class="px-4 mt-6 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Data Entry</div>
+                <a href="income.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="income"><span>💰</span> Income</a>
+                <a href="investments.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="investments"><span>📈</span> Investments</a>
+                <a href="loans.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="loans"><span>🏦</span> Loans</a>
+                <a href="insurance.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="insurance"><span>🛡️</span> Insurance</a>
+                <a href="expenses.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="expenses"><span>🛒</span> Expenses</a>
+                <a href="goals.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="goals"><span>🎯</span> Goals</a>
+                <div class="px-4 mt-6 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Analysis</div>
+                <a href="calendar.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="calendar"><span>📅</span> Calendar</a>
+                <a href="retirement.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="retirement"><span>🏖️</span> Retirement</a>
+                <a href="reports.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="reports"><span>📑</span> Reports</a>
+            </nav>
+            <div class="p-4 border-t border-slate-200">
+                <a href="preferences.html" class="nav-item flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-slate-700 rounded" data-page="preferences"><span>⚙️</span> Preferences</a>
+                <a href="settings.html" class="nav-item flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-slate-700 rounded mt-1" data-page="settings"><span>🔧</span> Settings</a>
+            </div>
+        </aside>
+
+        <main class="flex-1 overflow-y-auto scrollbar-thin">
+            <header class="sticky top-0 z-10 header-blur border-b border-slate-200 px-8 py-4">
+                <div class="flex justify-between items-center">
+                    <div><h1 class="text-2xl font-semibold text-slate-800">Retirement Planner</h1><p class="text-sm text-slate-500">Your road to financial freedom</p></div>
+                    <div class="flex gap-3">
+                        <button onclick="handleAdjustSettings()" id="btn-adjust" class="px-4 py-2 text-sm bg-white hover:bg-slate-50 rounded-lg border border-slate-300 text-slate-600 flex items-center gap-2 shadow-sm" data-requires-pro>
+                            <span>⚙️</span> Adjust Assumptions
+                            <span class="pro-badge hidden text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">PRO</span>
+                        </button>
+                        <button onclick="handleExportExcel()" id="btn-export" class="px-4 py-2 text-sm bg-success-500 hover:bg-success-600 text-white rounded-lg font-medium flex items-center gap-2 shadow-md" data-requires-pro>
+                            <span>📊</span> Export Excel
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <div class="p-8">
+                <!-- Inline Settings Panel (Collapsible) -->
+                <div id="settings-panel" class="hidden mb-8">
+                    <div class="card p-6 border-2 border-primary-200 bg-primary-50/50">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-slate-800">📊 Simulation Assumptions</h3>
+                            <button onclick="toggleSettings()" class="text-slate-400 hover:text-slate-600">✕</button>
+                        </div>
+                        <p class="text-sm text-slate-500 mb-4">Adjust these values and click "Recalculate" to see the impact on your retirement projection</p>
+                        
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                            <div>
+                                <label class="block text-xs text-slate-500 mb-1 font-medium">Current Age</label>
+                                <input type="number" id="param-current-age" value="35" min="18" max="70" 
+                                       class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 focus:border-primary-500 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-500 mb-1 font-medium">Retirement Age</label>
+                                <input type="number" id="param-retirement-age" value="60" min="40" max="75"
+                                       class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 focus:border-primary-500 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-500 mb-1 font-medium">Life Expectancy</label>
+                                <input type="number" id="param-life-expectancy" value="85" min="60" max="100"
+                                       class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 focus:border-primary-500 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-500 mb-1 font-medium">Inflation Rate (%)</label>
+                                <input type="number" id="param-inflation" value="6" step="0.1" min="2" max="12"
+                                       class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 focus:border-primary-500 text-sm">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                            <div>
+                                <label class="block text-xs text-slate-500 mb-1 font-medium">MF Equity Return (%)</label>
+                                <input type="number" id="param-mf-return" value="12" step="0.1" min="6" max="20"
+                                       class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 focus:border-primary-500 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-500 mb-1 font-medium">EPF Return (%)</label>
+                                <input type="number" id="param-epf-return" value="8.15" step="0.01" min="6" max="12"
+                                       class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 focus:border-primary-500 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-500 mb-1 font-medium">PPF Return (%)</label>
+                                <input type="number" id="param-ppf-return" value="7.1" step="0.01" min="5" max="10"
+                                       class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 focus:border-primary-500 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-500 mb-1 font-medium">SIP Step-Up (%/yr)</label>
+                                <input type="number" id="param-sip-stepup" value="10" step="1" min="0" max="25"
+                                       class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 focus:border-primary-500 text-sm">
+                            </div>
+                        </div>
+
+                        <!-- New Settings Row -->
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                            <div>
+                                <label class="block text-xs text-slate-500 mb-1 font-medium">Settings Effective From</label>
+                                <select id="param-effective-year"
+                                        class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 focus:border-primary-500 text-sm">
+                                    <!-- Options populated dynamically -->
+                                </select>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-xs text-slate-500 mb-1 font-medium">Retirement Income Strategy (for GAP Analysis)</label>
+                                <select id="param-income-strategy"
+                                        class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 focus:border-primary-500 text-sm">
+                                    <option value="SUSTAINABLE">📈 Sustainable (10% returns, 8% withdrawal)</option>
+                                    <option value="SAFE_4_PERCENT">🛡️ 4% Safe Withdrawal Rule</option>
+                                    <option value="SIMPLE_DEPLETION">📉 Simple Depletion (Corpus ÷ Years)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-500 mb-1 font-medium">Corpus Return at Retirement (%)</label>
+                                <input type="number" id="param-corpus-return" value="10" step="0.5" min="4" max="15"
+                                       class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 focus:border-primary-500 text-sm">
+                            </div>
+                        </div>
+
+                        <!-- Rate Reduction Settings -->
+                        <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                            <div class="flex items-center gap-3 mb-3">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" id="param-enable-rate-reduction" checked
+                                           class="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500">
+                                    <span class="text-sm font-medium text-amber-800">📉 PPF/EPF Rate Reduction Over Time</span>
+                                </label>
+                                <span class="text-xs text-amber-600">(Govt rates typically decrease over years)</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs text-amber-700 mb-1">Reduce by (% points)</label>
+                                    <input type="number" id="param-rate-reduction-percent" value="0.5" step="0.1" min="0" max="2"
+                                           class="w-full px-3 py-2 bg-white border border-amber-300 rounded-lg text-slate-800 focus:border-primary-500 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-amber-700 mb-1">Every (years)</label>
+                                    <input type="number" id="param-rate-reduction-years" value="5" min="1" max="10"
+                                           class="w-full px-3 py-2 bg-white border border-amber-300 rounded-lg text-slate-800 focus:border-primary-500 text-sm">
+                                </div>
+                            </div>
+                            <p class="text-xs text-amber-600 mt-2">Example: 0.5% every 5 years = PPF drops from 7.1% → 6.6% → 6.1% over 10 years. Min rate: 4%</p>
+                        </div>
+
+                        <div class="flex justify-end gap-3">
+                            <button onclick="resetDefaults()" class="px-4 py-2 text-sm rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-100">
+                                Reset Defaults
+                            </button>
+                            <button onclick="recalculate()" class="px-6 py-2 text-sm rounded-lg btn-primary font-medium">
+                                🔄 Recalculate
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Summary Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8" id="summary-cards">
+                    <div class="card p-4">
+                        <div class="text-sm text-slate-500">Current Age</div>
+                        <div class="text-2xl font-bold text-slate-800" id="current-age">35</div>
+                    </div>
+                    <div class="card p-4">
+                        <div class="text-sm text-slate-500">Years to Retirement</div>
+                        <div class="text-2xl font-bold text-slate-800" id="years-to-retire">25</div>
+                    </div>
+                    <div class="card p-4 border-primary-200 bg-primary-50">
+                        <div class="text-sm text-primary-600">Projected Corpus</div>
+                        <div class="text-2xl font-bold text-primary-700" id="final-corpus">₹0</div>
+                    </div>
+                    <div class="card p-4" id="required-corpus-card">
+                        <div class="text-sm text-slate-500">Required Corpus</div>
+                        <div class="text-2xl font-bold text-slate-800" id="required-corpus">₹0</div>
+                        <div class="text-xs" id="corpus-gap-label">Gap: ₹0</div>
+                    </div>
+                    <div class="card p-4 border-success-200 bg-success-50">
+                        <div class="text-sm text-success-600">Monthly Retirement Income</div>
+                        <div class="text-2xl font-bold text-success-700" id="monthly-income">₹0</div>
+                        <div class="text-xs text-success-500" id="income-note">(10% returns, 8% withdrawal)</div>
+                    </div>
+                </div>
+
+                <!-- Combined Income & GAP Analysis - Tabbed Interface -->
+                <div class="card mb-8" id="analysis-section">
+                    <!-- Tab Navigation -->
+                    <div class="flex border-b border-slate-200">
+                        <button onclick="switchAnalysisTab('income')" id="tab-income" 
+                                class="flex-1 px-6 py-3 text-sm font-medium text-primary-600 border-b-2 border-primary-500 bg-primary-50/50">
+                            💵 Income at Retirement
+                        </button>
+                        <button onclick="switchAnalysisTab('gap')" id="tab-gap"
+                                class="flex-1 px-6 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 border-b-2 border-transparent">
+                            📊 GAP Analysis <span id="gap-status-badge" class="ml-2 px-2 py-0.5 text-xs rounded-full bg-slate-200">-</span>
+                        </button>
+                        <button onclick="switchAnalysisTab('expenses')" id="tab-expenses"
+                                class="flex-1 px-6 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 border-b-2 border-transparent">
+                            💸 Expense Projection
+                        </button>
+                        <button onclick="switchAnalysisTab('maturing')" id="tab-maturing"
+                                class="flex-1 px-6 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 border-b-2 border-transparent">
+                            📅 Maturing Before Retirement
+                        </button>
+                        <button onclick="switchAnalysisTab('strategy')" id="tab-strategy"
+                                class="flex-1 px-6 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 border-b-2 border-transparent">
+                            🎯 Strategy Planner
+                        </button>
+                    </div>
+
+                    <!-- Tab Content: Income -->
+                    <div id="panel-income" class="p-6">
+                        <!-- Income Strategy Cards - Horizontal -->
+                        <div class="grid grid-cols-3 gap-3 mb-4">
+                            <div class="bg-slate-50 rounded-lg p-3 border border-slate-200 text-center cursor-pointer hover:border-slate-400" onclick="selectIncomeStrategy('SIMPLE_DEPLETION')">
+                                <div class="text-xs text-slate-500 mb-1">📉 Simple Depletion</div>
+                                <div class="text-lg font-bold text-slate-700" id="income-depletion">₹0/mo</div>
+                            </div>
+                            <div class="bg-blue-50 rounded-lg p-3 border border-blue-200 text-center cursor-pointer hover:border-blue-400" onclick="selectIncomeStrategy('SAFE_4_PERCENT')">
+                                <div class="text-xs text-blue-600 mb-1">🛡️ 4% Withdrawal</div>
+                                <div class="text-lg font-bold text-blue-700" id="income-4percent">₹0/mo</div>
+                            </div>
+                            <div class="bg-success-50 rounded-lg p-3 border border-success-200 text-center cursor-pointer hover:border-success-400" id="sustainable-card" onclick="selectIncomeStrategy('SUSTAINABLE')">
+                                <div class="text-xs text-success-600 mb-1">📈 <span id="sustainable-label">Sustainable</span></div>
+                                <div class="text-lg font-bold text-success-700" id="income-sustainable">₹0/mo</div>
+                            </div>
+                        </div>
+                        <p class="text-xs text-slate-400 mb-4" id="sustainable-note">Click a strategy to select it for GAP analysis. Sustainable: Corpus grows at ~2%</p>
+                        
+                        <!-- Compact Income Projection -->
+                        <div class="bg-slate-50 rounded-lg p-3 max-h-48 overflow-y-auto">
+                            <table class="w-full text-xs">
+                                <thead class="sticky top-0 bg-slate-100">
+                                    <tr>
+                                        <th class="px-2 py-1 text-left font-medium text-slate-500">Year</th>
+                                        <th class="px-2 py-1 text-left font-medium text-slate-500">Age</th>
+                                        <th class="px-2 py-1 text-right font-medium text-slate-500">Corpus</th>
+                                        <th class="px-2 py-1 text-right font-medium text-slate-500">Monthly Income</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="income-projection-body" class="divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Tab Content: GAP Analysis -->
+                    <div id="panel-gap" class="p-6 hidden">
+                        <div class="grid grid-cols-3 gap-3 mb-4">
+                            <div class="bg-slate-50 rounded-lg p-3 text-center">
+                                <div class="text-xs text-slate-500 mb-1">Required Corpus</div>
+                                <div class="text-lg font-bold text-slate-800" id="gap-required-corpus">₹0</div>
+                                <div class="text-xs text-slate-400 truncate" id="gap-required-note">Based on strategy</div>
+                            </div>
+                            <div class="bg-primary-50 rounded-lg p-3 text-center">
+                                <div class="text-xs text-primary-600 mb-1">Projected Corpus</div>
+                                <div class="text-lg font-bold text-primary-700" id="gap-projected-corpus">₹0</div>
+                                <div class="text-xs text-primary-400">Current investments</div>
+                            </div>
+                            <div class="rounded-lg p-3 text-center" id="gap-card">
+                                <div class="text-xs text-slate-500 mb-1">Gap</div>
+                                <div class="text-lg font-bold" id="gap-amount">₹0</div>
+                                <div class="text-xs" id="gap-percent">0%</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Suggestions - Compact -->
+                        <div class="bg-slate-50 rounded-lg p-3">
+                            <div class="text-xs font-semibold text-slate-700 mb-2">💡 Suggestions</div>
+                            <div id="gap-suggestions" class="space-y-2 max-h-32 overflow-y-auto text-xs"></div>
+                        </div>
+                    </div>
+
+                    <!-- Tab Content: Expense Projection -->
+                    <div id="panel-expenses" class="p-6 hidden">
+                        <div class="bg-slate-50 rounded-lg p-3 max-h-64 overflow-y-auto">
+                            <table class="w-full text-xs">
+                                <thead class="sticky top-0 bg-slate-100">
+                                    <tr>
+                                        <th class="px-2 py-1 text-left font-medium text-slate-500">Year</th>
+                                        <th class="px-2 py-1 text-right font-medium text-slate-500">Monthly Expense</th>
+                                        <th class="px-2 py-1 text-right font-medium text-slate-500">Yearly Expense</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="expense-projection-body" class="divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-2">* Expenses inflated at the configured inflation rate</p>
+                    </div>
+
+                    <!-- Tab Content: Maturing Investments -->
+                    <div id="panel-maturing" class="p-6 hidden">
+                        <div id="maturing-investments-container">
+                            <div class="text-center py-6 text-slate-400">Loading...</div>
+                        </div>
+                    </div>
+
+                    <!-- Tab Content: Strategy Planner -->
+                    <div id="panel-strategy" class="p-6 hidden">
+                        <!-- Corpus Status Summary -->
+                        <div class="mb-6" id="strategy-corpus-status">
+                            <div class="flex items-center justify-between mb-3">
+                                <h4 class="font-semibold text-slate-800">📊 Corpus Status</h4>
+                                <span class="text-sm text-slate-500" id="strategy-status-badge">Calculating...</span>
+                            </div>
+                            <div class="grid grid-cols-3 gap-4">
+                                <div class="bg-slate-50 rounded-lg p-4 text-center">
+                                    <div class="text-xs text-slate-500 mb-1">Projected Corpus</div>
+                                    <div class="text-lg font-bold text-slate-700" id="strategy-projected">₹0</div>
+                                </div>
+                                <div class="bg-slate-50 rounded-lg p-4 text-center">
+                                    <div class="text-xs text-slate-500 mb-1">Required Corpus</div>
+                                    <div class="text-lg font-bold text-slate-700" id="strategy-required">₹0</div>
+                                </div>
+                                <div class="bg-slate-50 rounded-lg p-4 text-center" id="strategy-gap-box">
+                                    <div class="text-xs text-slate-500 mb-1">Gap / Surplus</div>
+                                    <div class="text-lg font-bold" id="strategy-gap">₹0</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Monthly Savings Allocation -->
+                        <div class="mb-6 border-t border-slate-200 pt-6">
+                            <h4 class="font-semibold text-slate-800 mb-3">💰 Recommended Monthly Savings Allocation</h4>
+                            <div class="text-sm text-slate-500 mb-4">Based on your current financial situation, here's how you should allocate your monthly savings:</div>
+                            
+                            <div class="bg-gradient-to-r from-slate-50 to-white rounded-lg p-4 border border-slate-200">
+                                <div class="flex items-center justify-between mb-3">
+                                    <span class="text-sm text-slate-600">Available Monthly Savings:</span>
+                                    <span class="text-lg font-bold text-primary-600" id="strategy-monthly-savings">₹0</span>
+                                </div>
+                                
+                                <div class="space-y-3" id="strategy-allocation-breakdown">
+                                    <div class="text-center py-4 text-slate-400">Loading allocation...</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Timeline -->
+                        <div class="mb-6 border-t border-slate-200 pt-6">
+                            <h4 class="font-semibold text-slate-800 mb-3">📅 Action Timeline</h4>
+                            <div class="text-sm text-slate-500 mb-4">Key events and recommended actions to meet your retirement goals:</div>
+                            
+                            <div class="space-y-4" id="strategy-timeline">
+                                <div class="text-center py-4 text-slate-400">Loading timeline...</div>
+                            </div>
+                        </div>
+
+                        <!-- What-If Scenarios -->
+                        <div class="border-t border-slate-200 pt-6">
+                            <h4 class="font-semibold text-slate-800 mb-3">🔮 What-If Scenarios</h4>
+                            <div class="text-sm text-slate-500 mb-4">See how different strategies can help meet your corpus requirement:</div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="strategy-scenarios">
+                                <div class="text-center py-4 text-slate-400">Loading scenarios...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chart - Collapsible -->
+                <div class="card mb-8">
+                    <button onclick="toggleChart()" class="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-t-xl">
+                        <h3 class="text-lg font-semibold text-slate-800">📈 Corpus Growth Chart</h3>
+                        <span id="chart-toggle-icon" class="text-slate-400 transition-transform">▼</span>
+                    </button>
+                    <div id="chart-container" class="hidden px-6 pb-6">
+                        <div class="h-64"><canvas id="retirement-chart"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- Matrix Table -->
+                <div class="card overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left font-semibold text-slate-500">Year</th>
+                                <th class="px-4 py-3 text-left font-semibold text-slate-500">Age</th>
+                                <th class="px-4 py-3 text-right font-semibold text-slate-500" title="PPF + EPF combined">PPF + EPF</th>
+                                <th class="px-4 py-3 text-right font-semibold text-slate-500">Mutual Funds</th>
+                                <th class="px-4 py-3 text-right font-semibold text-slate-500" title="FD + RD + Stocks + Cash">Other Liquid</th>
+                                <th class="px-4 py-3 text-right font-semibold text-slate-500">SIP/mo</th>
+                                <th class="px-4 py-3 text-right font-semibold text-emerald-600" title="Insurance/Investment maturities">Inflows</th>
+                                <th class="px-4 py-3 text-right font-semibold text-danger-500">Goals</th>
+                                <th class="px-4 py-3 text-right font-semibold text-primary-600">Net Corpus</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100" id="matrix-body">
+                            <tr><td colspan="9" class="px-4 py-8 text-center text-slate-400">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="toast" class="fixed bottom-6 right-6 bg-white border border-slate-200 rounded-lg px-4 py-3 shadow-lg hidden">
+        <div class="flex items-center gap-3"><span id="toast-icon">✅</span><span id="toast-message" class="text-slate-700">Success!</span></div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/common.js"></script>
+    <script src="js/retirement.js"></script>
+</body>
+</html>

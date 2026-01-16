@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Retyrment</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc', 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' },
+                        success: { 50: '#ecfdf5', 100: '#d1fae5', 400: '#34d399', 500: '#10b981', 600: '#059669' },
+                        warning: { 50: '#fffbeb', 100: '#fef3c7', 400: '#fbbf24', 500: '#f59e0b', 600: '#d97706' },
+                        danger: { 50: '#fef2f2', 100: '#fee2e2', 400: '#f87171', 500: '#ef4444', 600: '#dc2626' }
+                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen bg-pattern">
+    <div class="flex h-screen overflow-hidden">
+        <aside class="w-64 bg-white border-r border-slate-200 flex flex-col shadow-sm">
+            <div class="p-5 border-b border-slate-200">
+                <a href="index.html" class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg logo-gradient flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-primary-500/30">₹</div>
+                    <span class="text-xl font-bold bg-gradient-to-r from-primary-500 to-primary-700 bg-clip-text text-transparent">Retyrment</span>
+                </a>
+            </div>
+            <nav class="flex-1 py-4 overflow-y-auto scrollbar-thin">
+                <div class="px-4 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Overview</div>
+                <a href="index.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="dashboard"><span>📊</span> Dashboard</a>
+                <div class="px-4 mt-6 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Data Entry</div>
+                <a href="income.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="income"><span>💰</span> Income</a>
+                <a href="investments.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="investments"><span>📈</span> Investments</a>
+                <a href="loans.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="loans"><span>🏦</span> Loans</a>
+                <a href="insurance.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="insurance"><span>🛡️</span> Insurance</a>
+                <a href="expenses.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="expenses"><span>🛒</span> Expenses</a>
+                <a href="goals.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="goals"><span>🎯</span> Goals</a>
+                <div class="px-4 mt-6 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Analysis</div>
+                <a href="calendar.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="calendar"><span>📅</span> Calendar</a>
+                <a href="retirement.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="retirement"><span>🏖️</span> Retirement</a>
+                <a href="reports.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="reports"><span>📑</span> Reports</a>
+                <a href="admin.html" class="nav-item active flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="admin"><span>👑</span> Admin Panel</a>
+            </nav>
+            <div class="p-4 border-t border-slate-200">
+                <a href="preferences.html" class="nav-item flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-slate-700 rounded" data-page="preferences"><span>⚙️</span> Preferences</a>
+                <a href="settings.html" class="nav-item flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-slate-700 rounded mt-1" data-page="settings"><span>🔧</span> Settings</a>
+            </div>
+        </aside>
+
+        <main class="flex-1 overflow-y-auto scrollbar-thin">
+            <header class="sticky top-0 z-10 header-blur border-b border-slate-200 px-8 py-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="text-2xl font-semibold text-slate-800">👑 Admin Panel</h1>
+                        <p class="text-sm text-slate-500">Manage users and subscriptions</p>
+                    </div>
+                </div>
+            </header>
+
+            <div class="p-8" id="admin-content">
+                <!-- Access Denied (shown to non-admins) -->
+                <div id="access-denied" class="hidden">
+                    <div class="card p-8 text-center">
+                        <div class="text-5xl mb-4">🔒</div>
+                        <h3 class="text-xl font-bold text-slate-800 mb-2">Admin Access Required</h3>
+                        <p class="text-slate-500 mb-4">You don't have permission to access this page.</p>
+                        <a href="index.html" class="inline-block px-4 py-2 btn-primary rounded-lg">Go to Dashboard</a>
+                    </div>
+                </div>
+
+                <!-- Admin Dashboard -->
+                <div id="admin-dashboard" class="hidden">
+                    <!-- Stats Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                        <div class="card p-6">
+                            <div class="text-3xl font-bold text-slate-800" id="total-users">0</div>
+                            <div class="text-sm text-slate-500">Total Users</div>
+                        </div>
+                        <div class="card p-6 border-slate-300">
+                            <div class="text-3xl font-bold text-slate-600" id="free-users">0</div>
+                            <div class="text-sm text-slate-500">Free Users</div>
+                        </div>
+                        <div class="card p-6 border-amber-300 bg-amber-50">
+                            <div class="text-3xl font-bold text-amber-600" id="pro-users">0</div>
+                            <div class="text-sm text-amber-600">Pro Users</div>
+                        </div>
+                        <div class="card p-6 border-purple-300 bg-purple-50">
+                            <div class="text-3xl font-bold text-purple-600" id="admin-users">0</div>
+                            <div class="text-sm text-purple-600">Admins</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Additional Stats Row -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div class="card p-4 border-green-200 bg-green-50">
+                            <div class="flex items-center gap-3">
+                                <span class="text-2xl">🎁</span>
+                                <div>
+                                    <div class="text-xl font-bold text-green-600" id="active-trials">0</div>
+                                    <div class="text-xs text-green-600">Active Trials</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card p-4 border-blue-200 bg-blue-50">
+                            <div class="flex items-center gap-3">
+                                <span class="text-2xl">⏳</span>
+                                <div>
+                                    <div class="text-xl font-bold text-blue-600" id="temp-roles">0</div>
+                                    <div class="text-xs text-blue-600">Temporary Roles</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card p-4 border-orange-200 bg-orange-50">
+                            <div class="flex items-center gap-3">
+                                <span class="text-2xl">⚠️</span>
+                                <div>
+                                    <div class="text-xl font-bold text-orange-600" id="expiring-soon">0</div>
+                                    <div class="text-xs text-orange-600">Expiring in 7 Days</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Search -->
+                    <div class="card p-4 mb-6">
+                        <div class="flex gap-4">
+                            <input type="text" id="search-email" placeholder="Search by email..." 
+                                   class="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:border-primary-500 focus:outline-none">
+                            <button onclick="searchUsers()" class="px-6 py-2 btn-primary rounded-lg">Search</button>
+                            <button onclick="loadUsers()" class="px-4 py-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50">Clear</button>
+                        </div>
+                    </div>
+
+                    <!-- Users Table -->
+                    <div class="card overflow-hidden">
+                        <table class="w-full">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">User</th>
+                                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">Email</th>
+                                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">Role</th>
+                                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">Created</th>
+                                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">Last Login</th>
+                                    <th class="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100" id="users-table">
+                                <tr><td colspan="6" class="px-6 py-8 text-center text-slate-400">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Role Change Modal -->
+    <div id="role-modal" class="fixed inset-0 hidden items-center justify-center z-50" style="background: rgba(15, 23, 42, 0.5);">
+        <div class="bg-white rounded-xl border border-slate-200 w-full max-w-md p-6 shadow-2xl">
+            <h3 class="text-lg font-semibold text-slate-800 mb-4">Change User Role</h3>
+            <p class="text-sm text-slate-500 mb-4">Select a new role for <strong id="modal-user-email"></strong></p>
+            <input type="hidden" id="modal-user-id">
+            
+            <!-- Role Selection -->
+            <div class="space-y-3 mb-4">
+                <label class="flex items-center gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+                    <input type="radio" name="role" value="FREE" class="w-4 h-4 text-primary-500">
+                    <div>
+                        <div class="font-medium text-slate-700">Free</div>
+                        <div class="text-xs text-slate-500">Basic features - data entry, projections</div>
+                    </div>
+                </label>
+                <label class="flex items-center gap-3 p-3 border border-amber-200 rounded-lg cursor-pointer hover:bg-amber-50">
+                    <input type="radio" name="role" value="PRO" class="w-4 h-4 text-amber-500">
+                    <div>
+                        <div class="font-medium text-amber-700">⭐ Pro</div>
+                        <div class="text-xs text-slate-500">Premium - recommendations, reports, retirement planning</div>
+                    </div>
+                </label>
+                <label class="flex items-center gap-3 p-3 border border-purple-200 rounded-lg cursor-pointer hover:bg-purple-50">
+                    <input type="radio" name="role" value="ADMIN" class="w-4 h-4 text-purple-500">
+                    <div>
+                        <div class="font-medium text-purple-700">👑 Admin</div>
+                        <div class="text-xs text-slate-500">Full access + user management</div>
+                    </div>
+                </label>
+            </div>
+            
+            <!-- Duration Selection -->
+            <div class="border-t border-slate-200 pt-4 mb-4">
+                <div class="text-sm font-medium text-slate-700 mb-3">Duration</div>
+                <div class="grid grid-cols-4 gap-2 mb-3">
+                    <button type="button" onclick="setDuration(null)" class="duration-btn px-3 py-2 text-sm border border-primary-300 bg-primary-50 text-primary-700 rounded-lg">Permanent</button>
+                    <button type="button" onclick="setDuration(7)" class="duration-btn px-3 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50">7 Days</button>
+                    <button type="button" onclick="setDuration(30)" class="duration-btn px-3 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50">30 Days</button>
+                    <button type="button" onclick="setDuration(90)" class="duration-btn px-3 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50">90 Days</button>
+                </div>
+                <div class="flex gap-2 items-center">
+                    <input type="number" id="custom-duration" placeholder="Custom days" min="1" max="365"
+                           class="w-32 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:outline-none"
+                           onchange="setDuration(this.value ? parseInt(this.value) : null)">
+                    <span class="text-xs text-slate-500">Leave empty for permanent</span>
+                </div>
+                <input type="hidden" id="selected-duration" value="">
+            </div>
+            
+            <!-- Reason Input -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-slate-700 mb-2">Reason (optional)</label>
+                <input type="text" id="role-reason" placeholder="e.g., License purchase, Trial extension..."
+                       class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:border-primary-500 focus:outline-none">
+            </div>
+            
+            <div class="flex gap-3">
+                <button onclick="closeRoleModal()" class="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-slate-600">Cancel</button>
+                <button onclick="saveRole()" class="flex-1 px-4 py-2 btn-primary rounded-lg">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feature Access Modal -->
+    <div id="feature-modal" class="fixed inset-0 hidden items-center justify-center z-50 overflow-y-auto" style="background: rgba(15, 23, 42, 0.5);">
+        <div class="bg-white rounded-xl border border-slate-200 w-full max-w-2xl max-h-[90vh] my-8 p-6 shadow-2xl flex flex-col">
+            <h3 class="text-lg font-semibold text-slate-800 mb-4 flex-shrink-0">Manage Features for <strong id="feature-modal-user-email"></strong></h3>
+            <input type="hidden" id="feature-modal-user-id">
+            <div id="feature-access-content" class="space-y-4 mb-6 overflow-y-auto flex-1">
+                <!-- Will be populated by JavaScript -->
+            </div>
+            <div class="flex gap-3 flex-shrink-0">
+                <button onclick="closeFeatureModal()" class="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-slate-600">Cancel</button>
+                <button onclick="saveFeatureAccess()" class="flex-1 px-4 py-2 btn-primary rounded-lg">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-6 right-6 bg-white border border-slate-200 rounded-lg px-4 py-3 shadow-lg hidden">
+        <div class="flex items-center gap-3"><span id="toast-icon">✅</span><span id="toast-message" class="text-slate-700">Success!</span></div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/common.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Check if user is admin
+            const user = auth.getUser();
+            if (!user || user.role !== 'ADMIN') {
+                document.getElementById('access-denied').classList.remove('hidden');
+                return;
+            }
+            
+            document.getElementById('admin-dashboard').classList.remove('hidden');
+            loadUsers();
+        });
+
+        async function loadUsers() {
+            try {
+                const data = await api.admin.getUsers();
+                
+                // Update stats
+                document.getElementById('total-users').textContent = data.total || 0;
+                document.getElementById('free-users').textContent = data.stats?.free || 0;
+                document.getElementById('pro-users').textContent = data.stats?.pro || 0;
+                document.getElementById('admin-users').textContent = data.stats?.admin || 0;
+                document.getElementById('active-trials').textContent = data.stats?.activeTrials || 0;
+                document.getElementById('temp-roles').textContent = data.stats?.temporaryRoles || 0;
+                document.getElementById('expiring-soon').textContent = data.stats?.expiringIn7Days || 0;
+                
+                renderUsersTable(data.users || []);
+            } catch (error) {
+                console.error('Failed to load users:', error);
+                showToast('Failed to load users', 'error');
+            }
+        }
+
+        async function searchUsers() {
+            const email = document.getElementById('search-email').value.trim();
+            if (!email) {
+                loadUsers();
+                return;
+            }
+            
+            try {
+                const data = await api.admin.searchUsers(email);
+                renderUsersTable(data.users || []);
+            } catch (error) {
+                showToast('Search failed', 'error');
+            }
+        }
+
+        function renderUsersTable(users) {
+            const tbody = document.getElementById('users-table');
+            
+            if (users.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-8 text-center text-slate-400">No users found</td></tr>';
+                return;
+            }
+
+            const roleBadges = {
+                'FREE': '<span class="px-2 py-1 text-xs bg-slate-100 text-slate-600 rounded-full">Free</span>',
+                'PRO': '<span class="px-2 py-1 text-xs bg-amber-100 text-amber-700 rounded-full font-medium">⭐ Pro</span>',
+                'ADMIN': '<span class="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full font-medium">👑 Admin</span>'
+            };
+
+            tbody.innerHTML = users.map(user => {
+                let roleDisplay = roleBadges[user.role] || roleBadges.FREE;
+                let statusBadges = '';
+                
+                // Show trial badge if in active trial
+                if (user.trial?.active) {
+                    statusBadges += `<span class="ml-1 px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full">🎁 Trial: ${user.trial.daysRemaining}d</span>`;
+                }
+                
+                // Show temporary role badge
+                if (user.roleInfo?.temporary && !user.roleInfo.expired) {
+                    statusBadges += `<span class="ml-1 px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full">⏳ ${user.roleInfo.daysRemaining}d left</span>`;
+                } else if (user.roleInfo?.expired) {
+                    statusBadges += `<span class="ml-1 px-2 py-0.5 text-xs bg-red-100 text-red-700 rounded-full">⚠️ Expired</span>`;
+                }
+                
+                return `
+                <tr class="hover:bg-slate-50">
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-3">
+                            <img src="${user.picture || ''}" alt="" class="w-8 h-8 rounded-full" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%2394a3b8%22><circle cx=%2212%22 cy=%228%22 r=%224%22/><path d=%22M20 21a8 8 0 10-16 0%22/></svg>'">
+                            <span class="font-medium text-slate-800">${user.name || 'Unknown'}</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-slate-600">${user.email}</td>
+                    <td class="px-6 py-4">
+                        <div class="flex flex-wrap items-center gap-1">
+                            ${roleDisplay}${statusBadges}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-slate-500">${formatDate(user.createdAt)}</td>
+                    <td class="px-6 py-4 text-sm text-slate-500">${formatDate(user.lastLoginAt)}</td>
+                    <td class="px-6 py-4 text-right">
+                        <button onclick="openRoleModal('${user.id}', '${user.email}', '${user.role}')" 
+                                class="text-primary-500 hover:text-primary-700 font-medium mr-2">Change Role</button>
+                        <button onclick="openFeatureModal('${user.id}', '${user.email}')" 
+                                class="text-blue-500 hover:text-blue-700 font-medium mr-2">Features</button>
+                        <button onclick="extendTrial('${user.id}', '${user.email}')" 
+                                class="text-green-500 hover:text-green-700 font-medium mr-2">+Trial</button>
+                        <button onclick="deleteUser('${user.id}', '${user.email}')" 
+                                class="text-slate-400 hover:text-danger-500">Delete</button>
+                    </td>
+                </tr>
+            `}).join('');
+        }
+
+        let selectedDuration = null;
+        
+        function openRoleModal(userId, email, currentRole) {
+            document.getElementById('modal-user-id').value = userId;
+            document.getElementById('modal-user-email').textContent = email;
+            document.querySelector(`input[name="role"][value="${currentRole}"]`).checked = true;
+            document.getElementById('role-reason').value = '';
+            document.getElementById('custom-duration').value = '';
+            setDuration(null); // Default to permanent
+            
+            const modal = document.getElementById('role-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeRoleModal() {
+            const modal = document.getElementById('role-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+        
+        function setDuration(days) {
+            selectedDuration = days;
+            document.getElementById('selected-duration').value = days || '';
+            
+            // Update button styles
+            document.querySelectorAll('.duration-btn').forEach(btn => {
+                btn.classList.remove('border-primary-300', 'bg-primary-50', 'text-primary-700');
+                btn.classList.add('border-slate-200');
+            });
+            
+            // Find and highlight the selected button
+            const buttons = document.querySelectorAll('.duration-btn');
+            const targetValue = days === null ? 'Permanent' : `${days} Days`;
+            buttons.forEach(btn => {
+                if (btn.textContent.trim() === targetValue) {
+                    btn.classList.remove('border-slate-200');
+                    btn.classList.add('border-primary-300', 'bg-primary-50', 'text-primary-700');
+                }
+            });
+            
+            // Update custom input if needed
+            if (![null, 7, 30, 90].includes(days) && days !== null) {
+                document.getElementById('custom-duration').value = days;
+            }
+        }
+
+        async function saveRole() {
+            const userId = document.getElementById('modal-user-id').value;
+            const newRole = document.querySelector('input[name="role"]:checked')?.value;
+            const reason = document.getElementById('role-reason').value.trim();
+            
+            if (!newRole) {
+                showToast('Please select a role', 'error');
+                return;
+            }
+            
+            try {
+                const data = {
+                    role: newRole,
+                    durationDays: selectedDuration,
+                    reason: reason || undefined
+                };
+                
+                await api.admin.updateRole(userId, data);
+                
+                const durationText = selectedDuration ? ` for ${selectedDuration} days` : ' (permanent)';
+                showToast(`Role updated to ${newRole}${durationText}!`);
+                closeRoleModal();
+                loadUsers();
+            } catch (error) {
+                showToast(error.message || 'Failed to update role', 'error');
+            }
+        }
+        
+        async function extendTrial(userId, email) {
+            const days = prompt(`Extend trial for ${email} by how many days?`, '7');
+            if (!days || isNaN(parseInt(days))) return;
+            
+            try {
+                await api.admin.extendTrial(userId, parseInt(days));
+                showToast(`Trial extended by ${days} days!`);
+                loadUsers();
+            } catch (error) {
+                showToast(error.message || 'Failed to extend trial', 'error');
+            }
+        }
+
+        async function deleteUser(userId, email) {
+            if (!confirm(`Are you sure you want to delete user ${email}? This cannot be undone.`)) {
+                return;
+            }
+            
+            try {
+                await api.admin.deleteUser(userId);
+                showToast('User deleted successfully!');
+                loadUsers();
+            } catch (error) {
+                showToast(error.message || 'Failed to delete user', 'error');
+            }
+        }
+
+        // Feature Access Management
+        async function openFeatureModal(userId, email) {
+            document.getElementById('feature-modal-user-id').value = userId;
+            document.getElementById('feature-modal-user-email').textContent = email;
+            
+            const modal = document.getElementById('feature-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            try {
+                const response = await api.admin.getFeatureAccess(userId);
+                // Handle both direct featureAccess object and wrapped response
+                const features = response.featureAccess || response || {};
+                renderFeatureAccessForm(features);
+            } catch (error) {
+                console.error('Failed to load features:', error);
+                showToast('Failed to load feature access', 'error');
+            }
+        }
+
+        function closeFeatureModal() {
+            const modal = document.getElementById('feature-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function renderFeatureAccessForm(features) {
+            const content = document.getElementById('feature-access-content');
+            
+            const pageFeatures = [
+                { key: 'incomePage', label: 'Income Page', default: true },
+                { key: 'investmentPage', label: 'Investment Page', default: true },
+                { key: 'loanPage', label: 'Loan Page', default: true },
+                { key: 'insurancePage', label: 'Insurance Page', default: true },
+                { key: 'expensePage', label: 'Expense Page', default: true },
+                { key: 'goalsPage', label: 'Goals Page', default: true },
+                { key: 'calendarPage', label: 'Calendar Page', default: false },
+                { key: 'retirementPage', label: 'Retirement Page', default: true },
+                { key: 'reportsPage', label: 'Reports Page', default: false },
+                { key: 'simulationPage', label: 'Monte Carlo Simulation', default: false },
+                { key: 'preferencesPage', label: 'Preferences Page', default: false },
+                { key: 'settingsPage', label: 'Settings Page', default: true },
+                { key: 'accountPage', label: 'My Account Page', default: true }
+            ];
+
+            let html = '<div class="space-y-4">';
+            
+            // Page access toggles
+            html += '<div class="border-b border-slate-200 pb-4 mb-4"><h4 class="font-semibold text-slate-800 mb-3">Page Access</h4><div class="grid grid-cols-2 gap-3">';
+            pageFeatures.forEach(feature => {
+                const value = features[feature.key] !== undefined ? features[feature.key] : feature.default;
+                html += `
+                    <label class="flex items-center gap-2 p-2 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+                        <input type="checkbox" data-feature="${feature.key}" ${value ? 'checked' : ''} class="w-4 h-4 text-primary-500">
+                        <span class="text-sm text-slate-700">${feature.label}</span>
+                    </label>
+                `;
+            });
+            html += '</div></div>';
+
+            // Investment types
+            html += '<div class="border-b border-slate-200 pb-4 mb-4"><h4 class="font-semibold text-slate-800 mb-3">Allowed Investment Types</h4><div class="grid grid-cols-3 gap-2">';
+            const allInvestmentTypes = ['MUTUAL_FUND', 'PPF', 'EPF', 'FD', 'RD', 'REAL_ESTATE', 'STOCK', 'NPS', 'GOLD', 'CRYPTO', 'CASH'];
+            const allowedTypes = features.allowedInvestmentTypes || [];
+            allInvestmentTypes.forEach(type => {
+                const isAllowed = allowedTypes.includes(type);
+                html += `
+                    <label class="flex items-center gap-2 p-2 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+                        <input type="checkbox" data-investment-type="${type}" ${isAllowed ? 'checked' : ''} class="w-4 h-4 text-primary-500">
+                        <span class="text-sm text-slate-700">${type.replace('_', ' ')}</span>
+                    </label>
+                `;
+            });
+            html += '</div></div>';
+
+            // Insurance restrictions
+            html += '<div class="border-b border-slate-200 pb-4 mb-4"><h4 class="font-semibold text-slate-800 mb-3">Blocked Insurance Types</h4><div class="grid grid-cols-3 gap-2">';
+            const allInsuranceTypes = ['VEHICLE', 'PENSION', 'LIFE_SAVINGS', 'HEALTH', 'TERM_LIFE', 'ULIP', 'ENDOWMENT', 'MONEY_BACK'];
+            const blockedTypes = features.blockedInsuranceTypes || [];
+            allInsuranceTypes.forEach(type => {
+                const isBlocked = blockedTypes.includes(type);
+                html += `
+                    <label class="flex items-center gap-2 p-2 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+                        <input type="checkbox" data-insurance-type="${type}" ${isBlocked ? 'checked' : ''} class="w-4 h-4 text-primary-500">
+                        <span class="text-sm text-slate-700">${type.replace('_', ' ')}</span>
+                    </label>
+                `;
+            });
+            html += '</div></div>';
+
+            // Retirement tabs
+            html += '<div class="border-b border-slate-200 pb-4 mb-4"><h4 class="font-semibold text-slate-800 mb-3">Retirement Page Tabs</h4>';
+            html += `
+                <label class="flex items-center gap-2 p-2 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" data-feature="retirementStrategyPlannerTab" ${features.retirementStrategyPlannerTab ? 'checked' : ''} class="w-4 h-4 text-primary-500">
+                    <span class="text-sm text-slate-700">Strategy Planner Tab</span>
+                </label>
+            `;
+            html += '</div>';
+
+            // Report access
+            html += '<div><h4 class="font-semibold text-slate-800 mb-3">Report Access</h4><div class="grid grid-cols-2 gap-3">';
+            const reportFeatures = [
+                { key: 'canExportPdf', label: 'Export PDF' },
+                { key: 'canExportExcel', label: 'Export Excel' },
+                { key: 'canExportJson', label: 'Export JSON' },
+                { key: 'canImportData', label: 'Import Data' }
+            ];
+            reportFeatures.forEach(feature => {
+                const value = features[feature.key] !== undefined ? features[feature.key] : false;
+                html += `
+                    <label class="flex items-center gap-2 p-2 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+                        <input type="checkbox" data-feature="${feature.key}" ${value ? 'checked' : ''} class="w-4 h-4 text-primary-500">
+                        <span class="text-sm text-slate-700">${feature.label}</span>
+                    </label>
+                `;
+            });
+            html += '</div></div>';
+
+            html += '</div>';
+            content.innerHTML = html;
+        }
+
+        async function saveFeatureAccess() {
+            const userId = document.getElementById('feature-modal-user-id').value;
+            const features = {};
+
+            // Collect page features
+            document.querySelectorAll('[data-feature]').forEach(checkbox => {
+                features[checkbox.dataset.feature] = checkbox.checked;
+            });
+
+            // Collect investment types
+            const allowedInvestmentTypes = [];
+            document.querySelectorAll('[data-investment-type]').forEach(checkbox => {
+                if (checkbox.checked) {
+                    allowedInvestmentTypes.push(checkbox.dataset.investmentType);
+                }
+            });
+            features.allowedInvestmentTypes = allowedInvestmentTypes;
+
+            // Collect insurance restrictions
+            const blockedInsuranceTypes = [];
+            document.querySelectorAll('[data-insurance-type]').forEach(checkbox => {
+                if (checkbox.checked) {
+                    blockedInsuranceTypes.push(checkbox.dataset.insuranceType);
+                }
+            });
+            features.blockedInsuranceTypes = blockedInsuranceTypes;
+
+            console.log('Saving features for user:', userId, features);
+            try {
+                const response = await api.admin.updateUserFeatures(userId, features);
+                console.log('Save response:', response);
+                showToast('Feature access updated successfully!');
+                closeFeatureModal();
+                loadUsers(); // Reload users to show updated features
+                
+                // If updating current user's features, refresh restrictions
+                const currentUser = auth.getUser();
+                if (currentUser && currentUser.id === userId) {
+                    // Clear cached features and reload
+                    localStorage.removeItem('retyrment_features');
+                    // Re-apply restrictions
+                    setTimeout(async () => {
+                        await applyFeatureRestrictions();
+                        showToast('Your feature access has been updated. Please refresh the page.', 'success');
+                    }, 500);
+                }
+            } catch (error) {
+                console.error('Error saving features:', error);
+                showToast(error.message || 'Failed to update feature access', 'error');
+            }
+        }
+    </script>
+</body>
+</html>

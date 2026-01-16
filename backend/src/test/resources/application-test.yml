@@ -1,0 +1,30 @@
+# Test Configuration
+spring:
+  data:
+    mongodb:
+      # Will be overridden by Testcontainers
+      database: retyrment_test
+  
+  # Disable OAuth2 for tests
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration
+
+# JWT for testing
+app:
+  jwt:
+    secret: test-secret-key-for-jwt-tokens-must-be-at-least-256-bits-long-for-testing-purposes
+    expiration: 3600000
+  
+  frontend-url: http://localhost:3000
+  
+  cors:
+    allowed-origins: "*"
+
+# Logging
+logging:
+  level:
+    root: WARN
+    com.retyrment: DEBUG
+    org.springframework.test: INFO
+    org.testcontainers: INFO
