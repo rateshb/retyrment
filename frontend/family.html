@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loans - Retyrment</title>
+    <title>Family Members - Retyrment</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script>
@@ -58,29 +58,80 @@
 
         <main class="flex-1 overflow-y-auto scrollbar-thin">
             <header class="sticky top-0 z-10 header-blur border-b border-slate-200 px-8 py-4">
-                <div><h1 class="text-2xl font-semibold text-slate-800">Loans & EMIs</h1><p class="text-sm text-slate-500">Manage your liabilities</p></div>
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="text-2xl font-semibold text-slate-800">Family Members</h1>
+                        <p class="text-sm text-slate-500">Manage family information for insurance planning</p>
+                    </div>
+                    <button onclick="openAddMemberModal()" class="px-4 py-2 btn-primary rounded-lg flex items-center gap-2 shadow-md">
+                        <span>+</span> Add Member
+                    </button>
+                </div>
             </header>
 
             <div class="p-8">
-                <div class="flex justify-between items-center mb-6">
-                    <div class="text-sm text-slate-500" id="entry-count">0 entries</div>
-                    <button onclick="openAddModal()" class="px-4 py-2 btn-primary rounded-lg flex items-center gap-2 shadow-md"><span>+</span> Add Loan</button>
+                <!-- Summary Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div class="card p-4">
+                        <div class="text-sm text-slate-500">Total Members</div>
+                        <div id="total-members" class="text-2xl font-bold text-slate-800">0</div>
+                    </div>
+                    <div class="card p-4">
+                        <div class="text-sm text-slate-500">Dependents</div>
+                        <div id="total-dependents" class="text-2xl font-bold text-warning-600">0</div>
+                    </div>
+                    <div class="card p-4">
+                        <div class="text-sm text-slate-500">Total Health Cover</div>
+                        <div id="total-health-cover" class="text-2xl font-bold text-success-600">₹0</div>
+                    </div>
+                    <div class="card p-4">
+                        <div class="text-sm text-slate-500">Total Life Cover</div>
+                        <div id="total-life-cover" class="text-2xl font-bold text-primary-600">₹0</div>
+                    </div>
                 </div>
 
+                <!-- Info Banner -->
+                <div class="bg-primary-50 border border-primary-200 rounded-xl p-4 mb-6">
+                    <div class="flex items-start gap-3">
+                        <span class="text-2xl">💡</span>
+                        <div>
+                            <p class="text-primary-800 font-medium">Why add family members?</p>
+                            <p class="text-sm text-primary-700 mt-1">
+                                Family data helps us calculate personalized insurance recommendations:
+                            </p>
+                            <ul class="text-sm text-primary-700 mt-2 list-disc list-inside">
+                                <li><strong>Health Insurance:</strong> Coverage based on family size, ages, and health conditions</li>
+                                <li><strong>Term Life Insurance:</strong> Coverage based on dependents, income replacement needs</li>
+                                <li><strong>Financial Planning:</strong> Education and marriage goal estimation for children</li>
+                            </ul>
+                            <a href="insurance-recommendations.html" class="inline-block mt-3 text-primary-600 hover:text-primary-800 text-sm font-medium">
+                                View Insurance Recommendations →
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Table -->
                 <div class="card overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                        <h2 class="font-semibold text-slate-800">Family Members</h2>
+                        <span id="entry-count" class="text-sm text-slate-500">0 members</span>
+                    </div>
                     <table class="w-full">
                         <thead class="bg-slate-50">
                             <tr>
-                                <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">Loan</th>
-                                <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">Outstanding</th>
-                                <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">EMI</th>
-                                <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">Rate</th>
-                                <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">Remaining</th>
-                                <th class="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase">Actions</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Member</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Age</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Gender</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Coverage</th>
+                                <th class="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100" id="data-table">
-                            <tr><td colspan="6" class="px-6 py-8 text-center text-slate-400">Loading...</td></tr>
+                        <tbody id="data-table" class="divide-y divide-slate-100">
+                            <tr>
+                                <td colspan="6" class="px-6 py-8 text-center text-slate-400">Loading...</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -88,26 +139,18 @@
         </main>
     </div>
 
-    <div id="modal" class="fixed inset-0 hidden items-center justify-center z-50">
-        <div class="bg-white rounded-xl border border-slate-200 w-full max-w-lg max-h-[90vh] overflow-hidden shadow-2xl">
-            <div class="flex justify-between items-center px-6 py-4 border-b border-slate-200 bg-slate-50">
-                <h3 class="text-lg font-semibold text-slate-800" id="modal-title">Add Loan</h3>
-                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
-            </div>
-            <form id="modal-form" class="p-6 overflow-y-auto max-h-[60vh]" onsubmit="handleSubmit(event)"><div id="modal-fields"></div></form>
-            <div class="flex justify-end gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50">
-                <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-100">Cancel</button>
-                <button type="submit" form="modal-form" class="px-6 py-2 rounded-lg btn-primary">Save</button>
-            </div>
-        </div>
-    </div>
+    <!-- Family page uses custom modal created by family.js -->
 
+    <!-- Toast -->
     <div id="toast" class="fixed bottom-6 right-6 bg-white border border-slate-200 rounded-lg px-4 py-3 shadow-lg hidden">
-        <div class="flex items-center gap-3"><span id="toast-icon">✅</span><span id="toast-message" class="text-slate-700">Success!</span></div>
+        <div class="flex items-center gap-3">
+            <span id="toast-icon">✅</span>
+            <span id="toast-message" class="text-slate-700">Success!</span>
+        </div>
     </div>
 
     <script src="js/api.js"></script>
     <script src="js/common.js"></script>
-    <script src="js/loans.js"></script>
+    <script src="js/family.js"></script>
 </body>
 </html>

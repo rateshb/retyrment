@@ -87,6 +87,23 @@ async function applyRetirementFeatureRestrictions() {
                 strategyTab.classList.remove('hidden');
             }
         }
+        
+        // Hide Withdrawal Strategy TAB if not enabled (default is false/restricted)
+        const withdrawalTab = document.getElementById('tab-withdrawal');
+        
+        if (features.retirementWithdrawalStrategyTab !== true) {
+            // Hide the tab button
+            if (withdrawalTab) {
+                withdrawalTab.style.display = 'none';
+                withdrawalTab.classList.add('hidden');
+            }
+        } else {
+            // Show the tab button (but panel stays hidden until tab is clicked)
+            if (withdrawalTab) {
+                withdrawalTab.style.display = '';
+                withdrawalTab.classList.remove('hidden');
+            }
+        }
     } catch (error) {
         console.error('Error applying retirement feature restrictions:', error);
     }

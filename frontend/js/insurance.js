@@ -445,6 +445,22 @@ function showPolicyForm(category, existingData = {}) {
                     </div>
                     <p class="text-xs text-amber-700">💡 Maturity amount will be added to your corpus in that year</p>
                 </div>
+                
+                <!-- Money-Back Payout Schedule (for MONEY_BACK type) -->
+                <div id="money-back-schedule" class="p-4 bg-pink-50 rounded-lg border border-pink-200 space-y-3">
+                    <div class="flex justify-between items-center">
+                        <p class="text-sm text-pink-800 font-medium">💰 Money-Back Payout Schedule</p>
+                        <button type="button" onclick="addMoneyBackPayout()" class="text-xs px-2 py-1 bg-pink-200 text-pink-800 rounded hover:bg-pink-300">
+                            + Add Payout
+                        </button>
+                    </div>
+                    <p class="text-xs text-pink-600">
+                        Define payouts at different policy years (e.g., 20% at year 5, 30% at year 10, 50% at maturity)
+                    </p>
+                    <div id="money-back-payouts" class="space-y-2">
+                        ${renderExistingPayouts(existingData.moneyBackPayouts || [])}
+                    </div>
+                </div>
                 ` : ''}
                 
                 ${isPension ? `
@@ -560,6 +576,9 @@ async function handleSubmit(event) {
     formData.forEach((value, key) => {
         if (value === '' || value === null) return;
         
+        // Skip money-back payout fields (handled separately)
+        if (key.startsWith('payout')) return;
+        
         // Handle checkbox
         if (key === 'continuesAfterRetirement') {
             data[key] = true;
@@ -592,6 +611,14 @@ async function handleSubmit(event) {
         data.type = 'ANNUITY';
     }
     
+    // Collect money-back payouts for MONEY_BACK type
+    if (data.type === 'MONEY_BACK' || currentCategory === 'LIFE_SAVINGS') {
+        const payouts = collectMoneyBackPayouts();
+        if (payouts.length > 0) {
+            data.moneyBackPayouts = payouts;
+        }
+    }
+    
     try {
         if (currentEditId) {
             await api.insurance.update(currentEditId, data);
@@ -615,4 +642,89 @@ function numberToWords(num) {
     if (num >= 100000) return `₹${(num / 100000).toFixed(2)} Lakh`;
     if (num >= 1000) return `₹${(num / 1000).toFixed(1)} Thousand`;
     return `₹${num}`;
+}
+
+// ========== MONEY-BACK PAYOUT FUNCTIONS ==========
+
+let payoutCounter = 0;
+
+function renderExistingPayouts(payouts) {
+    if (!payouts || payouts.length === 0) {
+        return `<div class="text-xs text-pink-500 text-center py-2">No payouts defined yet. Click "Add Payout" to add.</div>`;
+    }
+    
+    return payouts.map((payout, index) => {
+        payoutCounter = Math.max(payoutCounter, index + 1);
+        return createPayoutRow(index, payout);
+    }).join('');
+}
+
+function createPayoutRow(index, data = {}) {
+    return `
+    <div class="flex items-center gap-2 p-2 bg-white rounded border border-pink-200" id="payout-row-${index}">
+        <div class="flex-1">
+            <input type="number" name="payoutYear_${index}" value="${data.policyYear || ''}" min="1" max="50"
+                   placeholder="Year" class="w-full px-2 py-1 border border-pink-200 rounded text-sm">
+        </div>
+        <div class="flex-1">
+            <input type="number" name="payoutPercent_${index}" value="${data.percentage || ''}" step="0.1" min="0" max="100"
+                   placeholder="%" class="w-full px-2 py-1 border border-pink-200 rounded text-sm">
+        </div>
+        <div class="flex-1">
+            <input type="number" name="payoutAmount_${index}" value="${data.fixedAmount || ''}"
+                   placeholder="₹ Fixed" class="w-full px-2 py-1 border border-pink-200 rounded text-sm">
+        </div>
+        <label class="flex items-center gap-1 text-xs">
+            <input type="checkbox" name="payoutBonus_${index}" ${data.includesBonus ? 'checked' : ''} class="w-3 h-3">
+            <span>+Bonus</span>
+        </label>
+        <button type="button" onclick="removePayoutRow(${index})" class="text-pink-500 hover:text-pink-700">×</button>
+    </div>`;
+}
+
+function addMoneyBackPayout() {
+    const container = document.getElementById('money-back-payouts');
+    // Remove "no payouts" message if present
+    const noPayoutMsg = container.querySelector('.text-center');
+    if (noPayoutMsg) noPayoutMsg.remove();
+    
+    container.insertAdjacentHTML('beforeend', createPayoutRow(payoutCounter));
+    payoutCounter++;
+}
+
+function removePayoutRow(index) {
+    const row = document.getElementById(`payout-row-${index}`);
+    if (row) row.remove();
+    
+    // Show "no payouts" message if empty
+    const container = document.getElementById('money-back-payouts');
+    if (container && container.children.length === 0) {
+        container.innerHTML = `<div class="text-xs text-pink-500 text-center py-2">No payouts defined yet. Click "Add Payout" to add.</div>`;
+    }
+}
+
+function collectMoneyBackPayouts() {
+    const payouts = [];
+    const container = document.getElementById('money-back-payouts');
+    if (!container) return payouts;
+    
+    const rows = container.querySelectorAll('[id^="payout-row-"]');
+    rows.forEach(row => {
+        const index = row.id.replace('payout-row-', '');
+        const year = document.querySelector(`[name="payoutYear_${index}"]`)?.value;
+        const percent = document.querySelector(`[name="payoutPercent_${index}"]`)?.value;
+        const amount = document.querySelector(`[name="payoutAmount_${index}"]`)?.value;
+        const bonus = document.querySelector(`[name="payoutBonus_${index}"]`)?.checked;
+        
+        if (year) {
+            payouts.push({
+                policyYear: parseInt(year),
+                percentage: percent ? parseFloat(percent) : null,
+                fixedAmount: amount ? parseFloat(amount) : null,
+                includesBonus: bonus || false
+            });
+        }
+    });
+    
+    return payouts;
 }

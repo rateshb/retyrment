@@ -45,6 +45,8 @@
                 <div class="px-4 mt-6 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Analysis</div>
                 <a href="calendar.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="calendar"><span>📅</span> Calendar</a>
                 <a href="retirement.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="retirement"><span>🏖️</span> Retirement</a>
+                <a href="insurance-recommendations.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="insurance-recommendations"><span>🩺</span> Insurance Advisor</a>
+                <a href="simulation.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="simulation" data-requires-pro><span>🎲</span> Simulation <span class="pro-badge text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded ml-auto">PRO</span></a>
                 <a href="reports.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="reports"><span>📑</span> Reports</a>
                 <a href="admin.html" class="nav-item active flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="admin"><span>👑</span> Admin Panel</a>
             </nav>
@@ -495,7 +497,6 @@
                 { key: 'calendarPage', label: 'Calendar Page', default: false },
                 { key: 'retirementPage', label: 'Retirement Page', default: true },
                 { key: 'reportsPage', label: 'Reports Page', default: false },
-                { key: 'simulationPage', label: 'Monte Carlo Simulation', default: false },
                 { key: 'preferencesPage', label: 'Preferences Page', default: false },
                 { key: 'settingsPage', label: 'Settings Page', default: true },
                 { key: 'accountPage', label: 'My Account Page', default: true }
@@ -549,10 +550,33 @@
             // Retirement tabs
             html += '<div class="border-b border-slate-200 pb-4 mb-4"><h4 class="font-semibold text-slate-800 mb-3">Retirement Page Tabs</h4>';
             html += `
-                <label class="flex items-center gap-2 p-2 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
-                    <input type="checkbox" data-feature="retirementStrategyPlannerTab" ${features.retirementStrategyPlannerTab ? 'checked' : ''} class="w-4 h-4 text-primary-500">
-                    <span class="text-sm text-slate-700">Strategy Planner Tab</span>
-                </label>
+                <div class="grid grid-cols-2 gap-3">
+                    <label class="flex items-center gap-2 p-2 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+                        <input type="checkbox" data-feature="retirementStrategyPlannerTab" ${features.retirementStrategyPlannerTab ? 'checked' : ''} class="w-4 h-4 text-primary-500">
+                        <span class="text-sm text-slate-700">Strategy Planner Tab</span>
+                    </label>
+                    <label class="flex items-center gap-2 p-2 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+                        <input type="checkbox" data-feature="retirementWithdrawalStrategyTab" ${features.retirementWithdrawalStrategyTab ? 'checked' : ''} class="w-4 h-4 text-primary-500">
+                        <span class="text-sm text-slate-700">Withdrawal Strategy Tab</span>
+                    </label>
+                </div>
+            `;
+            html += '</div>';
+
+            // Simulation access
+            html += '<div class="border-b border-slate-200 pb-4 mb-4"><h4 class="font-semibold text-slate-800 mb-3">Simulation Access</h4>';
+            html += `
+                <div class="grid grid-cols-2 gap-3">
+                    <label class="flex items-center gap-2 p-2 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+                        <input type="checkbox" data-feature="simulationPage" ${features.simulationPage ? 'checked' : ''} class="w-4 h-4 text-primary-500">
+                        <span class="text-sm text-slate-700">Simulation Page Visible</span>
+                    </label>
+                    <label class="flex items-center gap-2 p-2 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+                        <input type="checkbox" data-feature="canRunSimulation" ${features.canRunSimulation ? 'checked' : ''} class="w-4 h-4 text-primary-500">
+                        <span class="text-sm text-slate-700">Can Run Simulations</span>
+                    </label>
+                </div>
+                <p class="text-xs text-slate-500 mt-2">Page Visible: Shows/hides the Simulation menu item. Can Run: Controls ability to execute simulations.</p>
             `;
             html += '</div>';
 

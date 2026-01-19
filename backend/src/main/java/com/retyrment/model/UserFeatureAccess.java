@@ -50,16 +50,25 @@ public class UserFeatureAccess {
     private Boolean goalsPage = true;  // Visible by default
 
     @Builder.Default
+    private Boolean familyPage = true;  // Family members page - visible by default
+
+    @Builder.Default
     private Boolean calendarPage = false;  // Restricted by default
 
     @Builder.Default
     private Boolean retirementPage = true;  // Visible by default
 
     @Builder.Default
+    private Boolean insuranceRecommendationsPage = true;  // Insurance Advisor page - visible by default
+
+    @Builder.Default
     private Boolean reportsPage = false;  // Restricted by default
 
     @Builder.Default
-    private Boolean simulationPage = false;  // Restricted by default
+    private Boolean simulationPage = false;  // Restricted by default - controls page visibility
+
+    @Builder.Default
+    private Boolean canRunSimulation = false;  // Restricted by default - controls ability to run simulations
 
     @Builder.Default
     private Boolean adminPanel = false;  // Admin only
@@ -99,6 +108,9 @@ public class UserFeatureAccess {
     // Retirement page tab restrictions
     @Builder.Default
     private Boolean retirementStrategyPlannerTab = false;  // Restricted by default
+
+    @Builder.Default
+    private Boolean retirementWithdrawalStrategyTab = false;  // Restricted by default
 
     // Report type restrictions
     @Builder.Default

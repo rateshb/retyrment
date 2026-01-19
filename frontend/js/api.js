@@ -211,6 +211,16 @@ const api = {
                 throw new Error('Session expired');
             }
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
+            // Try to parse JSON response, return true if no body
+            const text = await response.text();
+            if (text) {
+                try {
+                    return JSON.parse(text);
+                } catch {
+                    return true;
+                }
+            }
             return true;
         } catch (error) {
             console.error(`DELETE ${endpoint} failed:`, error);
@@ -252,9 +262,22 @@ const api = {
         getAll: () => api.get('/insurance'),
         getByType: (type) => api.get(`/insurance/type/${type}`),
         getInvestmentLinked: () => api.get('/insurance/investment-linked'),
+        getRecommendations: () => api.get('/insurance/recommendations'),
         create: (data) => api.post('/insurance', data),
         update: (id, data) => api.put(`/insurance/${id}`, data),
         delete: (id) => api.delete(`/insurance/${id}`)
+    },
+    
+    // Family Members
+    family: {
+        getAll: () => api.get('/family'),
+        getSummary: () => api.get('/family/summary'),
+        getSelf: () => api.get('/family/self'),
+        getSpouse: () => api.get('/family/spouse'),
+        getDependents: () => api.get('/family/dependents'),
+        create: (data) => api.post('/family', data),
+        update: (id, data) => api.put(`/family/${id}`, data),
+        delete: (id) => api.delete(`/family/${id}`)
     },
 
     // Expenses
@@ -369,6 +392,18 @@ const api = {
         get: () => api.get('/preferences'),
         update: (data) => api.put('/preferences', data),
         getOptions: () => api.get('/preferences/options')
+    },
+    
+    // Insurance Recommendations
+    insuranceRecommendations: {
+        getHealth: (currentAge, retirementAge) => api.get(`/insurance/recommendations/health?currentAge=${currentAge}&retirementAge=${retirementAge}`),
+        getTerm: (currentAge, retirementAge) => api.get(`/insurance/recommendations/term?currentAge=${currentAge}&retirementAge=${retirementAge}`)
+    },
+    
+    // User Data Management
+    userData: {
+        getSummary: () => api.get('/user/data/summary'),
+        deleteAll: (confirmation) => api.delete(`/user/data/all?confirmation=${confirmation}`)
     }
 };
 

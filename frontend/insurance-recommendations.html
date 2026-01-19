@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Insurance Advisor - Retyrment</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc', 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' },
+                        success: { 50: '#ecfdf5', 100: '#d1fae5', 400: '#34d399', 500: '#10b981', 600: '#059669' },
+                        warning: { 50: '#fffbeb', 100: '#fef3c7', 400: '#fbbf24', 500: '#f59e0b', 600: '#d97706' },
+                        danger: { 50: '#fef2f2', 100: '#fee2e2', 400: '#f87171', 500: '#ef4444', 600: '#dc2626' }
+                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen bg-pattern">
+    <div class="flex h-screen overflow-hidden">
+        <aside class="w-64 bg-white border-r border-slate-200 flex flex-col shadow-sm">
+            <div class="p-5 border-b border-slate-200">
+                <a href="index.html" class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg logo-gradient flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-primary-500/30">₹</div>
+                    <span class="text-xl font-bold bg-gradient-to-r from-primary-500 to-primary-700 bg-clip-text text-transparent">Retyrment</span>
+                </a>
+            </div>
+            <nav class="flex-1 py-4 overflow-y-auto scrollbar-thin">
+                <div class="px-4 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Overview</div>
+                <a href="index.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="dashboard"><span>📊</span> Dashboard</a>
+                <div class="px-4 mt-6 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Data Entry</div>
+                <a href="income.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="income"><span>💰</span> Income</a>
+                <a href="investments.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="investments"><span>📈</span> Investments</a>
+                <a href="loans.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="loans"><span>🏦</span> Loans</a>
+                <a href="insurance.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="insurance"><span>🛡️</span> Insurance</a>
+                <a href="expenses.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="expenses"><span>🛒</span> Expenses</a>
+                <a href="goals.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="goals"><span>🎯</span> Goals</a>
+                <a href="family.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="family"><span>👨‍👩‍👧‍👦</span> Family</a>
+                <div class="px-4 mt-6 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Analysis</div>
+                <a href="calendar.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="calendar"><span>📅</span> Calendar</a>
+                <a href="retirement.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="retirement"><span>🏖️</span> Retirement</a>
+                <a href="insurance-recommendations.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="insurance-recommendations"><span>🩺</span> Insurance Advisor</a>
+                <a href="simulation.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="simulation" data-requires-pro><span>🎲</span> Simulation <span class="pro-badge text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded ml-auto">PRO</span></a>
+                <a href="reports.html" class="nav-item flex items-center gap-3 px-5 py-3 text-slate-600 border-l-2 border-transparent" data-page="reports"><span>📑</span> Reports</a>
+            </nav>
+            <div class="p-4 border-t border-slate-200">
+                <a href="preferences.html" class="nav-item flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-slate-700 rounded" data-page="preferences"><span>⚙️</span> Preferences</a>
+                <a href="settings.html" class="nav-item flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-slate-700 rounded mt-1" data-page="settings"><span>🔧</span> Settings</a>
+            </div>
+        </aside>
+
+        <main class="flex-1 overflow-y-auto scrollbar-thin">
+            <header class="sticky top-0 z-10 header-blur border-b border-slate-200 px-8 py-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="text-2xl font-semibold text-slate-800">Insurance Advisor</h1>
+                        <p class="text-sm text-slate-500">Personalized health and term insurance recommendations</p>
+                    </div>
+                    <button onclick="loadRecommendations()" class="px-4 py-2 btn-primary rounded-lg flex items-center gap-2 shadow-md">
+                        <span>↻</span> Refresh Analysis
+                    </button>
+                </div>
+            </header>
+
+            <div class="p-8">
+                <!-- Overall Score Card -->
+                <div id="overall-score" class="card p-6 mb-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-lg font-semibold text-slate-800">Insurance Health Score</h2>
+                            <p class="text-slate-500 text-sm">How well protected is your family?</p>
+                        </div>
+                        <div id="score-display" class="text-center">
+                            <div class="text-5xl font-bold text-slate-300">--</div>
+                            <div class="text-sm text-slate-400">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Urgent Actions -->
+                <div id="urgent-actions" class="hidden bg-danger-50 border border-danger-200 rounded-xl p-4 mb-6">
+                    <h3 class="text-lg font-semibold text-danger-800 flex items-center gap-2">
+                        <span>⚠️</span> Urgent Actions Required
+                    </h3>
+                    <ul id="urgent-list" class="mt-3 space-y-2 text-danger-700"></ul>
+                </div>
+
+                <!-- Tabs -->
+                <div class="border-b border-slate-200 mb-6">
+                    <nav class="flex gap-4">
+                        <button onclick="switchTab('health')" id="tab-health" 
+                                class="px-4 py-3 text-primary-600 border-b-2 border-primary-600 font-medium">
+                            🏥 Health Insurance
+                        </button>
+                        <button onclick="switchTab('term')" id="tab-term" 
+                                class="px-4 py-3 text-slate-500 hover:text-slate-700">
+                            🛡️ Term Life Insurance
+                        </button>
+                    </nav>
+                </div>
+
+                <!-- Health Insurance Panel -->
+                <div id="panel-health" class="space-y-6">
+                    <!-- Summary Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="card p-4">
+                            <div class="text-sm text-slate-500">Existing Cover</div>
+                            <div id="health-existing" class="text-xl font-bold text-slate-800">₹0</div>
+                        </div>
+                        <div class="card p-4">
+                            <div class="text-sm text-slate-500">Recommended Cover</div>
+                            <div id="health-recommended" class="text-xl font-bold text-success-600">₹0</div>
+                        </div>
+                        <div class="card p-4">
+                            <div class="text-sm text-slate-500">Coverage Gap</div>
+                            <div id="health-gap" class="text-xl font-bold text-danger-600">₹0</div>
+                        </div>
+                        <div class="card p-4">
+                            <div class="text-sm text-slate-500">Est. Annual Premium</div>
+                            <div id="health-premium" class="text-xl font-bold text-primary-600">₹0</div>
+                        </div>
+                    </div>
+
+                    <!-- Policy Recommendations -->
+                    <div class="card overflow-hidden">
+                        <div class="px-6 py-4 border-b border-slate-100 bg-slate-50">
+                            <h3 class="font-semibold text-slate-800">Recommended Policies</h3>
+                            <p class="text-sm text-slate-500 mt-1">Based on your family composition and ages</p>
+                        </div>
+                        <div id="health-breakdown" class="p-6">
+                            <p class="text-slate-500 text-center py-8">Loading recommendations...</p>
+                        </div>
+                    </div>
+
+                    <!-- Policy Suggestions -->
+                    <div class="bg-primary-50 border border-primary-200 rounded-xl p-6">
+                        <h3 class="font-semibold text-primary-800 mb-3">💡 Policy Suggestions</h3>
+                        <ul id="health-suggestions" class="space-y-2 text-primary-700"></ul>
+                    </div>
+                </div>
+
+                <!-- Term Insurance Panel -->
+                <div id="panel-term" class="space-y-6 hidden">
+                    <!-- Summary Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="card p-4">
+                            <div class="text-sm text-slate-500">Existing Cover</div>
+                            <div id="term-existing" class="text-xl font-bold text-slate-800">₹0</div>
+                        </div>
+                        <div class="card p-4">
+                            <div class="text-sm text-slate-500">Recommended Cover</div>
+                            <div id="term-recommended" class="text-xl font-bold text-success-600">₹0</div>
+                        </div>
+                        <div class="card p-4">
+                            <div class="text-sm text-slate-500">Coverage Gap</div>
+                            <div id="term-gap" class="text-xl font-bold text-danger-600">₹0</div>
+                        </div>
+                        <div class="card p-4">
+                            <div class="text-sm text-slate-500">Est. Annual Premium</div>
+                            <div id="term-premium" class="text-xl font-bold text-primary-600">₹0</div>
+                        </div>
+                    </div>
+
+                    <!-- Calculation Breakdown -->
+                    <div class="card overflow-hidden">
+                        <div class="px-6 py-4 border-b border-slate-100 bg-slate-50">
+                            <h3 class="font-semibold text-slate-800">How We Calculated Your Coverage</h3>
+                        </div>
+                        <div id="term-breakdown" class="p-6">
+                            <p class="text-slate-500 text-center py-8">Loading recommendations...</p>
+                        </div>
+                    </div>
+
+                    <!-- Coverage Duration -->
+                    <div class="card p-6">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <h3 class="font-semibold text-slate-800">Recommended Coverage Duration</h3>
+                                <p class="text-slate-500 text-sm mt-1">Cover should last until you're financially independent</p>
+                            </div>
+                            <div id="term-coverage-age" class="text-3xl font-bold text-primary-600">Age 65</div>
+                        </div>
+                    </div>
+
+                    <!-- Suggestions -->
+                    <div class="bg-success-50 border border-success-200 rounded-xl p-6">
+                        <h3 class="font-semibold text-success-800 mb-3">💡 Term Insurance Tips</h3>
+                        <ul id="term-suggestions" class="space-y-2 text-success-700"></ul>
+                    </div>
+                </div>
+
+                <!-- No Family Data Warning -->
+                <div id="no-family-warning" class="hidden bg-warning-50 border border-warning-200 rounded-xl p-6 mt-6">
+                    <div class="flex items-start gap-3">
+                        <span class="text-2xl">👨‍👩‍👧‍👦</span>
+                        <div>
+                            <p class="text-warning-800 font-medium">Add Family Members for Better Recommendations</p>
+                            <p class="text-sm text-warning-700 mt-1">
+                                We need family information (dependents, ages, health conditions) to provide accurate insurance recommendations.
+                            </p>
+                            <a href="family.html" class="inline-block mt-3 px-4 py-2 bg-warning-600 text-white rounded-lg hover:bg-warning-700 text-sm font-medium">
+                                Add Family Members →
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-6 right-6 bg-white border border-slate-200 rounded-lg px-4 py-3 shadow-lg hidden">
+        <div class="flex items-center gap-3">
+            <span id="toast-icon">✅</span>
+            <span id="toast-message" class="text-slate-700">Success!</span>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/common.js"></script>
+    <script src="js/insurance-recommendations.js"></script>
+</body>
+</html>

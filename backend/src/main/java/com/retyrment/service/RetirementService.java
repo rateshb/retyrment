@@ -67,13 +67,14 @@ public class RetirementService {
         double npsBalance = getInvestmentBalance(userId, Investment.InvestmentType.NPS);
         
         // Additional liquid assets that contribute to retirement corpus
-        double fdBalance = getInvestmentBalance(userId, Investment.InvestmentType.FD);
-        double rdBalance = getInvestmentBalance(userId, Investment.InvestmentType.RD);
+        double fdBalance = getInvestmentBalanceExcludingEmergencyFund(userId, Investment.InvestmentType.FD);
+        double rdBalance = getInvestmentBalanceExcludingEmergencyFund(userId, Investment.InvestmentType.RD);
         double stockBalance = getInvestmentBalance(userId, Investment.InvestmentType.STOCK);
         double cashBalance = getInvestmentBalance(userId, Investment.InvestmentType.CASH);
+        double emergencyFundBalance = getEmergencyFundBalance(userId);
         
         // Combine into categories for cleaner matrix display
-        // "Other Liquid" = FD + RD + STOCK + CASH (shown separately in summary)
+        // "Other Liquid" = FD + RD + STOCK + CASH (FD/RD exclude emergency fund)
         double otherLiquidBalance = fdBalance + rdBalance + stockBalance + cashBalance;
 
         // Get monthly contributions - filter by userId
@@ -96,6 +97,22 @@ public class RetirementService {
         List<Insurance> investmentPolicies = insuranceRepository.findByUserIdAndTypeIn(userId,
                 Arrays.asList(Insurance.InsuranceType.ULIP, Insurance.InsuranceType.ENDOWMENT, 
                               Insurance.InsuranceType.MONEY_BACK));
+        
+        // Pre-calculate money-back payout schedules for all money-back policies
+        Map<Integer, Double> moneyBackPayoutsByYear = new HashMap<>();
+        Map<Integer, List<String>> moneyBackDescriptionsByYear = new HashMap<>();
+        for (Insurance policy : investmentPolicies) {
+            if (policy.getType() == Insurance.InsuranceType.MONEY_BACK) {
+                for (Insurance.PayoutSchedule payout : policy.getPayoutSchedule()) {
+                    int year = payout.getCalendarYear();
+                    moneyBackPayoutsByYear.merge(year, payout.getAmount(), Double::sum);
+                    moneyBackDescriptionsByYear.computeIfAbsent(year, k -> new ArrayList<>())
+                            .add(String.format("%s: ₹%.0f (%.0f%%)", 
+                                    policy.getPolicyName(), payout.getAmount(), 
+                                    payout.getPercentage() != null ? payout.getPercentage() : 0));
+                }
+            }
+        }
 
         // Use simple scalar values if provided, otherwise fall back to complex period returns or defaults
         double simpleEpfReturn = scenario.getEpfReturn() != null ? scenario.getEpfReturn() : defaultEpfReturn;
@@ -121,6 +138,12 @@ public class RetirementService {
         double rateReductionPercent = scenario.getRateReductionPercent() != null ? scenario.getRateReductionPercent() : 0.5;
         int rateReductionYears = scenario.getRateReductionYears() != null ? scenario.getRateReductionYears() : 5;
 
+        // Expand recurring goals to all their occurrence years
+        List<Goal.GoalOccurrence> expandedGoals = new ArrayList<>();
+        for (Goal goal : goals) {
+            expandedGoals.addAll(goal.expandOccurrences(currentYear + yearsToRetirement, simpleInflation));
+        }
+        
         double cumulativePpf = ppfBalance;
         double cumulativeEpf = epfBalance;
         double cumulativeMf = mfBalance;
@@ -221,19 +244,22 @@ public class RetirementService {
                 }
             }
             
-            // Total inflows for this year
-            double totalInflow = insuranceMaturityInflow + investmentMaturityInflow;
+            // Check for money-back payouts (intermediate payouts before maturity)
+            double moneyBackInflow = moneyBackPayoutsByYear.getOrDefault(calendarYear, 0.0);
+            List<String> moneyBackDetails = moneyBackDescriptionsByYear.getOrDefault(calendarYear, new ArrayList<>());
+            
+            // Total inflows for this year (including money-back payouts)
+            double totalInflow = insuranceMaturityInflow + investmentMaturityInflow + moneyBackInflow;
 
-            // Check for goal outflows
+            // Check for goal outflows (using expanded recurring goals)
             double goalOutflow = 0;
             List<String> goalsThisYear = new ArrayList<>();
-            for (Goal goal : goals) {
-                if (goal.getTargetYear() != null && goal.getTargetYear() == calendarYear 
-                        && goal.getTargetAmount() != null) {
-                    double inflatedAmount = calculationService.calculateInflatedValue(
-                            goal.getTargetAmount(), simpleInflation, year);
-                    goalOutflow += inflatedAmount;
-                    goalsThisYear.add(goal.getName());
+            for (Goal.GoalOccurrence occurrence : expandedGoals) {
+                if (occurrence.getYear() == calendarYear) {
+                    // The amount is already inflated in expandOccurrences for recurring goals
+                    // For one-time goals, we still need to inflate from today's value
+                    goalOutflow += occurrence.getAmount();
+                    goalsThisYear.add(occurrence.getDescription());
                 }
             }
 
@@ -256,6 +282,8 @@ public class RetirementService {
             row.put("totalCorpus", Math.round(totalCorpus));
             row.put("insuranceMaturity", Math.round(insuranceMaturityInflow));
             row.put("investmentMaturity", Math.round(investmentMaturityInflow));
+            row.put("moneyBackPayout", Math.round(moneyBackInflow));
+            row.put("moneyBackDetails", moneyBackDetails);
             row.put("totalInflow", Math.round(totalInflow));
             row.put("maturingPolicies", maturingPolicies);
             row.put("maturingInvestments", maturingInvestments);
@@ -399,12 +427,13 @@ public class RetirementService {
         startingBalances.put("rd", Math.round(rdBalance));
         startingBalances.put("stocks", Math.round(stockBalance));
         startingBalances.put("cash", Math.round(cashBalance));
+        startingBalances.put("emergencyFund", Math.round(emergencyFundBalance));
         startingBalances.put("otherLiquidTotal", Math.round(otherLiquidBalance));
         startingBalances.put("totalStarting", Math.round(ppfBalance + epfBalance + mfBalance + npsBalance + otherLiquidBalance));
         summary.put("startingBalances", startingBalances);
         
         // Note about excluded assets
-        summary.put("excludedFromCorpus", "Gold, Real Estate, Crypto (illiquid assets)");
+        summary.put("excludedFromCorpus", "Gold, Real Estate, Crypto (illiquid assets), Emergency Fund FDs/RDs");
         
         // Calculate SIP Step-Up Optimization: Find when step-up can stop
         Map<String, Object> gapData = gapAnalysis;
@@ -474,6 +503,31 @@ public class RetirementService {
                 .sum();
     }
 
+    private double getInvestmentBalanceExcludingEmergencyFund(String userId, Investment.InvestmentType type) {
+        return investmentRepository.findByUserIdAndType(userId, type).stream()
+                .filter(i -> !Boolean.TRUE.equals(i.getIsEmergencyFund()))
+                .mapToDouble(i -> i.getCurrentValue() != null ? i.getCurrentValue() :
+                                  (i.getInvestedAmount() != null ? i.getInvestedAmount() : 0))
+                .sum();
+    }
+
+    private double getEmergencyFundBalance(String userId) {
+        // Sum both FD and RD tagged as emergency fund
+        double fdEmergency = investmentRepository.findByUserIdAndType(userId, Investment.InvestmentType.FD).stream()
+                .filter(i -> Boolean.TRUE.equals(i.getIsEmergencyFund()))
+                .mapToDouble(i -> i.getCurrentValue() != null ? i.getCurrentValue() :
+                                  (i.getInvestedAmount() != null ? i.getInvestedAmount() : 0))
+                .sum();
+        
+        double rdEmergency = investmentRepository.findByUserIdAndType(userId, Investment.InvestmentType.RD).stream()
+                .filter(i -> Boolean.TRUE.equals(i.getIsEmergencyFund()))
+                .mapToDouble(i -> i.getCurrentValue() != null ? i.getCurrentValue() :
+                                  (i.getInvestedAmount() != null ? i.getInvestedAmount() : 0))
+                .sum();
+        
+        return fdEmergency + rdEmergency;
+    }
+
     private double getYearlyContribution(String userId, Investment.InvestmentType type) {
         return investmentRepository.findByUserIdAndType(userId, type).stream()
                 .mapToDouble(i -> i.getYearlyContribution() != null ? i.getYearlyContribution() : 0)
@@ -498,6 +552,11 @@ public class RetirementService {
      */
     private double getAverageReturn(String userId, Investment.InvestmentType type, double defaultRate) {
         List<Investment> investments = investmentRepository.findByUserIdAndType(userId, type);
+        if (type == Investment.InvestmentType.FD) {
+            investments = investments.stream()
+                    .filter(inv -> !Boolean.TRUE.equals(inv.getIsEmergencyFund()))
+                    .toList();
+        }
         if (investments.isEmpty()) {
             return defaultRate;
         }
@@ -767,8 +826,10 @@ public class RetirementService {
         // Note: Loans are assumed to have ended by retirement ideally
         
         // Calculate required corpus based on goals or expenses
+        // For recurring goals, expand and sum all occurrences
+        int retirementYearCalendar = LocalDate.now().getYear() + yearsToRetirement;
         double totalGoalAmount = goals.stream()
-                .mapToDouble(g -> g.getTargetAmount() != null ? g.getTargetAmount() : 0)
+                .mapToDouble(g -> g.getTotalCost(retirementYearCalendar, inflationRate))
                 .sum();
         
         // Monthly expense at retirement = ONLY expenses that continue * (1 + inflation)^years
@@ -1057,6 +1118,9 @@ public class RetirementService {
         // Check investments with maturity dates (FD, RD, PPF)
         List<Investment> investments = investmentRepository.findByUserId(userId);
         for (Investment inv : investments) {
+            if (inv.getType() == Investment.InvestmentType.FD && Boolean.TRUE.equals(inv.getIsEmergencyFund())) {
+                continue;
+            }
             if (inv.getMaturityDate() != null && 
                 inv.getMaturityDate().isAfter(today) && 
                 inv.getMaturityDate().isBefore(retirementDate)) {

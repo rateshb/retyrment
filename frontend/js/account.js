@@ -1,7 +1,10 @@
 // Retyrment - My Account Page
 
+let userDataSummary = null;
+
 document.addEventListener('DOMContentLoaded', () => {
     loadAccountInfo();
+    loadDataSummary();
     applyFeatureRestrictions();
 });
 
@@ -209,4 +212,123 @@ function updateInsuranceRestrictions(blockedTypes) {
     });
 
     restrictions.innerHTML = html;
+}
+
+// Load user data summary
+async function loadDataSummary() {
+    try {
+        userDataSummary = await api.userData.getSummary();
+        updateDataSummaryDisplay(userDataSummary);
+    } catch (error) {
+        console.error('Error loading data summary:', error);
+        // Show placeholder values on error
+        const placeholderSummary = {
+            income: 0, investments: 0, loans: 0, insurance: 0,
+            expenses: 0, goals: 0, familyMembers: 0, total: 0
+        };
+        updateDataSummaryDisplay(placeholderSummary);
+    }
+}
+
+// Update data summary display
+function updateDataSummaryDisplay(summary) {
+    document.getElementById('count-income').textContent = summary.income || 0;
+    document.getElementById('count-investments').textContent = summary.investments || 0;
+    document.getElementById('count-loans').textContent = summary.loans || 0;
+    document.getElementById('count-insurance').textContent = summary.insurance || 0;
+    document.getElementById('count-expenses').textContent = summary.expenses || 0;
+    document.getElementById('count-goals').textContent = summary.goals || 0;
+    document.getElementById('count-family').textContent = summary.familyMembers || 0;
+    document.getElementById('count-total').textContent = summary.total || 0;
+}
+
+// Open delete data modal
+function openDeleteDataModal() {
+    const modal = document.getElementById('delete-data-modal');
+    
+    // Update modal counts
+    if (userDataSummary) {
+        document.getElementById('modal-count-income').textContent = userDataSummary.income || 0;
+        document.getElementById('modal-count-investments').textContent = userDataSummary.investments || 0;
+        document.getElementById('modal-count-loans').textContent = userDataSummary.loans || 0;
+        document.getElementById('modal-count-insurance').textContent = userDataSummary.insurance || 0;
+        document.getElementById('modal-count-expenses').textContent = userDataSummary.expenses || 0;
+        document.getElementById('modal-count-goals').textContent = userDataSummary.goals || 0;
+        document.getElementById('modal-count-family').textContent = userDataSummary.familyMembers || 0;
+        document.getElementById('modal-count-total').textContent = userDataSummary.total || 0;
+    }
+    
+    // Reset form
+    document.getElementById('understand-checkbox').checked = false;
+    document.getElementById('delete-confirmation-input').value = '';
+    updateDeleteButton();
+    
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+// Close delete data modal
+function closeDeleteDataModal() {
+    const modal = document.getElementById('delete-data-modal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+// Update delete button state
+function updateDeleteButton() {
+    const checkbox = document.getElementById('understand-checkbox');
+    const input = document.getElementById('delete-confirmation-input');
+    const button = document.getElementById('confirm-delete-btn');
+    
+    const isChecked = checkbox.checked;
+    const isTextCorrect = input.value.trim() === 'DELETE';
+    
+    button.disabled = !(isChecked && isTextCorrect);
+}
+
+// Confirm and execute deletion
+async function confirmDeleteData() {
+    const button = document.getElementById('confirm-delete-btn');
+    
+    // Disable button to prevent double-click
+    button.disabled = true;
+    button.textContent = '🔄 Deleting...';
+    
+    try {
+        // Call API with confirmation token
+        const result = await api.userData.deleteAll('DELETE_ALL_DATA');
+        
+        if (result.success) {
+            // Close modal
+            closeDeleteDataModal();
+            
+            // Show success message
+            alert(`✅ Success!\n\nDeleted ${result.total || 0} records:\n` +
+                  `- Income: ${result.income || 0}\n` +
+                  `- Investments: ${result.investments || 0}\n` +
+                  `- Loans: ${result.loans || 0}\n` +
+                  `- Insurance: ${result.insurance || 0}\n` +
+                  `- Expenses: ${result.expenses || 0}\n` +
+                  `- Goals: ${result.goals || 0}\n` +
+                  `- Family Members: ${result.familyMembers || 0}\n` +
+                  `- Preferences: ${result.preferences || 0}\n\n` +
+                  `Your account remains active. You can start adding data again or log out.`);
+            
+            // Reload data summary
+            await loadDataSummary();
+            
+            // Optionally redirect to dashboard
+            // window.location.href = 'index.html';
+        } else {
+            throw new Error(result.error || result.message || 'Failed to delete data');
+        }
+        
+    } catch (error) {
+        console.error('Error deleting user data:', error);
+        alert(`❌ Error!\n\nFailed to delete data: ${error.message}\n\nPlease try again or contact support if the problem persists.`);
+        
+        // Re-enable button
+        button.disabled = false;
+        button.textContent = '🗑️ Delete All Data';
+    }
 }

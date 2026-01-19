@@ -26,4 +26,6 @@ public interface InvestmentRepository extends MongoRepository<Investment, String
     Optional<Investment> findByIdAndUserId(String id, String userId);
     
     boolean existsByIdAndUserId(String id, String userId);
+    
+    void deleteByUserId(String userId);
 }

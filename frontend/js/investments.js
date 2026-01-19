@@ -32,7 +32,8 @@ const investmentTypeConfig = {
             { name: 'currentValue', label: 'Maturity Value (₹)', type: 'number', required: true, min: 0, hint: 'Required. Must be 0 or greater.' },
             { name: 'expectedReturn', label: 'Interest Rate (%)', type: 'number', value: 7, step: '0.1', min: 0, hint: 'Interest rate p.a. Must be 0 or greater.' },
             { name: 'purchaseDate', label: 'Deposit Date', type: 'date', hint: 'When FD was created.' },
-            { name: 'maturityDate', label: 'Maturity Date', type: 'date', hint: 'When FD will mature.' }
+            { name: 'maturityDate', label: 'Maturity Date', type: 'date', hint: 'When FD will mature.' },
+            { name: 'isEmergencyFund', label: 'Use as Emergency Fund', type: 'checkbox', hint: 'Tag this FD as emergency fund (excluded from retirement corpus).' }
         ],
         icon: '🏦'
     },
@@ -45,7 +46,8 @@ const investmentTypeConfig = {
             { name: 'rdDay', label: 'RD Debit Day', type: 'number', min: 1, max: 28, placeholder: 'e.g., 1', hint: 'Day of month (1-28) when RD is debited.' },
             { name: 'expectedReturn', label: 'Interest Rate (%)', type: 'number', value: 6.5, step: '0.1', min: 0, hint: 'Interest rate p.a. Must be 0 or greater.' },
             { name: 'purchaseDate', label: 'Start Date', type: 'date', hint: 'When RD was started.' },
-            { name: 'maturityDate', label: 'Maturity Date', type: 'date', hint: 'When RD will mature.' }
+            { name: 'maturityDate', label: 'Maturity Date', type: 'date', hint: 'When RD will mature.' },
+            { name: 'isEmergencyFund', label: 'Use as Emergency Fund', type: 'checkbox', hint: 'Tag this RD as emergency fund (excluded from retirement corpus).' }
         ],
         icon: '📅'
     },
@@ -137,6 +139,7 @@ const investmentTypeConfig = {
 };
 
 let selectedType = 'MUTUAL_FUND';
+let investmentsData = []; // Store investments data for toggle operations
 
 document.addEventListener('DOMContentLoaded', async () => {
     // Load feature access to get allowed investment types
@@ -156,6 +159,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function loadData() {
     try {
         const data = await api.investments.getAll();
+        investmentsData = data; // Store for toggle operations
         renderTable(data);
         document.getElementById('entry-count').textContent = `${data.length} entries`;
     } catch (error) {
@@ -181,6 +185,10 @@ function renderTable(data) {
         const gain = current - invested;
         const gainPct = invested ? ((gain / invested) * 100).toFixed(1) : 0;
         
+        // Emergency fund badge and quick toggle for FD/RD
+        const canBeEmergencyFund = item.type === 'FD' || item.type === 'RD';
+        const isEmergency = item.isEmergencyFund === true;
+        
         return `
         <tr class="hover:bg-slate-50 transition-colors">
             <td class="px-6 py-4">
@@ -189,6 +197,16 @@ function renderTable(data) {
                     <div>
                         <div class="font-medium text-slate-800">${item.name || 'Investment'}</div>
                         <div class="text-xs text-slate-500">${(item.type || '').replace(/_/g, ' ')}</div>
+                        ${canBeEmergencyFund ? `
+                            <div class="flex items-center gap-2 mt-1">
+                                ${isEmergency ? '<span class="text-xs text-amber-600">🛡️ Emergency Fund</span>' : '<span class="text-xs text-slate-400">Not tagged</span>'}
+                                <button onclick="toggleEmergencyFund('${item.id}', ${!isEmergency})" 
+                                        class="text-xs px-2 py-0.5 rounded ${isEmergency ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'} transition-colors"
+                                        title="${isEmergency ? 'Remove from emergency fund' : 'Tag as emergency fund'}">
+                                    ${isEmergency ? 'Untag' : 'Tag'}
+                                </button>
+                            </div>
+                        ` : ''}
                     </div>
                 </div>
             </td>
@@ -282,6 +300,20 @@ function selectTypeAndShowForm(type) {
         if (field.type === 'hidden') {
             return `<input type="hidden" name="${field.name}" value="${field.value}">`;
         }
+        if (field.type === 'checkbox') {
+            const checked = field.value ? 'checked' : '';
+            const fieldHint = field.hint ? `<div class="text-xs text-slate-400 mt-1">${field.hint}</div>` : '';
+            return `
+            <div class="mb-4">
+                <label class="flex items-center gap-3 text-sm text-slate-700 font-medium cursor-pointer">
+                    <input type="checkbox" name="${field.name}" ${checked}
+                           class="h-4 w-4 text-primary-600 border-slate-300 rounded">
+                    <span>${field.label}</span>
+                </label>
+                ${fieldHint}
+            </div>
+        `;
+        }
         
         let value = field.value || '';
         if (field.type === 'date' && !value) {
@@ -341,6 +373,20 @@ async function editItem(id) {
             if (field.type === 'hidden') {
                 return `<input type="hidden" name="${field.name}" value="${data[field.name] || field.value}">`;
             }
+            if (field.type === 'checkbox') {
+                const isChecked = Boolean(data[field.name]);
+                const fieldHint = field.hint ? `<div class="text-xs text-slate-400 mt-1">${field.hint}</div>` : '';
+                return `
+                <div class="mb-4">
+                    <label class="flex items-center gap-3 text-sm text-slate-700 font-medium cursor-pointer">
+                        <input type="checkbox" name="${field.name}" ${isChecked ? 'checked' : ''}
+                               class="h-4 w-4 text-primary-600 border-slate-300 rounded">
+                        <span>${field.label}</span>
+                    </label>
+                    ${fieldHint}
+                </div>
+            `;
+            }
             
             let value = data[field.name] !== undefined ? data[field.name] : (field.value || '');
             if (field.type === 'date' && value && typeof value === 'string') {
@@ -397,6 +443,24 @@ async function editItem(id) {
 
 async function deleteItem(id) {
     await confirmDelete('/investments', id, loadData);
+}
+
+async function toggleEmergencyFund(id, isEmergency) {
+    try {
+        // Get current item
+        const item = investmentsData.find(inv => inv.id === id);
+        if (!item) return;
+        
+        // Update the isEmergencyFund flag
+        const updatedItem = { ...item, isEmergencyFund: isEmergency };
+        
+        await api.investments.update(id, updatedItem);
+        showToast(isEmergency ? 'Tagged as Emergency Fund' : 'Removed from Emergency Fund', 'success');
+        await loadData();
+    } catch (error) {
+        console.error('Error toggling emergency fund:', error);
+        showToast('Failed to update emergency fund tag', 'error');
+    }
 }
 
 async function handleSubmit(event) {

@@ -9,5 +9,7 @@ public interface SettingsRepository extends MongoRepository<Settings, String> {
     
     java.util.Optional<Settings> findByUserId(String userId);
     
+    void deleteByUserId(String userId);
+    
     // Settings will typically have only one document per user
 }

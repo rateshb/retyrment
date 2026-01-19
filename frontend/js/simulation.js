@@ -1,52 +1,96 @@
 // Retyrment - Monte Carlo Simulation Page
 
 let simulationChart = null;
+let canRunSimulationFeature = false;
 
 document.addEventListener('DOMContentLoaded', () => {
-    checkProAccess();
-    if (auth.isAuthenticated()) {
+    if (!auth.isLoggedIn()) {
+        window.location.href = 'login.html';
+        return;
+    }
+    
+    checkSimulationAccess();
+});
+
+async function checkSimulationAccess() {
+    if (!auth.isLoggedIn()) {
+        window.location.href = 'login.html';
+        return;
+    }
+    
+    try {
+        // Check feature access from backend
+        const featuresResponse = await api.auth.features();
+        const features = featuresResponse.features || {};
+        
+        // Check page access
+        if (features.simulationPage !== true) {
+            // Page access denied - redirect to dashboard
+            showToast('You do not have access to the Simulation page.', 'error');
+            window.location.href = 'index.html';
+            return;
+        }
+        
+        // Check if user can run simulations
+        canRunSimulationFeature = features.canRunSimulation === true;
+        
+        // Show the simulation content
+        document.getElementById('simulation-content').classList.remove('hidden');
+        document.getElementById('pro-check').classList.add('hidden');
+        
+        // Update run button based on canRunSimulation feature
+        const runBtn = document.getElementById('btn-run');
+        if (!canRunSimulationFeature) {
+            runBtn.disabled = true;
+            runBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            runBtn.title = 'You do not have permission to run simulations. Contact admin for access.';
+            
+            // Show a notice
+            const notice = document.createElement('div');
+            notice.className = 'bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg mb-4';
+            notice.innerHTML = `
+                <p class="font-medium">⚠️ Simulation Running Disabled</p>
+                <p class="text-sm mt-1">You can view this page but cannot run simulations. Contact your administrator to enable this feature.</p>
+            `;
+            const contentDiv = document.getElementById('simulation-content');
+            contentDiv.insertBefore(notice, contentDiv.firstChild);
+        }
+        
+    } catch (error) {
+        console.error('Error checking simulation access:', error);
+        // Fallback to role-based check
         const user = auth.getUser();
         const isPro = user && (user.role === 'PRO' || user.role === 'ADMIN' || 
                                user.effectiveRole === 'PRO' || user.effectiveRole === 'ADMIN');
+        
         if (isPro) {
+            canRunSimulationFeature = true;
             document.getElementById('simulation-content').classList.remove('hidden');
         } else {
             document.getElementById('pro-check').classList.remove('hidden');
             document.getElementById('simulation-content').classList.add('hidden');
         }
-    } else {
-        window.location.href = 'login.html';
-    }
-});
-
-function checkProAccess() {
-    if (!auth.isAuthenticated()) {
-        window.location.href = 'login.html';
-        return;
-    }
-    
-    const user = auth.getUser();
-    const isPro = user && (user.role === 'PRO' || user.role === 'ADMIN' || 
-                           user.effectiveRole === 'PRO' || user.effectiveRole === 'ADMIN');
-    
-    if (!isPro) {
-        document.getElementById('pro-check').classList.remove('hidden');
-        document.getElementById('simulation-content').classList.add('hidden');
     }
 }
 
 async function runSimulation() {
+    // Check if user can run simulations
+    if (!canRunSimulationFeature) {
+        showToast('You do not have permission to run simulations. Contact admin for access.', 'error');
+        return;
+    }
+    
     const simulations = parseInt(document.getElementById('simulations').value) || 1000;
     const years = parseInt(document.getElementById('years').value) || 10;
     
     // Validate inputs
     if (simulations < 100 || simulations > 10000) {
-        alert('Number of simulations must be between 100 and 10,000');
+        showToast('Number of simulations must be between 100 and 10,000', 'error');
         return;
     }
     
     if (years < 1 || years > 50) {
-        alert('Projection years must be between 1 and 50');
+        showToast('Projection years must be between 1 and 50', 'error');
         return;
     }
     

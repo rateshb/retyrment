@@ -81,6 +81,9 @@ public class Investment {
     @Max(value = 100, message = "Expected return cannot exceed 100%")
     private Double expectedReturn;      // Expected annual return %
 
+    // Emergency fund tagging (primarily for FD)
+    private Boolean isEmergencyFund;    // If true, excluded from retirement corpus
+
     // Tenure
     @Min(value = 1, message = "Tenure must be at least 1 month")
     @Max(value = 600, message = "Tenure cannot exceed 50 years (600 months)")

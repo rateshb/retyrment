@@ -18,10 +18,11 @@ db.loans.deleteMany({ userId: userId });
 db.goals.deleteMany({ userId: userId });
 db.insurance.deleteMany({ userId: userId });
 db.incomes.deleteMany({ userId: userId });
+db.family_members.deleteMany({ userId: userId });
 print("Done.\n");
 
 // ============================================
-// 1. INVESTMENTS
+// 1. INVESTMENTS (with Emergency Fund Tagging)
 // ============================================
 print("1. Adding Investments...");
 
@@ -90,7 +91,7 @@ const investments = [
         createdAt: new Date(),
         updatedAt: new Date()
     },
-    // FD
+    // FD - Regular (part of retirement corpus)
     {
         userId: userId,
         type: "FD",
@@ -101,10 +102,26 @@ const investments = [
         expectedReturn: 7,
         startDate: new Date("2023-01-15"),
         maturityDate: new Date("2026-01-15"),
+        isEmergencyFund: false,
         createdAt: new Date(),
         updatedAt: new Date()
     },
-    // RD
+    // FD - EMERGENCY FUND (excluded from retirement corpus)
+    {
+        userId: userId,
+        type: "FD",
+        name: "Emergency FD - SBI",
+        description: "Emergency fund - 6 months expenses",
+        investedAmount: 300000,
+        currentValue: 315000,
+        expectedReturn: 6.5,
+        startDate: new Date("2024-06-01"),
+        maturityDate: new Date("2025-06-01"),
+        isEmergencyFund: true,  // TAGGED AS EMERGENCY FUND
+        createdAt: new Date(),
+        updatedAt: new Date()
+    },
+    // RD - Regular
     {
         userId: userId,
         type: "RD",
@@ -115,6 +132,22 @@ const investments = [
         expectedReturn: 6.5,
         monthlySip: 10000,
         maturityDate: new Date("2025-12-01"),
+        isEmergencyFund: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+    },
+    // RD - EMERGENCY FUND
+    {
+        userId: userId,
+        type: "RD",
+        name: "Emergency RD - HDFC",
+        description: "Building emergency fund",
+        investedAmount: 60000,
+        currentValue: 62000,
+        expectedReturn: 6.5,
+        monthlySip: 10000,
+        maturityDate: new Date("2025-09-01"),
+        isEmergencyFund: true,  // TAGGED AS EMERGENCY FUND
         createdAt: new Date(),
         updatedAt: new Date()
     },
@@ -172,10 +205,10 @@ const investments = [
     {
         userId: userId,
         type: "CASH",
-        name: "Emergency Fund",
-        description: "Savings Account + Liquid Fund",
-        investedAmount: 300000,
-        currentValue: 300000,
+        name: "Savings Account",
+        description: "Liquid cash in savings",
+        investedAmount: 100000,
+        currentValue: 100000,
         expectedReturn: 4,
         createdAt: new Date(),
         updatedAt: new Date()
@@ -183,7 +216,7 @@ const investments = [
 ];
 
 db.investments.insertMany(investments);
-print("  Added " + investments.length + " investments");
+print("  Added " + investments.length + " investments (including 2 tagged as Emergency Fund)");
 
 // ============================================
 // 2. EXPENSES
@@ -376,11 +409,12 @@ db.loans.insertMany(loans);
 print("  Added " + loans.length + " loans");
 
 // ============================================
-// 4. GOALS
+// 4. GOALS (with Recurring Goals)
 // ============================================
-print("4. Adding Goals...");
+print("4. Adding Goals (including Recurring Goals)...");
 
 const goals = [
+    // One-time goals
     {
         userId: userId,
         name: "Child 1 Higher Education",
@@ -389,6 +423,7 @@ const goals = [
         targetYear: currentYear + 12,
         currentSavings: 200000,
         priority: "HIGH",
+        isRecurring: false,
         createdAt: new Date(),
         updatedAt: new Date()
     },
@@ -400,6 +435,7 @@ const goals = [
         targetYear: currentYear + 15,
         currentSavings: 100000,
         priority: "HIGH",
+        isRecurring: false,
         createdAt: new Date(),
         updatedAt: new Date()
     },
@@ -411,6 +447,7 @@ const goals = [
         targetYear: currentYear + 20,
         currentSavings: 0,
         priority: "MEDIUM",
+        isRecurring: false,
         createdAt: new Date(),
         updatedAt: new Date()
     },
@@ -422,38 +459,87 @@ const goals = [
         targetYear: currentYear + 10,
         currentSavings: 500000,
         priority: "MEDIUM",
+        isRecurring: false,
         createdAt: new Date(),
         updatedAt: new Date()
     },
+    
+    // RECURRING GOALS - Annual Vacation
     {
         userId: userId,
-        name: "World Tour",
-        description: "International vacation with family",
-        targetAmount: 800000,
-        targetYear: currentYear + 5,
-        currentSavings: 150000,
-        priority: "LOW",
+        name: "Annual Family Vacation",
+        description: "Yearly family vacation - domestic/international",
+        targetAmount: 200000,
+        targetYear: currentYear + 1,
+        currentSavings: 50000,
+        priority: "MEDIUM",
+        isRecurring: true,
+        recurrenceInterval: 1,  // Every year
+        recurrenceEndYear: currentYear + 25,  // Until retirement
+        adjustForInflation: true,
+        customInflationRate: 8.0,  // Travel inflation higher than general
         createdAt: new Date(),
         updatedAt: new Date()
     },
+    
+    // RECURRING GOALS - Car Replacement
     {
         userId: userId,
-        name: "New Car",
-        description: "Upgrade to SUV",
+        name: "Car Replacement",
+        description: "Replace car every 7 years",
         targetAmount: 1500000,
-        targetYear: currentYear + 3,
-        currentSavings: 300000,
+        targetYear: currentYear + 7,
+        currentSavings: 0,
         priority: "LOW",
+        isRecurring: true,
+        recurrenceInterval: 7,  // Every 7 years
+        recurrenceEndYear: currentYear + 28,  // 4 cars total
+        adjustForInflation: true,
+        customInflationRate: 5.0,  // Vehicle price inflation
+        createdAt: new Date(),
+        updatedAt: new Date()
+    },
+    
+    // RECURRING GOALS - Home Renovation
+    {
+        userId: userId,
+        name: "Home Renovation",
+        description: "Major home renovation every 10 years",
+        targetAmount: 500000,
+        targetYear: currentYear + 5,
+        currentSavings: 100000,
+        priority: "LOW",
+        isRecurring: true,
+        recurrenceInterval: 10,  // Every 10 years
+        recurrenceEndYear: currentYear + 25,
+        adjustForInflation: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+    },
+    
+    // RECURRING GOALS - Parents' Anniversary Celebration
+    {
+        userId: userId,
+        name: "Parents Anniversary Celebration",
+        description: "Special celebration every 5 years",
+        targetAmount: 100000,
+        targetYear: currentYear + 2,
+        currentSavings: 20000,
+        priority: "LOW",
+        isRecurring: true,
+        recurrenceInterval: 5,  // Every 5 years
+        recurrenceEndYear: currentYear + 20,
+        adjustForInflation: true,
         createdAt: new Date(),
         updatedAt: new Date()
     }
 ];
 
 db.goals.insertMany(goals);
-print("  Added " + goals.length + " goals");
+print("  Added " + goals.length + " goals (including " + goals.filter(g => g.isRecurring).length + " recurring goals)");
 
 // ============================================
-// 5. INSURANCE
+// 5. INSURANCE (with Money Back Payouts)
 // ============================================
 print("5. Adding Insurance Policies...");
 
@@ -486,6 +572,23 @@ const insurances = [
         annualPremium: 25000,
         premiumFrequency: "YEARLY",
         startDate: new Date("2021-04-01"),
+        renewalMonth: 4,
+        coversPostRetirement: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+    },
+    // Health - Super Top-Up
+    {
+        userId: userId,
+        type: "HEALTH",
+        healthType: "SUPER_TOP_UP",
+        company: "ICICI Lombard",
+        policyName: "Super Top-Up Health",
+        policyNumber: "STU456789",
+        sumAssured: 2500000,
+        annualPremium: 8000,
+        premiumFrequency: "YEARLY",
+        startDate: new Date("2022-04-01"),
         renewalMonth: 4,
         coversPostRetirement: true,
         createdAt: new Date(),
@@ -542,21 +645,86 @@ const insurances = [
         createdAt: new Date(),
         updatedAt: new Date()
     },
-    // Money Back
+    // Money Back - WITH MULTIPLE PAYOUTS
     {
         userId: userId,
         type: "MONEY_BACK",
         company: "LIC",
-        policyName: "Money Back Policy",
+        policyName: "Jeevan Tarun Money Back",
         policyNumber: "MB321654",
-        sumAssured: 500000,
-        annualPremium: 30000,
+        sumAssured: 1000000,
+        annualPremium: 45000,
         premiumFrequency: "YEARLY",
-        startDate: new Date("2018-03-15"),
-        maturityDate: new Date("2038-03-15"),
+        startDate: new Date("2020-03-15"),
+        maturityDate: new Date("2040-03-15"),
         currentFundValue: 200000,
-        expectedMaturityValue: 800000,
+        expectedMaturityValue: 1500000,
         renewalMonth: 3,
+        // MONEY BACK PAYOUTS - Multiple scheduled payouts
+        moneyBackPayouts: [
+            {
+                policyYear: 5,
+                percentage: 15.0,  // 15% of sum assured at year 5
+                includesBonus: false,
+                description: "Survival Benefit 1"
+            },
+            {
+                policyYear: 10,
+                percentage: 20.0,  // 20% of sum assured at year 10
+                includesBonus: false,
+                description: "Survival Benefit 2"
+            },
+            {
+                policyYear: 15,
+                percentage: 25.0,  // 25% of sum assured at year 15
+                includesBonus: false,
+                description: "Survival Benefit 3"
+            },
+            {
+                policyYear: 20,
+                percentage: 40.0,  // 40% of sum assured + bonus at maturity
+                includesBonus: true,
+                description: "Maturity Benefit"
+            }
+        ],
+        createdAt: new Date(),
+        updatedAt: new Date()
+    },
+    // Another Money Back policy
+    {
+        userId: userId,
+        type: "MONEY_BACK",
+        company: "SBI Life",
+        policyName: "Smart Money Back Gold",
+        policyNumber: "MB654987",
+        sumAssured: 500000,
+        annualPremium: 25000,
+        premiumFrequency: "YEARLY",
+        startDate: new Date("2022-01-01"),
+        maturityDate: new Date("2037-01-01"),
+        currentFundValue: 75000,
+        expectedMaturityValue: 700000,
+        renewalMonth: 1,
+        moneyBackPayouts: [
+            {
+                policyYear: 5,
+                percentage: 20.0,
+                includesBonus: false,
+                description: "First Survival Benefit"
+            },
+            {
+                policyYear: 10,
+                percentage: 30.0,
+                includesBonus: false,
+                description: "Second Survival Benefit"
+            },
+            {
+                policyYear: 15,
+                percentage: 50.0,
+                includesBonus: true,
+                description: "Maturity + Bonus"
+            }
+        ],
         createdAt: new Date(),
         updatedAt: new Date()
     },
@@ -574,11 +742,26 @@ const insurances = [
         renewalMonth: 1,
         createdAt: new Date(),
         updatedAt: new Date()
+    },
+    // Personal Accident
+    {
+        userId: userId,
+        type: "OTHER",
+        company: "HDFC ERGO",
+        policyName: "Personal Accident Cover",
+        policyNumber: "PA789123",
+        sumAssured: 5000000,
+        annualPremium: 3000,
+        premiumFrequency: "YEARLY",
+        startDate: new Date("2023-06-01"),
+        renewalMonth: 6,
+        createdAt: new Date(),
+        updatedAt: new Date()
     }
 ];
 
 db.insurance.insertMany(insurances);
-print("  Added " + insurances.length + " insurance policies");
+print("  Added " + insurances.length + " insurance policies (including Money Back with payouts)");
 
 // ============================================
 // 6. INCOME
@@ -640,6 +823,136 @@ db.incomes.insertMany(incomes);
 print("  Added " + incomes.length + " income sources");
 
 // ============================================
+// 7. FAMILY MEMBERS (NEW FEATURE)
+// ============================================
+print("7. Adding Family Members...");
+
+const familyMembers = [
+    // Self
+    {
+        userId: userId,
+        name: "Ratesh Bansal",
+        relationship: "SELF",
+        dateOfBirth: new Date("1989-03-15"),
+        gender: "MALE",
+        isEarning: true,
+        monthlyIncome: 150000,
+        annualIncome: 1800000,
+        hasOwnInsurance: true,
+        hasPreExistingConditions: false,
+        isSmoker: false,
+        isAlcoholic: false,
+        isDependent: false,
+        existingHealthCover: 1000000,
+        existingLifeCover: 10000000,
+        createdAt: new Date(),
+        updatedAt: new Date()
+    },
+    // Spouse
+    {
+        userId: userId,
+        name: "Priya Bansal",
+        relationship: "SPOUSE",
+        dateOfBirth: new Date("1992-07-22"),
+        gender: "FEMALE",
+        isEarning: true,
+        monthlyIncome: 80000,
+        annualIncome: 960000,
+        hasOwnInsurance: true,
+        hasPreExistingConditions: false,
+        isSmoker: false,
+        isAlcoholic: false,
+        isDependent: false,
+        existingHealthCover: 500000,
+        existingLifeCover: 5000000,
+        createdAt: new Date(),
+        updatedAt: new Date()
+    },
+    // Child 1
+    {
+        userId: userId,
+        name: "Aarav Bansal",
+        relationship: "CHILD",
+        dateOfBirth: new Date("2016-05-15"),
+        gender: "MALE",
+        isEarning: false,
+        hasOwnInsurance: false,
+        hasPreExistingConditions: false,
+        currentEducation: "PRIMARY",
+        expectedEducationEndAge: 22,
+        isDependent: true,
+        dependencyEndAge: 25,
+        existingHealthCover: 0,
+        existingLifeCover: 0,
+        createdAt: new Date(),
+        updatedAt: new Date()
+    },
+    // Child 2
+    {
+        userId: userId,
+        name: "Ananya Bansal",
+        relationship: "CHILD",
+        dateOfBirth: new Date("2019-08-20"),
+        gender: "FEMALE",
+        isEarning: false,
+        hasOwnInsurance: false,
+        hasPreExistingConditions: false,
+        currentEducation: "PRE_SCHOOL",
+        expectedEducationEndAge: 22,
+        isDependent: true,
+        dependencyEndAge: 25,
+        existingHealthCover: 0,
+        existingLifeCover: 0,
+        createdAt: new Date(),
+        updatedAt: new Date()
+    },
+    // Father
+    {
+        userId: userId,
+        name: "Rajesh Bansal",
+        relationship: "PARENT",
+        dateOfBirth: new Date("1958-11-10"),
+        gender: "MALE",
+        isEarning: false,
+        hasOwnInsurance: true,
+        hasPreExistingConditions: true,
+        preExistingConditions: "Diabetes, Hypertension",
+        isSmoker: false,
+        isAlcoholic: false,
+        isDependent: true,
+        livesWithUser: true,
+        hasSeparateHealthPolicy: true,
+        existingHealthCover: 300000,
+        existingLifeCover: 0,
+        createdAt: new Date(),
+        updatedAt: new Date()
+    },
+    // Mother
+    {
+        userId: userId,
+        name: "Sunita Bansal",
+        relationship: "PARENT",
+        dateOfBirth: new Date("1962-04-25"),
+        gender: "FEMALE",
+        isEarning: false,
+        hasOwnInsurance: true,
+        hasPreExistingConditions: false,
+        isSmoker: false,
+        isAlcoholic: false,
+        isDependent: true,
+        livesWithUser: true,
+        hasSeparateHealthPolicy: true,
+        existingHealthCover: 300000,
+        existingLifeCover: 0,
+        createdAt: new Date(),
+        updatedAt: new Date()
+    }
+];
+
+db.family_members.insertMany(familyMembers);
+print("  Added " + familyMembers.length + " family members");
+
+// ============================================
 // SUMMARY
 // ============================================
 print("\n============================================");
@@ -647,9 +960,18 @@ print("  Test Data Seeding Complete!");
 print("============================================\n");
 print("Data added for user: " + userId);
 print("  - " + investments.length + " Investments");
+print("    * Including 2 Emergency Fund FD/RDs (excluded from retirement corpus)");
 print("  - " + expenses.length + " Expenses (including time-bound school fees)");
 print("  - " + loans.length + " Loans");
 print("  - " + goals.length + " Goals");
+print("    * Including " + goals.filter(g => g.isRecurring).length + " Recurring Goals (vacation, car, renovation)");
 print("  - " + insurances.length + " Insurance Policies");
+print("    * Including Money Back policies with multi-year payouts");
 print("  - " + incomes.length + " Income Sources");
+print("  - " + familyMembers.length + " Family Members (for insurance recommendations)");
+print("\n=== NEW FEATURES TESTED ===");
+print("  1. Emergency Fund Tagging: FD + RD tagged as emergency funds");
+print("  2. Recurring Goals: Annual vacation, car replacement every 7 years, etc.");
+print("  3. Money Back Payouts: Multiple scheduled survival benefits");
+print("  4. Family Members: Self, spouse, 2 children, 2 parents");
 print("\nRefresh the app to see the data!");

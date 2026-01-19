@@ -200,8 +200,10 @@ async function applyFeatureRestrictions() {
             'insurance': features.insurancePage,
             'expenses': features.expensePage,
             'goals': features.goalsPage,
+            'family': features.familyPage ?? true,  // Family page - default to true (new feature)
             'calendar': features.calendarPage,
             'retirement': features.retirementPage,
+            'insurance-recommendations': features.insuranceRecommendationsPage ?? true,  // Insurance Advisor - default to true (new feature)
             'reports': features.reportsPage,
             'simulation': features.simulationPage,
             'admin': features.adminPanel,
@@ -338,6 +340,27 @@ async function applyFeatureRestrictions() {
             setTimeout(hideStrategyTab, 500);
         }
         
+        // Apply Withdrawal Strategy tab restrictions
+        if (features.retirementWithdrawalStrategyTab !== true) {
+            const hideWithdrawalTab = () => {
+                const withdrawalTab = document.getElementById('tab-withdrawal');
+                const withdrawalPanel = document.getElementById('panel-withdrawal');
+                if (withdrawalTab) {
+                    withdrawalTab.style.display = 'none';
+                    withdrawalTab.style.visibility = 'hidden';
+                    withdrawalTab.classList.add('hidden');
+                }
+                if (withdrawalPanel) {
+                    withdrawalPanel.style.display = 'none';
+                    withdrawalPanel.style.visibility = 'hidden';
+                    withdrawalPanel.classList.add('hidden');
+                }
+            };
+            hideWithdrawalTab();
+            setTimeout(hideWithdrawalTab, 100);
+            setTimeout(hideWithdrawalTab, 500);
+        }
+        
     } catch (error) {
         console.error('Error loading feature access:', error);
     }
@@ -376,6 +399,18 @@ function applyFeatureSpecificRestrictions(features) {
         }
         if (strategyPanel) {
             strategyPanel.style.display = 'none';
+        }
+    }
+    
+    if (features.retirementWithdrawalStrategyTab !== true) {
+        // Hide Withdrawal Strategy tab in retirement page (default is false/restricted)
+        const withdrawalTab = document.getElementById('tab-withdrawal');
+        const withdrawalPanel = document.getElementById('panel-withdrawal');
+        if (withdrawalTab) {
+            withdrawalTab.style.display = 'none';
+        }
+        if (withdrawalPanel) {
+            withdrawalPanel.style.display = 'none';
         }
     }
     
@@ -603,6 +638,12 @@ function openModal(title, fields, data = {}) {
     const fieldsContainer = document.getElementById('modal-fields');
     if (!modalTitle || !fieldsContainer) {
         console.log('Standard modal not found, page may use custom modal');
+        return;
+    }
+    
+    // Guard against undefined fields
+    if (!fields || !Array.isArray(fields)) {
+        console.error('openModal called with invalid fields:', fields);
         return;
     }
     

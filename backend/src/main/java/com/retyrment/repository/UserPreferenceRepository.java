@@ -9,4 +9,6 @@ import java.util.Optional;
 @Repository
 public interface UserPreferenceRepository extends MongoRepository<UserPreference, String> {
     Optional<UserPreference> findByUserId(String userId);
+    
+    void deleteByUserId(String userId);
 }

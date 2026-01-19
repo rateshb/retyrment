@@ -16,4 +16,6 @@ public interface RetirementScenarioRepository extends MongoRepository<Retirement
     Optional<RetirementScenario> findByIsDefaultTrue();
     
     Optional<RetirementScenario> findByNameIgnoreCase(String name);
+    
+    void deleteByUserId(String userId);
 }

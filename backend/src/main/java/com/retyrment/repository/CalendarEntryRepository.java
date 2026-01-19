@@ -21,4 +21,6 @@ public interface CalendarEntryRepository extends MongoRepository<CalendarEntry, 
     List<CalendarEntry> findByDueMonthsContaining(Integer month);
     
     List<CalendarEntry> findByAutoLinkedFalse();
+    
+    void deleteByUserId(String userId);
 }

@@ -56,4 +56,6 @@ public interface ExpenseRepository extends MongoRepository<Expense, String> {
     // Find dependent care expenses
     @Query("{ 'userId': ?0, 'category': { $in: ['CHILDCARE', 'DAYCARE', 'ELDERLY_CARE'] } }")
     List<Expense> findDependentCareExpenses(String userId);
+    
+    void deleteByUserId(String userId);
 }

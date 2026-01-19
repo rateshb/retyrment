@@ -35,12 +35,15 @@ async function loadDashboard() {
 
     try {
         // Load basic data for all users
-        const [netWorth, goalAnalysis, retirementData, loans, maturingData] = await Promise.all([
+        const [netWorth, goalAnalysis, retirementData, loans, maturingData, investments, insuranceRecs, insurances] = await Promise.all([
             api.analysis.getNetWorth(),
             api.analysis.getGoalAnalysis(),
             api.post('/retirement/calculate', { currentAge: 35, retirementAge: 60, lifeExpectancy: 85 }).catch(() => null),
             api.loans.getAll().catch(() => []),
-            api.retirement.getMaturingInvestments(35, 60).catch(() => null)
+            api.retirement.getMaturingInvestments(35, 60).catch(() => null),
+            api.investments.getAll().catch(() => []),
+            api.insurance.getRecommendations().catch(() => null),
+            api.insurance.getAll().catch(() => [])
         ]);
 
         // Update summary cards
@@ -57,6 +60,10 @@ async function loadDashboard() {
         
         // Generate High Priority Alerts
         generateHighPriorityAlerts(retirementData, netWorth, loans, maturingData, goalAnalysis);
+
+        // Update critical areas summary
+        updateCriticalAreasSummary(retirementData, netWorth, investments, insuranceRecs, insurances);
+        updateEmergencyFundWidget(retirementData, netWorth, investments);
 
         // Handle recommendations based on user role
         const recsContainer = document.getElementById('recommendations');
@@ -126,6 +133,182 @@ async function loadDashboard() {
             errorMessage.textContent = 'Failed to load dashboard. Please try refreshing the page.';
         }
     }
+}
+
+function updateCriticalAreasSummary(retirementData, netWorth, investments, insuranceRecs, insurances) {
+    const list = document.getElementById('critical-areas-list');
+    const countBadge = document.getElementById('critical-met-count');
+    if (!list || !countBadge) return;
+
+    const gapAnalysis = retirementData?.gapAnalysis || {};
+    // Use totalCurrentMonthlyExpenses for current emergency fund calculation
+    const monthlyExpenses = gapAnalysis.totalCurrentMonthlyExpenses || gapAnalysis.currentMonthlyExpenses || 0;
+
+    // Emergency fund: cash + emergency FD
+    const cashBalance = netWorth?.assetBreakdown?.CASH || 0;
+    const emergencyFdValue = (investments || [])
+        .filter(inv => inv.type === 'FD' && inv.isEmergencyFund)
+        .reduce((sum, inv) => sum + (inv.currentValue || inv.investedAmount || 0), 0);
+    const emergencyFundTarget = monthlyExpenses > 0 ? monthlyExpenses * 6 : 0;
+    const emergencyFundAvailable = cashBalance + emergencyFdValue;
+    const emergencyFundMet = monthlyExpenses > 0 && emergencyFundAvailable >= emergencyFundTarget;
+
+    // Health coverage: based on insurance recommendations gap
+    const healthRec = insuranceRecs?.healthRecommendation;
+    const healthMet = healthRec ? (healthRec.gap <= 0 && healthRec.totalRecommendedCover > 0) : null;
+
+    // Accidental cover: heuristic based on policy name/type
+    const accidentKeywords = ['accident', 'accidental', 'personal accident'];
+    const accidentalCoverMet = (insurances || []).some(policy => {
+        const name = (policy.policyName || policy.company || '').toLowerCase();
+        return policy.type === 'OTHER' || accidentKeywords.some(k => name.includes(k));
+    });
+
+    const items = [
+        {
+            label: 'Health Cover',
+            status: healthMet,
+            detail: healthRec ? (healthMet ? 'Adequate coverage' : 'Coverage gap exists') : 'Add family/insurance data',
+            action: 'insurance-recommendations.html'
+        },
+        {
+            label: 'Emergency Fund',
+            status: monthlyExpenses > 0 ? emergencyFundMet : null,
+            detail: monthlyExpenses > 0
+                ? `${formatCurrency(emergencyFundAvailable, true)} / ${formatCurrency(emergencyFundTarget, true)}`
+                : 'Add expenses to calculate',
+            action: 'investments.html'
+        },
+        {
+            label: 'Accidental Cover',
+            status: accidentalCoverMet,
+            detail: accidentalCoverMet ? 'Covered' : 'Not found',
+            action: 'insurance.html'
+        }
+    ];
+
+    const metCount = items.filter(item => item.status === true).length;
+    countBadge.textContent = `${metCount}/${items.length} met`;
+
+    list.innerHTML = items.map(item => {
+        const statusText = item.status === null ? 'Unknown' : (item.status ? 'Met' : 'Missing');
+        const statusClass = item.status === null ? 'text-slate-500' : (item.status ? 'text-success-600' : 'text-danger-600');
+        const borderClass = item.status === null ? 'border-slate-200 bg-slate-50' : (item.status ? 'border-success-200 bg-success-50' : 'border-danger-200 bg-danger-50');
+        const icon = item.status === null ? 'ℹ️' : (item.status ? '✅' : '⚠️');
+        return `
+            <div class="p-4 rounded-lg border ${borderClass}">
+                <div class="flex items-center justify-between mb-1">
+                    <div class="text-sm text-slate-600">${item.label}</div>
+                    <span class="text-sm ${statusClass} font-medium">${icon} ${statusText}</span>
+                </div>
+                <div class="text-sm text-slate-700">${item.detail}</div>
+                <a href="${item.action}" class="text-xs text-primary-600 hover:text-primary-700 inline-block mt-2">
+                    View →
+                </a>
+            </div>
+        `;
+    }).join('');
+}
+
+// Update Emergency Fund widget with detailed breakdown
+function updateEmergencyFundWidget(retirementData, netWorth, investments) {
+    const widget = document.getElementById('emergency-fund-widget');
+    if (!widget) return;
+
+    const gapAnalysis = retirementData?.gapAnalysis || {};
+    // Use totalCurrentMonthlyExpenses for current emergency fund calculation
+    const monthlyExpenses = gapAnalysis.totalCurrentMonthlyExpenses || gapAnalysis.currentMonthlyExpenses || 0;
+    const emergencyFundTarget = monthlyExpenses > 0 ? monthlyExpenses * 6 : 0;
+
+    // Calculate components
+    const cashBalance = netWorth?.assetBreakdown?.CASH || 0;
+    const emergencyFDs = (investments || []).filter(inv => inv.type === 'FD' && inv.isEmergencyFund);
+    const emergencyRDs = (investments || []).filter(inv => inv.type === 'RD' && inv.isEmergencyFund);
+    
+    const emergencyFdValue = emergencyFDs.reduce((sum, inv) => sum + (inv.currentValue || inv.investedAmount || 0), 0);
+    const emergencyRdValue = emergencyRDs.reduce((sum, inv) => sum + (inv.currentValue || inv.investedAmount || 0), 0);
+    
+    const totalEmergencyFund = cashBalance + emergencyFdValue + emergencyRdValue;
+    const gap = Math.max(0, emergencyFundTarget - totalEmergencyFund);
+    const progressPercent = emergencyFundTarget > 0 ? Math.min(100, (totalEmergencyFund / emergencyFundTarget) * 100) : 0;
+    
+    // Status determination
+    let statusClass, statusIcon, statusText;
+    if (monthlyExpenses === 0) {
+        statusClass = 'text-slate-500';
+        statusIcon = 'ℹ️';
+        statusText = 'Add expenses to calculate target';
+    } else if (totalEmergencyFund >= emergencyFundTarget) {
+        statusClass = 'text-success-600';
+        statusIcon = '✅';
+        statusText = 'Adequate emergency fund';
+    } else if (totalEmergencyFund >= emergencyFundTarget * 0.5) {
+        statusClass = 'text-warning-600';
+        statusIcon = '⚠️';
+        statusText = 'Partially funded';
+    } else {
+        statusClass = 'text-danger-600';
+        statusIcon = '🚨';
+        statusText = 'Critical: Low emergency fund';
+    }
+
+    widget.innerHTML = `
+        <div class="space-y-4">
+            <!-- Status Bar -->
+            <div class="flex items-center justify-between">
+                <div>
+                    <div class="text-2xl font-bold text-slate-800">${formatCurrency(totalEmergencyFund, true)}</div>
+                    <div class="text-sm text-slate-500">Current Emergency Fund</div>
+                </div>
+                <div class="text-right">
+                    <div class="${statusClass} font-medium flex items-center gap-1 justify-end">
+                        ${statusIcon} ${statusText}
+                    </div>
+                    <div class="text-sm text-slate-500 mt-1">Target: ${formatCurrency(emergencyFundTarget, true)}</div>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            ${monthlyExpenses > 0 ? `
+                <div>
+                    <div class="flex items-center justify-between text-xs text-slate-600 mb-1">
+                        <span>Progress</span>
+                        <span>${progressPercent.toFixed(1)}%</span>
+                    </div>
+                    <div class="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+                        <div class="h-full ${progressPercent >= 100 ? 'bg-success-500' : progressPercent >= 50 ? 'bg-warning-500' : 'bg-danger-500'} transition-all duration-500"
+                             style="width: ${progressPercent}%"></div>
+                    </div>
+                    ${gap > 0 ? `<div class="text-xs text-slate-500 mt-1">Gap: ${formatCurrency(gap, true)}</div>` : ''}
+                </div>
+            ` : ''}
+
+            <!-- Breakdown -->
+            <div class="grid grid-cols-3 gap-4 pt-4 border-t border-slate-200">
+                <div class="text-center">
+                    <div class="text-sm text-slate-500 mb-1">Cash</div>
+                    <div class="font-semibold text-slate-700">${formatCurrency(cashBalance, true)}</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-sm text-slate-500 mb-1">Tagged FDs</div>
+                    <div class="font-semibold text-amber-600">${formatCurrency(emergencyFdValue, true)}</div>
+                    <div class="text-xs text-slate-400">${emergencyFDs.length} FD${emergencyFDs.length !== 1 ? 's' : ''}</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-sm text-slate-500 mb-1">Tagged RDs</div>
+                    <div class="font-semibold text-amber-600">${formatCurrency(emergencyRdValue, true)}</div>
+                    <div class="text-xs text-slate-400">${emergencyRDs.length} RD${emergencyRDs.length !== 1 ? 's' : ''}</div>
+                </div>
+            </div>
+
+            <!-- Action hint -->
+            ${(emergencyFDs.length === 0 && emergencyRDs.length === 0 && cashBalance < emergencyFundTarget) ? `
+                <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+                    💡 Tip: You can tag existing FDs or RDs as emergency fund on the <a href="investments.html" class="underline font-medium">Investments page</a>. Tagged funds will be excluded from retirement corpus calculations.
+                </div>
+            ` : ''}
+        </div>
+    `;
 }
 
 // Update retirement planning cards on dashboard
@@ -339,15 +522,23 @@ async function generateHighPriorityAlerts(retirementData, netWorth, loans, matur
         }
     }
     
-    // 4. Savings Breakdown for Goals
+    // 4. Emergency Fund Check (includes tagged FDs + RDs)
     const monthlyIncome = gapAnalysis.monthlyIncome || 0;
-    const monthlyExpenses = gapAnalysis.monthlyExpenses || 0;
-    const monthlySavings = monthlyIncome - monthlyExpenses;
+    const monthlyExpensesForEmergency = gapAnalysis.totalCurrentMonthlyExpenses || gapAnalysis.currentMonthlyExpenses || 0;
+    const monthlySavings = monthlyIncome - monthlyExpensesForEmergency;
     
     if (monthlySavings > 0 && requiredCorpus > 0) {
-        const emergencyFund = monthlyExpenses * 6;
+        const emergencyFundTarget = monthlyExpensesForEmergency * 6;
         const currentCash = netWorth?.assetBreakdown?.CASH || 0;
-        const emergencyGap = Math.max(0, emergencyFund - currentCash);
+        
+        // Include tagged emergency fund FDs and RDs
+        const allInvestments = await api.investments.getAll().catch(() => []);
+        const emergencyFdValue = allInvestments
+            .filter(inv => (inv.type === 'FD' || inv.type === 'RD') && inv.isEmergencyFund)
+            .reduce((sum, inv) => sum + (inv.currentValue || inv.investedAmount || 0), 0);
+        
+        const totalEmergencyFund = currentCash + emergencyFdValue;
+        const emergencyGap = Math.max(0, emergencyFundTarget - totalEmergencyFund);
         
         if (emergencyGap > 0) {
             const monthsToEmergency = Math.ceil(emergencyGap / (monthlySavings * 0.3));
@@ -355,8 +546,34 @@ async function generateHighPriorityAlerts(retirementData, netWorth, loans, matur
                 type: 'warning',
                 icon: '🆘',
                 title: 'Emergency Fund Gap',
-                description: `Need ${formatCurrency(emergencyGap, true)} more. At 30% savings allocation, ${monthsToEmergency} months to complete.`,
-                action: 'Track Progress',
+                description: `Need ${formatCurrency(emergencyGap, true)} more. Current: ${formatCurrency(totalEmergencyFund, true)} (Cash + Tagged FD/RD)`,
+                action: 'Tag FDs',
+                link: 'investments.html'
+            });
+        }
+        
+        // Check for emergency FDs/RDs maturing soon (within 6 months)
+        const today = new Date();
+        const sixMonthsFromNow = new Date();
+        sixMonthsFromNow.setMonth(today.getMonth() + 6);
+        
+        const maturingSoonEmergencyFunds = allInvestments.filter(inv => {
+            if ((inv.type !== 'FD' && inv.type !== 'RD') || !inv.isEmergencyFund) return false;
+            if (!inv.maturityDate) return false;
+            const maturityDate = new Date(inv.maturityDate);
+            return maturityDate >= today && maturityDate <= sixMonthsFromNow;
+        });
+        
+        if (maturingSoonEmergencyFunds.length > 0) {
+            const totalMaturing = maturingSoonEmergencyFunds.reduce((sum, inv) => 
+                sum + (inv.currentValue || inv.investedAmount || 0), 0);
+            
+            alerts.push({
+                type: 'warning',
+                icon: '⏰',
+                title: 'Emergency Fund Maturing Soon',
+                description: `${maturingSoonEmergencyFunds.length} emergency ${maturingSoonEmergencyFunds.length === 1 ? 'fund' : 'funds'} (${formatCurrency(totalMaturing, true)}) maturing in 6 months. Plan to reinvest to maintain emergency coverage.`,
+                action: 'Review',
                 link: 'investments.html'
             });
         }

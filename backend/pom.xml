@@ -20,6 +20,20 @@
     
     <properties>
         <java.version>17</java.version>
+        
+        <!-- SonarCloud Configuration -->
+        <sonar.organization>retyrment</sonar.organization>
+        <sonar.host.url>https://sonarcloud.io</sonar.host.url>
+        <sonar.projectKey>retyrment_retyrment-backend</sonar.projectKey>
+        <sonar.projectName>Retyrment Backend</sonar.projectName>
+        <sonar.java.coveragePlugin>jacoco</sonar.java.coveragePlugin>
+        <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+        <sonar.exclusions>
+            **/model/**,
+            **/exception/**,
+            **/config/**,
+            **/RetyrmentApplication.java
+        </sonar.exclusions>
     </properties>
     
     <dependencies>

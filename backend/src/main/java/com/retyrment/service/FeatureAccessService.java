@@ -43,27 +43,29 @@ public class FeatureAccessService {
                 .insurancePage(true)  // Visible by default
                 .expensePage(true)  // All users
                 .goalsPage(true)  // Visible by default
+                .familyPage(true)  // Family page - visible by default
                 .calendarPage(false)  // Restricted by default
                 .retirementPage(true)  // Visible by default
+                .insuranceRecommendationsPage(true)  // Insurance Advisor - visible by default
                 .reportsPage(false)  // Restricted by default
-                .simulationPage(false)  // Restricted by default
+                .simulationPage(true)  // Restricted by default
                 .adminPanel(user.isAdmin())  // Admin only
                 .preferencesPage(false)  // Restricted by default
                 .settingsPage(true)  // All users
                 .accountPage(true)  // All users
                 // Investment types - default allowed
                 .allowedInvestmentTypes(new HashSet<>(Arrays.asList(
-                        "MUTUAL_FUND", "PPF", "EPF", "FD", "RD", "REAL_ESTATE"
+                        "MUTUAL_FUND", "PPF", "EPF", "FD", "RD", "REAL_ESTATE", 
+                    "STOCK", "NPS", "GOLD", "CRYPTO", "CASH"
                 )))
                 // Insurance types - default blocked
                 // Note: Frontend uses categories (PENSION, LIFE_SAVINGS) but backend uses types
                 // PENSION category -> ANNUITY type
                 // LIFE_SAVINGS category -> ENDOWMENT, MONEY_BACK, ULIP types
-                .blockedInsuranceTypes(new HashSet<>(Arrays.asList(
-                        "VEHICLE", "ANNUITY", "ENDOWMENT", "MONEY_BACK", "ULIP"
-                )))
+                .blockedInsuranceTypes(new HashSet<>(Arrays.asList()))
                 // Retirement tabs
                 .retirementStrategyPlannerTab(false)  // Restricted by default
+                .retirementWithdrawalStrategyTab(false)  // Restricted by default
                 // Reports
                 .canExportPdf(false)  // Restricted by default
                 .canExportExcel(false)  // Restricted by default
@@ -73,14 +75,16 @@ public class FeatureAccessService {
         // PRO users get some additional access by default
         if (user.isPro()) {
             builder.reportsPage(true)
-                    .canExportPdf(true)
-                    .canExportExcel(true)
-                    .canExportJson(true)
-                    .canImportData(true)
+                    .canExportPdf(false)
+                    .canExportExcel(false)
+                    .canExportJson(false)
+                    .canImportData(false)
                     .simulationPage(true)
-                    .retirementStrategyPlannerTab(true)
-                    .calendarPage(true)
-                    .preferencesPage(true);
+                    .canRunSimulation(false)
+                    .retirementStrategyPlannerTab(false)
+                    .retirementWithdrawalStrategyTab(false)
+                    .calendarPage(false)
+                    .preferencesPage(false);
         }
 
         // ADMIN specific overrides - Admins have access to everything by default
@@ -91,7 +95,9 @@ public class FeatureAccessService {
                     .canExportJson(true)
                     .canImportData(true)
                     .simulationPage(true)  // Admin should have simulation access
+                    .canRunSimulation(true)  // Admin can run simulations
                     .retirementStrategyPlannerTab(true)
+                    .retirementWithdrawalStrategyTab(true)
                     .calendarPage(true)
                     .preferencesPage(true);
             // Admins have access to all investment types by default
@@ -206,10 +212,13 @@ public class FeatureAccessService {
         features.put("insurancePage", access.getInsurancePage());
         features.put("expensePage", access.getExpensePage());
         features.put("goalsPage", access.getGoalsPage());
+        features.put("familyPage", access.getFamilyPage());
         features.put("calendarPage", access.getCalendarPage());
         features.put("retirementPage", access.getRetirementPage());
+        features.put("insuranceRecommendationsPage", access.getInsuranceRecommendationsPage());
         features.put("reportsPage", access.getReportsPage());
         features.put("simulationPage", access.getSimulationPage());
+        features.put("canRunSimulation", access.getCanRunSimulation());
         features.put("adminPanel", access.getAdminPanel() && user.isAdmin());
         features.put("preferencesPage", access.getPreferencesPage());
         features.put("settingsPage", access.getSettingsPage());
@@ -221,6 +230,7 @@ public class FeatureAccessService {
 
         // Retirement tabs
         features.put("retirementStrategyPlannerTab", access.getRetirementStrategyPlannerTab());
+        features.put("retirementWithdrawalStrategyTab", access.getRetirementWithdrawalStrategyTab());
 
         // Reports
         features.put("canExportPdf", access.getCanExportPdf());
@@ -233,16 +243,19 @@ public class FeatureAccessService {
 
     /**
      * Update feature access for a user (admin only).
+     * Note: adminPanel is NOT updated here - it's determined by user role.
      */
     public UserFeatureAccess updateFeatureAccess(String userId, UserFeatureAccess updatedAccess) {
         UserFeatureAccess existing = featureAccessRepository.findByUserId(userId)
                 .orElseGet(() -> {
                     UserFeatureAccess newAccess = new UserFeatureAccess();
                     newAccess.setUserId(userId);
+                    // Set adminPanel to true by default for new records - will be filtered by role in getFeatureAccessMap
+                    newAccess.setAdminPanel(true);
                     return newAccess;
                 });
 
-        // Update all fields
+        // Update all fields EXCEPT adminPanel (which is role-based, not editable)
         if (updatedAccess.getIncomePage() != null) existing.setIncomePage(updatedAccess.getIncomePage());
         if (updatedAccess.getInvestmentPage() != null) existing.setInvestmentPage(updatedAccess.getInvestmentPage());
         if (updatedAccess.getLoanPage() != null) existing.setLoanPage(updatedAccess.getLoanPage());
@@ -253,7 +266,9 @@ public class FeatureAccessService {
         if (updatedAccess.getRetirementPage() != null) existing.setRetirementPage(updatedAccess.getRetirementPage());
         if (updatedAccess.getReportsPage() != null) existing.setReportsPage(updatedAccess.getReportsPage());
         if (updatedAccess.getSimulationPage() != null) existing.setSimulationPage(updatedAccess.getSimulationPage());
-        if (updatedAccess.getAdminPanel() != null) existing.setAdminPanel(updatedAccess.getAdminPanel());
+        if (updatedAccess.getCanRunSimulation() != null) existing.setCanRunSimulation(updatedAccess.getCanRunSimulation());
+        // NOTE: adminPanel is intentionally NOT updated here - it's controlled by user.isAdmin()
+        // The frontend filters adminPanel visibility based on role in getFeatureAccessMap()
         if (updatedAccess.getPreferencesPage() != null) existing.setPreferencesPage(updatedAccess.getPreferencesPage());
         if (updatedAccess.getSettingsPage() != null) existing.setSettingsPage(updatedAccess.getSettingsPage());
         if (updatedAccess.getAccountPage() != null) existing.setAccountPage(updatedAccess.getAccountPage());
@@ -269,6 +284,9 @@ public class FeatureAccessService {
 
         if (updatedAccess.getRetirementStrategyPlannerTab() != null) {
             existing.setRetirementStrategyPlannerTab(updatedAccess.getRetirementStrategyPlannerTab());
+        }
+        if (updatedAccess.getRetirementWithdrawalStrategyTab() != null) {
+            existing.setRetirementWithdrawalStrategyTab(updatedAccess.getRetirementWithdrawalStrategyTab());
         }
 
         if (updatedAccess.getCanExportPdf() != null) existing.setCanExportPdf(updatedAccess.getCanExportPdf());
