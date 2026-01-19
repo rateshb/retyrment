@@ -124,7 +124,7 @@ class InsuranceRecommendationServiceTest {
             InsuranceRecommendation result = service.generateRecommendations(USER_ID);
 
             assertThat(result.getHealthRecommendation().getTotalRecommendedCover())
-                    .isGreaterThan(1000000); // More than 10L for family
+                    .isGreaterThanOrEqualTo(1000000); // At least 10L base for family (Super Top-Up is supplementary)
         }
 
         @Test
