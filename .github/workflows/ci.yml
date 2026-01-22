@@ -88,6 +88,12 @@ jobs:
         with:
           name: frontend-coverage
           path: frontend-react/coverage/
+      - name: Set SonarCloud project key
+        id: sonar
+        run: |
+          REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
+          echo "projectKey=${{ github.repository_owner }}_${REPO_NAME}" >> $GITHUB_OUTPUT
+          echo "organization=${{ github.repository_owner }}" >> $GITHUB_OUTPUT
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
         env:
@@ -96,8 +102,8 @@ jobs:
         with:
           projectBaseDir: .
           args: >
-            -Dsonar.organization=${{ secrets.SONAR_ORG }}
-            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
+            -Dsonar.organization=${{ steps.sonar.outputs.organization }}
+            -Dsonar.projectKey=${{ steps.sonar.outputs.projectKey }}
             -Dsonar.sources=backend/src/main/java,frontend-react/src
             -Dsonar.tests=backend/src/test/java,frontend-react/src
             -Dsonar.java.binaries=backend/target/classes
