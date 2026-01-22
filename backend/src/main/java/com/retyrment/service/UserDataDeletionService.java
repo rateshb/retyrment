@@ -28,6 +28,10 @@ public class UserDataDeletionService {
     private final RetirementScenarioRepository retirementScenarioRepository;
     private final CalendarEntryRepository calendarEntryRepository;
 
+    private static <T> java.util.Optional<T> safeOptional(java.util.Optional<T> optional) {
+        return optional == null ? java.util.Optional.empty() : optional;
+    }
+
     /**
      * Get a summary of all user data (count of records in each category)
      */
@@ -59,9 +63,9 @@ public class UserDataDeletionService {
             var familyList = familyMemberRepository.findByUserId(userId);
             summary.put("familyMembers", familyList != null ? familyList.size() : 0);
             
-            summary.put("preferences", userPreferenceRepository.findByUserId(userId).isPresent() ? 1 : 0);
-            summary.put("settings", settingsRepository.findByUserId(userId).isPresent() ? 1 : 0);
-            summary.put("strategies", userStrategyRepository.findByUserId(userId).isPresent() ? 1 : 0);
+            summary.put("preferences", safeOptional(userPreferenceRepository.findByUserId(userId)).isPresent() ? 1 : 0);
+            summary.put("settings", safeOptional(settingsRepository.findByUserId(userId)).isPresent() ? 1 : 0);
+            summary.put("strategies", safeOptional(userStrategyRepository.findByUserId(userId)).isPresent() ? 1 : 0);
             
             var scenarioList = retirementScenarioRepository.findByUserId(userId);
             summary.put("scenarios", scenarioList != null ? scenarioList.size() : 0);
@@ -142,7 +146,7 @@ public class UserDataDeletionService {
             log.info("Deleted {} family member records for user {}", familyDeleted, userId);
             
             // Delete User Preferences
-            userPreferenceRepository.findByUserId(userId).ifPresent(pref -> {
+            safeOptional(userPreferenceRepository.findByUserId(userId)).ifPresent(pref -> {
                 userPreferenceRepository.delete(pref);
                 deletionSummary.put("preferences", 1);
                 log.info("Deleted user preferences for user {}", userId);
@@ -152,7 +156,7 @@ public class UserDataDeletionService {
             }
             
             // Delete Settings
-            settingsRepository.findByUserId(userId).ifPresent(settings -> {
+            safeOptional(settingsRepository.findByUserId(userId)).ifPresent(settings -> {
                 settingsRepository.delete(settings);
                 deletionSummary.put("settings", 1);
                 log.info("Deleted settings for user {}", userId);
@@ -162,13 +166,13 @@ public class UserDataDeletionService {
             }
             
             // Delete User Settings (new user settings model)
-            userSettingsRepository.findByUserId(userId).ifPresent(userSettings -> {
+            safeOptional(userSettingsRepository.findByUserId(userId)).ifPresent(userSettings -> {
                 userSettingsRepository.delete(userSettings);
                 log.info("Deleted user settings for user {}", userId);
             });
             
             // Delete User Strategy
-            userStrategyRepository.findByUserId(userId).ifPresent(strategy -> {
+            safeOptional(userStrategyRepository.findByUserId(userId)).ifPresent(strategy -> {
                 userStrategyRepository.delete(strategy);
                 deletionSummary.put("strategies", 1);
                 log.info("Deleted strategy for user {}", userId);

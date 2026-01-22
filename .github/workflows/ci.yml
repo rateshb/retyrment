@@ -7,10 +7,9 @@ on:
     branches: [ main, master, develop ]
 
 jobs:
-  test:
-    name: Test and Coverage
+  backend-test:
+    name: Backend Tests + Coverage
     runs-on: ubuntu-latest
-    
     services:
       mongodb:
         image: mongo:6.0
@@ -21,189 +20,87 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
           cache: maven
-      
-      - name: Run tests with coverage
+      - name: Run backend tests with coverage
         working-directory: backend
-        run: mvn clean test jacoco:report
+        run: mvn -B clean test jacoco:report
         env:
           SPRING_DATA_MONGODB_URI: mongodb://localhost:27017/retyrment_test
           APP_JWT_SECRET: test-secret-key-for-jwt-tokens-must-be-at-least-256-bits-long-for-testing-purposes
           APP_FRONTEND_URL: http://localhost:3000
-      
-      - name: Generate coverage report
-        working-directory: backend
-        run: mvn jacoco:report
-      
-      - name: Upload test results
+      - name: Upload backend coverage
         uses: actions/upload-artifact@v4
-        if: always()
         with:
-          name: test-results
+          name: backend-coverage
           path: |
-            backend/target/surefire-reports/
-            backend/target/site/jacoco/
+            backend/target/site/jacoco/jacoco.xml
             backend/target/jacoco.exec
-          retention-days: 30
-      
-      - name: Check test results
-        if: always()
-        run: |
-          if ls backend/target/surefire-reports/TEST-*.xml 1> /dev/null 2>&1; then
-            echo "✅ Tests completed"
-          else
-            echo "❌ No test results found"
-            exit 1
-          fi
+            backend/target/surefire-reports/
 
-  code-quality:
-    name: Code Quality Checks
+  frontend-test:
+    name: Frontend Tests + Coverage
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          java-version: '17'
-          distribution: 'temurin'
-          cache: maven
-      
-      - name: Run SpotBugs
-        working-directory: backend
-        run: mvn spotbugs:check
-        continue-on-error: true
-      
-      - name: Run PMD
-        working-directory: backend
-        run: mvn pmd:check
-        continue-on-error: true
-      
-      - name: Upload quality reports
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend-react/package.json
+      - name: Install dependencies
+        working-directory: frontend-react
+        run: npm install
+      - name: Run frontend tests with coverage
+        working-directory: frontend-react
+        run: npm run test:ci
+      - name: Upload frontend coverage
         uses: actions/upload-artifact@v4
-        if: always()
         with:
-          name: quality-reports
-          path: |
-            backend/target/spotbugsXml.xml
-            backend/target/pmd.xml
-          retention-days: 30
+          name: frontend-coverage
+          path: frontend-react/coverage/lcov.info
 
   sonarcloud:
     name: SonarCloud Analysis
     runs-on: ubuntu-latest
-    needs: [test]
-    
+    needs: [backend-test, frontend-test]
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Shallow clones should be disabled for better analysis
-      
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
           cache: maven
-      
-      - name: Build project (for SonarCloud analysis)
-        working-directory: backend
-        run: mvn clean compile -DskipTests
-        env:
-          SPRING_DATA_MONGODB_URI: mongodb://localhost:27017/retyrment_test
-          APP_JWT_SECRET: test-secret-key-for-jwt-tokens-must-be-at-least-256-bits-long-for-testing-purposes
-          APP_FRONTEND_URL: http://localhost:3000
-      
-      - name: Download test results and coverage
+      - name: Download backend coverage
         uses: actions/download-artifact@v4
         with:
-          name: test-results
+          name: backend-coverage
           path: backend/target/
-      
-      - name: Verify and regenerate coverage report
-        working-directory: backend
-        run: |
-          echo "Checking coverage files..."
-          if [ -f target/jacoco.exec ]; then
-            echo "✅ Jacoco exec file found"
-            echo "Regenerating XML report to ensure it matches current code..."
-            mvn jacoco:report -DskipTests
-            if [ -f target/site/jacoco/jacoco.xml ]; then
-              echo "✅ Coverage XML report generated successfully"
-            else
-              echo "❌ Failed to generate coverage XML report"
-              exit 1
-            fi
-          else
-            echo "❌ Jacoco exec file not found - coverage cannot be generated"
-            exit 1
-          fi
-      
-      - name: Set SonarCloud project key
-        id: sonar
-        run: |
-          REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
-          echo "projectKey=${{ github.repository_owner }}_${REPO_NAME}" >> $GITHUB_OUTPUT
-          echo "organization=${{ github.repository_owner }}" >> $GITHUB_OUTPUT
-      
+      - name: Download frontend coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend-react/coverage/
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
-          projectBaseDir: backend
+          projectBaseDir: .
           args: >
-            -Dsonar.organization=${{ steps.sonar.outputs.organization }}
-            -Dsonar.projectKey=${{ steps.sonar.outputs.projectKey }}
-            -Dsonar.sources=src/main/java
-            -Dsonar.tests=src/test/java
-            -Dsonar.java.binaries=target/classes
-            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
-            -Dsonar.java.coveragePlugin=jacoco
+            -Dsonar.organization=retyrment
+            -Dsonar.projectKey=retyrment_retyrment-backend
+            -Dsonar.sources=backend/src/main/java,frontend-react/src
+            -Dsonar.tests=backend/src/test/java,frontend-react/src
+            -Dsonar.java.binaries=backend/target/classes
+            -Dsonar.coverage.jacoco.xmlReportPaths=backend/target/site/jacoco/jacoco.xml
+            -Dsonar.javascript.lcov.reportPaths=frontend-react/coverage/lcov.info
             -Dsonar.coverage.exclusions=**/model/**,**/security/**,**/exception/**,**/config/**,**/RetyrmentApplication.java
-            -Dsonar.issue.ignore.multicriteria=e1,e2
-            -Dsonar.issue.ignore.multicriteria.e1.ruleKey=java:S2187
-            -Dsonar.issue.ignore.multicriteria.e1.resourceKey=**/*Test.java
-            -Dsonar.issue.ignore.multicriteria.e2.ruleKey=java:S5961
-            -Dsonar.issue.ignore.multicriteria.e2.resourceKey=**/*Test.java
-
-  build:
-    name: Build Application
-    runs-on: ubuntu-latest
-    needs: [test]
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          cache: maven
-      
-      - name: Build application
-        working-directory: backend
-        run: mvn clean package -DskipTests
-      
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: application-jar
-          path: backend/target/*.jar
-          retention-days: 7

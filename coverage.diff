@@ -1,0 +1,1086 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 25ecd51..188e303 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -7,10 +7,9 @@ on:
+     branches: [ main, master, develop ]
+ 
+ jobs:
+-  test:
+-    name: Test and Coverage
++  backend-test:
++    name: Backend Tests + Coverage
+     runs-on: ubuntu-latest
+-    
+     services:
+       mongodb:
+         image: mongo:6.0
+@@ -21,189 +20,87 @@ jobs:
+           --health-interval 10s
+           --health-timeout 5s
+           --health-retries 5
+-    
+     steps:
+-      - name: Checkout code
+-        uses: actions/checkout@v4
+-      
+-      - name: Set up JDK 17
+-        uses: actions/setup-java@v4
++      - uses: actions/checkout@v4
++      - uses: actions/setup-java@v4
+         with:
+           java-version: '17'
+           distribution: 'temurin'
+           cache: maven
+-      
+-      - name: Run tests with coverage
++      - name: Run backend tests with coverage
+         working-directory: backend
+-        run: mvn clean test jacoco:report
++        run: mvn -B clean test jacoco:report
+         env:
+           SPRING_DATA_MONGODB_URI: mongodb://localhost:27017/retyrment_test
+           APP_JWT_SECRET: test-secret-key-for-jwt-tokens-must-be-at-least-256-bits-long-for-testing-purposes
+           APP_FRONTEND_URL: http://localhost:3000
+-      
+-      - name: Generate coverage report
+-        working-directory: backend
+-        run: mvn jacoco:report
+-      
+-      - name: Upload test results
++      - name: Upload backend coverage
+         uses: actions/upload-artifact@v4
+-        if: always()
+         with:
+-          name: test-results
++          name: backend-coverage
+           path: |
+-            backend/target/surefire-reports/
+-            backend/target/site/jacoco/
++            backend/target/site/jacoco/jacoco.xml
+             backend/target/jacoco.exec
+-          retention-days: 30
+-      
+-      - name: Check test results
+-        if: always()
+-        run: |
+-          if ls backend/target/surefire-reports/TEST-*.xml 1> /dev/null 2>&1; then
+-            echo "✅ Tests completed"
+-          else
+-            echo "❌ No test results found"
+-            exit 1
+-          fi
++            backend/target/surefire-reports/
+ 
+-  code-quality:
+-    name: Code Quality Checks
++  frontend-test:
++    name: Frontend Tests + Coverage
+     runs-on: ubuntu-latest
+-    
+     steps:
+-      - name: Checkout code
+-        uses: actions/checkout@v4
+-      
+-      - name: Set up JDK 17
+-        uses: actions/setup-java@v4
++      - uses: actions/checkout@v4
++      - uses: actions/setup-node@v4
+         with:
+-          java-version: '17'
+-          distribution: 'temurin'
+-          cache: maven
+-      
+-      - name: Run SpotBugs
+-        working-directory: backend
+-        run: mvn spotbugs:check
+-        continue-on-error: true
+-      
+-      - name: Run PMD
+-        working-directory: backend
+-        run: mvn pmd:check
+-        continue-on-error: true
+-      
+-      - name: Upload quality reports
++          node-version: '20'
++          cache: npm
++          cache-dependency-path: frontend-react/package.json
++      - name: Install dependencies
++        working-directory: frontend-react
++        run: npm install
++      - name: Run frontend tests with coverage
++        working-directory: frontend-react
++        run: npm run test:ci
++      - name: Upload frontend coverage
+         uses: actions/upload-artifact@v4
+-        if: always()
+         with:
+-          name: quality-reports
+-          path: |
+-            backend/target/spotbugsXml.xml
+-            backend/target/pmd.xml
+-          retention-days: 30
++          name: frontend-coverage
++          path: frontend-react/coverage/lcov.info
+ 
+   sonarcloud:
+     name: SonarCloud Analysis
+     runs-on: ubuntu-latest
+-    needs: [test]
+-    
++    needs: [backend-test, frontend-test]
+     steps:
+-      - name: Checkout code
+-        uses: actions/checkout@v4
++      - uses: actions/checkout@v4
+         with:
+-          fetch-depth: 0  # Shallow clones should be disabled for better analysis
+-      
+-      - name: Set up JDK 17
+-        uses: actions/setup-java@v4
++          fetch-depth: 0
++      - uses: actions/setup-java@v4
+         with:
+           java-version: '17'
+           distribution: 'temurin'
+           cache: maven
+-      
+-      - name: Build project (for SonarCloud analysis)
+-        working-directory: backend
+-        run: mvn clean compile -DskipTests
+-        env:
+-          SPRING_DATA_MONGODB_URI: mongodb://localhost:27017/retyrment_test
+-          APP_JWT_SECRET: test-secret-key-for-jwt-tokens-must-be-at-least-256-bits-long-for-testing-purposes
+-          APP_FRONTEND_URL: http://localhost:3000
+-      
+-      - name: Download test results and coverage
++      - name: Download backend coverage
+         uses: actions/download-artifact@v4
+         with:
+-          name: test-results
++          name: backend-coverage
+           path: backend/target/
+-      
+-      - name: Verify and regenerate coverage report
+-        working-directory: backend
+-        run: |
+-          echo "Checking coverage files..."
+-          if [ -f target/jacoco.exec ]; then
+-            echo "✅ Jacoco exec file found"
+-            echo "Regenerating XML report to ensure it matches current code..."
+-            mvn jacoco:report -DskipTests
+-            if [ -f target/site/jacoco/jacoco.xml ]; then
+-              echo "✅ Coverage XML report generated successfully"
+-            else
+-              echo "❌ Failed to generate coverage XML report"
+-              exit 1
+-            fi
+-          else
+-            echo "❌ Jacoco exec file not found - coverage cannot be generated"
+-            exit 1
+-          fi
+-      
+-      - name: Set SonarCloud project key
+-        id: sonar
+-        run: |
+-          REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
+-          echo "projectKey=${{ github.repository_owner }}_${REPO_NAME}" >> $GITHUB_OUTPUT
+-          echo "organization=${{ github.repository_owner }}" >> $GITHUB_OUTPUT
+-      
++      - name: Download frontend coverage
++        uses: actions/download-artifact@v4
++        with:
++          name: frontend-coverage
++          path: frontend-react/coverage/
+       - name: SonarCloud Scan
+         uses: SonarSource/sonarcloud-github-action@master
+         env:
+           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+         with:
+-          projectBaseDir: backend
++          projectBaseDir: .
+           args: >
+-            -Dsonar.organization=${{ steps.sonar.outputs.organization }}
+-            -Dsonar.projectKey=${{ steps.sonar.outputs.projectKey }}
+-            -Dsonar.sources=src/main/java
+-            -Dsonar.tests=src/test/java
+-            -Dsonar.java.binaries=target/classes
+-            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+-            -Dsonar.java.coveragePlugin=jacoco
++            -Dsonar.organization=retyrment
++            -Dsonar.projectKey=retyrment_retyrment-backend
++            -Dsonar.sources=backend/src/main/java,frontend-react/src
++            -Dsonar.tests=backend/src/test/java,frontend-react/src
++            -Dsonar.java.binaries=backend/target/classes
++            -Dsonar.coverage.jacoco.xmlReportPaths=backend/target/site/jacoco/jacoco.xml
++            -Dsonar.javascript.lcov.reportPaths=frontend-react/coverage/lcov.info
+             -Dsonar.coverage.exclusions=**/model/**,**/security/**,**/exception/**,**/config/**,**/RetyrmentApplication.java
+-            -Dsonar.issue.ignore.multicriteria=e1,e2
+-            -Dsonar.issue.ignore.multicriteria.e1.ruleKey=java:S2187
+-            -Dsonar.issue.ignore.multicriteria.e1.resourceKey=**/*Test.java
+-            -Dsonar.issue.ignore.multicriteria.e2.ruleKey=java:S5961
+-            -Dsonar.issue.ignore.multicriteria.e2.resourceKey=**/*Test.java
+-
+-  build:
+-    name: Build Application
+-    runs-on: ubuntu-latest
+-    needs: [test]
+-    
+-    steps:
+-      - name: Checkout code
+-        uses: actions/checkout@v4
+-      
+-      - name: Set up JDK 17
+-        uses: actions/setup-java@v4
+-        with:
+-          java-version: '17'
+-          distribution: 'temurin'
+-          cache: maven
+-      
+-      - name: Build application
+-        working-directory: backend
+-        run: mvn clean package -DskipTests
+-      
+-      - name: Upload build artifacts
+-        uses: actions/upload-artifact@v4
+-        with:
+-          name: application-jar
+-          path: backend/target/*.jar
+-          retention-days: 7
+diff --git a/backend/src/main/java/com/retyrment/service/UserDataDeletionService.java b/backend/src/main/java/com/retyrment/service/UserDataDeletionService.java
+index 396d0ac..84fd5db 100644
+--- a/backend/src/main/java/com/retyrment/service/UserDataDeletionService.java
++++ b/backend/src/main/java/com/retyrment/service/UserDataDeletionService.java
+@@ -28,6 +28,10 @@ public class UserDataDeletionService {
+     private final RetirementScenarioRepository retirementScenarioRepository;
+     private final CalendarEntryRepository calendarEntryRepository;
+ 
++    private static <T> java.util.Optional<T> safeOptional(java.util.Optional<T> optional) {
++        return optional == null ? java.util.Optional.empty() : optional;
++    }
++
+     /**
+      * Get a summary of all user data (count of records in each category)
+      */
+@@ -59,9 +63,9 @@ public class UserDataDeletionService {
+             var familyList = familyMemberRepository.findByUserId(userId);
+             summary.put("familyMembers", familyList != null ? familyList.size() : 0);
+             
+-            summary.put("preferences", userPreferenceRepository.findByUserId(userId).isPresent() ? 1 : 0);
+-            summary.put("settings", settingsRepository.findByUserId(userId).isPresent() ? 1 : 0);
+-            summary.put("strategies", userStrategyRepository.findByUserId(userId).isPresent() ? 1 : 0);
++            summary.put("preferences", safeOptional(userPreferenceRepository.findByUserId(userId)).isPresent() ? 1 : 0);
++            summary.put("settings", safeOptional(settingsRepository.findByUserId(userId)).isPresent() ? 1 : 0);
++            summary.put("strategies", safeOptional(userStrategyRepository.findByUserId(userId)).isPresent() ? 1 : 0);
+             
+             var scenarioList = retirementScenarioRepository.findByUserId(userId);
+             summary.put("scenarios", scenarioList != null ? scenarioList.size() : 0);
+@@ -142,7 +146,7 @@ public class UserDataDeletionService {
+             log.info("Deleted {} family member records for user {}", familyDeleted, userId);
+             
+             // Delete User Preferences
+-            userPreferenceRepository.findByUserId(userId).ifPresent(pref -> {
++            safeOptional(userPreferenceRepository.findByUserId(userId)).ifPresent(pref -> {
+                 userPreferenceRepository.delete(pref);
+                 deletionSummary.put("preferences", 1);
+                 log.info("Deleted user preferences for user {}", userId);
+@@ -152,7 +156,7 @@ public class UserDataDeletionService {
+             }
+             
+             // Delete Settings
+-            settingsRepository.findByUserId(userId).ifPresent(settings -> {
++            safeOptional(settingsRepository.findByUserId(userId)).ifPresent(settings -> {
+                 settingsRepository.delete(settings);
+                 deletionSummary.put("settings", 1);
+                 log.info("Deleted settings for user {}", userId);
+@@ -162,13 +166,13 @@ public class UserDataDeletionService {
+             }
+             
+             // Delete User Settings (new user settings model)
+-            userSettingsRepository.findByUserId(userId).ifPresent(userSettings -> {
++            safeOptional(userSettingsRepository.findByUserId(userId)).ifPresent(userSettings -> {
+                 userSettingsRepository.delete(userSettings);
+                 log.info("Deleted user settings for user {}", userId);
+             });
+             
+             // Delete User Strategy
+-            userStrategyRepository.findByUserId(userId).ifPresent(strategy -> {
++            safeOptional(userStrategyRepository.findByUserId(userId)).ifPresent(strategy -> {
+                 userStrategyRepository.delete(strategy);
+                 deletionSummary.put("strategies", 1);
+                 log.info("Deleted strategy for user {}", userId);
+diff --git a/backend/src/test/java/com/retyrment/controller/FamilyMemberControllerUnitTest.java b/backend/src/test/java/com/retyrment/controller/FamilyMemberControllerUnitTest.java
+new file mode 100644
+index 0000000..cbcf41c
+--- /dev/null
++++ b/backend/src/test/java/com/retyrment/controller/FamilyMemberControllerUnitTest.java
+@@ -0,0 +1,203 @@
++package com.retyrment.controller;
++
++import com.retyrment.exception.ResourceNotFoundException;
++import com.retyrment.model.FamilyMember;
++import com.retyrment.model.User;
++import com.retyrment.repository.FamilyMemberRepository;
++import org.junit.jupiter.api.BeforeEach;
++import org.junit.jupiter.api.DisplayName;
++import org.junit.jupiter.api.Nested;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.api.extension.ExtendWith;
++import org.mockito.InjectMocks;
++import org.mockito.Mock;
++import org.mockito.junit.jupiter.MockitoExtension;
++import org.springframework.security.core.Authentication;
++import org.springframework.security.core.context.SecurityContext;
++import org.springframework.security.core.context.SecurityContextHolder;
++
++import java.time.LocalDate;
++import java.util.Arrays;
++import java.util.List;
++import java.util.Optional;
++
++import static org.assertj.core.api.Assertions.assertThat;
++import static org.assertj.core.api.Assertions.assertThatThrownBy;
++import static org.mockito.ArgumentMatchers.any;
++import static org.mockito.Mockito.*;
++
++@ExtendWith(MockitoExtension.class)
++@DisplayName("FamilyMemberController Unit Tests")
++class FamilyMemberControllerUnitTest {
++
++    @Mock
++    private FamilyMemberRepository familyMemberRepository;
++
++    @Mock
++    private SecurityContext securityContext;
++
++    @Mock
++    private Authentication authentication;
++
++    @InjectMocks
++    private FamilyMemberController familyMemberController;
++
++    private User testUser;
++
++    @BeforeEach
++    void setUp() {
++        SecurityContextHolder.setContext(securityContext);
++        testUser = User.builder()
++                .id("user-1")
++                .email("user1@example.com")
++                .role(User.UserRole.FREE)
++                .build();
++        when(securityContext.getAuthentication()).thenReturn(authentication);
++        when(authentication.getPrincipal()).thenReturn(testUser);
++    }
++
++    @Test
++    @DisplayName("getAllFamilyMembers returns current user's members")
++    void getAllFamilyMembers_returnsList() {
++        when(familyMemberRepository.findByUserIdOrderByDateOfBirthAsc("user-1"))
++                .thenReturn(List.of(FamilyMember.builder().userId("user-1").build()));
++
++        List<FamilyMember> result = familyMemberController.getAllFamilyMembers();
++
++        assertThat(result).hasSize(1);
++        verify(familyMemberRepository).findByUserIdOrderByDateOfBirthAsc("user-1");
++    }
++
++    @Test
++    @DisplayName("getFamilyMember returns when present, throws when missing")
++    void getFamilyMember_returnsOrThrows() {
++        FamilyMember member = FamilyMember.builder().id("fm1").userId("user-1").build();
++        when(familyMemberRepository.findByIdAndUserId("fm1", "user-1"))
++                .thenReturn(Optional.of(member));
++
++        FamilyMember found = familyMemberController.getFamilyMember("fm1");
++        assertThat(found.getId()).isEqualTo("fm1");
++
++        when(familyMemberRepository.findByIdAndUserId("fm2", "user-1"))
++                .thenReturn(Optional.empty());
++        assertThatThrownBy(() -> familyMemberController.getFamilyMember("fm2"))
++                .isInstanceOf(ResourceNotFoundException.class);
++    }
++
++    @Test
++    @DisplayName("getSelf/getSpouse return null when not found")
++    void getSelfAndSpouse_nullWhenNotFound() {
++        when(familyMemberRepository.findByUserIdAndRelationship("user-1", FamilyMember.Relationship.SELF))
++                .thenReturn(Optional.empty());
++        when(familyMemberRepository.findByUserIdAndRelationship("user-1", FamilyMember.Relationship.SPOUSE))
++                .thenReturn(Optional.empty());
++
++        assertThat(familyMemberController.getSelf()).isNull();
++        assertThat(familyMemberController.getSpouse()).isNull();
++    }
++
++    @Nested
++    @DisplayName("createFamilyMember defaults")
++    class CreateDefaults {
++        @Test
++        @DisplayName("sets dependent based on relationship and defaults isEarning")
++        void setsDependentAndIsEarningDefaults() {
++            FamilyMember child = FamilyMember.builder()
++                    .relationship(FamilyMember.Relationship.CHILD)
++                    .isDependent(null)
++                    .isEarning(null)
++                    .build();
++
++            when(familyMemberRepository.save(any(FamilyMember.class)))
++                    .thenAnswer(inv -> inv.getArgument(0));
++
++            FamilyMember saved = familyMemberController.createFamilyMember(child);
++            assertThat(saved.getUserId()).isEqualTo("user-1");
++            assertThat(saved.getIsDependent()).isTrue();
++            assertThat(saved.getIsEarning()).isFalse();
++        }
++
++        @Test
++        @DisplayName("keeps provided dependent and earning values")
++        void keepsProvidedValues() {
++            FamilyMember self = FamilyMember.builder()
++                    .relationship(FamilyMember.Relationship.SELF)
++                    .isDependent(false)
++                    .isEarning(true)
++                    .build();
++
++            when(familyMemberRepository.save(any(FamilyMember.class)))
++                    .thenAnswer(inv -> inv.getArgument(0));
++
++            FamilyMember saved = familyMemberController.createFamilyMember(self);
++            assertThat(saved.getIsDependent()).isFalse();
++            assertThat(saved.getIsEarning()).isTrue();
++        }
++    }
++
++    @Test
++    @DisplayName("updateFamilyMember sets id and userId")
++    void updateFamilyMember_setsFields() {
++        FamilyMember existing = FamilyMember.builder().id("fm1").userId("user-1").build();
++        when(familyMemberRepository.findByIdAndUserId("fm1", "user-1"))
++                .thenReturn(Optional.of(existing));
++        when(familyMemberRepository.save(any(FamilyMember.class)))
++                .thenAnswer(inv -> inv.getArgument(0));
++
++        FamilyMember update = FamilyMember.builder().name("Updated").build();
++        FamilyMember saved = familyMemberController.updateFamilyMember("fm1", update);
++
++        assertThat(saved.getId()).isEqualTo("fm1");
++        assertThat(saved.getUserId()).isEqualTo("user-1");
++    }
++
++    @Test
++    @DisplayName("deleteFamilyMember throws when missing")
++    void deleteFamilyMember_throwsWhenMissing() {
++        when(familyMemberRepository.existsByIdAndUserId("fm1", "user-1")).thenReturn(false);
++        assertThatThrownBy(() -> familyMemberController.deleteFamilyMember("fm1"))
++                .isInstanceOf(ResourceNotFoundException.class);
++    }
++
++    @Test
++    @DisplayName("getFamilySummary aggregates counts and coverage")
++    void getFamilySummary_counts() {
++        FamilyMember spouse = FamilyMember.builder()
++                .relationship(FamilyMember.Relationship.SPOUSE)
++                .isEarning(true)
++                .isDependent(false)
++                .existingHealthCover(200000.0)
++                .existingLifeCover(500000.0)
++                .dateOfBirth(LocalDate.now().minusYears(35))
++                .build();
++        FamilyMember child = FamilyMember.builder()
++                .relationship(FamilyMember.Relationship.CHILD)
++                .isDependent(true)
++                .isEarning(false)
++                .existingHealthCover(0.0)
++                .existingLifeCover(0.0)
++                .dateOfBirth(LocalDate.now().minusYears(10))
++                .build();
++        FamilyMember parent = FamilyMember.builder()
++                .relationship(FamilyMember.Relationship.PARENT)
++                .isDependent(true)
++                .isEarning(false)
++                .existingHealthCover(300000.0)
++                .existingLifeCover(0.0)
++                .dateOfBirth(LocalDate.now().minusYears(65))
++                .build();
++
++        when(familyMemberRepository.findByUserId("user-1"))
++                .thenReturn(Arrays.asList(spouse, child, parent));
++
++        FamilyMemberController.FamilySummary summary = familyMemberController.getFamilySummary();
++
++        assertThat(summary.getTotalMembers()).isEqualTo(3);
++        assertThat(summary.getDependents()).isEqualTo(2);
++        assertThat(summary.getEarningMembers()).isEqualTo(1);
++        assertThat(summary.getChildren()).isEqualTo(1);
++        assertThat(summary.getSeniors()).isEqualTo(1);
++        assertThat(summary.getTotalHealthCover()).isEqualTo(500000.0);
++        assertThat(summary.getTotalLifeCover()).isEqualTo(500000.0);
++    }
++}
+diff --git a/backend/src/test/java/com/retyrment/controller/InsuranceRecommendationControllerUnitTest.java b/backend/src/test/java/com/retyrment/controller/InsuranceRecommendationControllerUnitTest.java
+new file mode 100644
+index 0000000..a2b2cbe
+--- /dev/null
++++ b/backend/src/test/java/com/retyrment/controller/InsuranceRecommendationControllerUnitTest.java
+@@ -0,0 +1,67 @@
++package com.retyrment.controller;
++
++import com.retyrment.model.User;
++import com.retyrment.service.InsuranceRecommendationService;
++import com.retyrment.service.InsuranceRecommendationService.InsuranceRecommendation;
++import org.junit.jupiter.api.BeforeEach;
++import org.junit.jupiter.api.DisplayName;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.api.extension.ExtendWith;
++import org.mockito.InjectMocks;
++import org.mockito.Mock;
++import org.mockito.junit.jupiter.MockitoExtension;
++import org.springframework.security.core.Authentication;
++import org.springframework.security.core.context.SecurityContext;
++import org.springframework.security.core.context.SecurityContextHolder;
++
++import static org.assertj.core.api.Assertions.assertThat;
++import static org.assertj.core.api.Assertions.assertThatThrownBy;
++import static org.mockito.Mockito.lenient;
++import static org.mockito.Mockito.when;
++
++@ExtendWith(MockitoExtension.class)
++@DisplayName("InsuranceRecommendationController Unit Tests")
++class InsuranceRecommendationControllerUnitTest {
++
++    @Mock
++    private InsuranceRecommendationService recommendationService;
++
++    @Mock
++    private SecurityContext securityContext;
++
++    @Mock
++    private Authentication authentication;
++
++    @InjectMocks
++    private InsuranceRecommendationController controller;
++
++    private User testUser;
++
++    @BeforeEach
++    void setUp() {
++        SecurityContextHolder.setContext(securityContext);
++        testUser = User.builder().id("user-1").email("user1@example.com").build();
++        lenient().when(securityContext.getAuthentication()).thenReturn(authentication);
++        lenient().when(authentication.getPrincipal()).thenReturn(testUser);
++    }
++
++    @Test
++    @DisplayName("getRecommendations returns service result")
++    void getRecommendations_returnsServiceResult() {
++        InsuranceRecommendation rec = new InsuranceRecommendation();
++        when(recommendationService.generateRecommendations("user-1")).thenReturn(rec);
++
++        InsuranceRecommendation result = controller.getRecommendations();
++
++        assertThat(result).isSameAs(rec);
++    }
++
++    @Test
++    @DisplayName("getRecommendations throws when unauthenticated")
++    void getRecommendations_throwsWhenUnauthenticated() {
++        when(securityContext.getAuthentication()).thenReturn(null);
++
++        assertThatThrownBy(() -> controller.getRecommendations())
++                .isInstanceOf(IllegalStateException.class);
++    }
++}
+diff --git a/backend/src/test/java/com/retyrment/controller/UserSettingsControllerUnitTest.java b/backend/src/test/java/com/retyrment/controller/UserSettingsControllerUnitTest.java
+new file mode 100644
+index 0000000..0b47d11
+--- /dev/null
++++ b/backend/src/test/java/com/retyrment/controller/UserSettingsControllerUnitTest.java
+@@ -0,0 +1,171 @@
++package com.retyrment.controller;
++
++import com.retyrment.model.User;
++import com.retyrment.model.UserSettings;
++import com.retyrment.repository.UserSettingsRepository;
++import org.junit.jupiter.api.BeforeEach;
++import org.junit.jupiter.api.DisplayName;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.api.extension.ExtendWith;
++import org.mockito.ArgumentCaptor;
++import org.mockito.InjectMocks;
++import org.mockito.Mock;
++import org.mockito.junit.jupiter.MockitoExtension;
++import org.springframework.http.ResponseEntity;
++import org.springframework.security.core.Authentication;
++import org.springframework.security.core.context.SecurityContext;
++import org.springframework.security.core.context.SecurityContextHolder;
++
++import java.util.HashMap;
++import java.util.Map;
++import java.util.Optional;
++
++import static org.assertj.core.api.Assertions.assertThat;
++import static org.mockito.ArgumentMatchers.any;
++import static org.mockito.Mockito.*;
++
++@ExtendWith(MockitoExtension.class)
++@DisplayName("UserSettingsController Unit Tests")
++class UserSettingsControllerUnitTest {
++
++    @Mock
++    private UserSettingsRepository userSettingsRepository;
++
++    @Mock
++    private SecurityContext securityContext;
++
++    @Mock
++    private Authentication authentication;
++
++    @InjectMocks
++    private UserSettingsController controller;
++
++    private User testUser;
++
++    @BeforeEach
++    void setUp() {
++        SecurityContextHolder.setContext(securityContext);
++        testUser = User.builder().id("user-1").email("user1@example.com").build();
++        when(securityContext.getAuthentication()).thenReturn(authentication);
++        when(authentication.getPrincipal()).thenReturn(testUser);
++    }
++
++    @Test
++    @DisplayName("getUserSettings returns defaults when none exist")
++    void getUserSettings_returnsDefaults() {
++        when(userSettingsRepository.findByUserId("user-1")).thenReturn(Optional.empty());
++
++        ResponseEntity<Map<String, Object>> response = controller.getUserSettings();
++
++        assertThat(response.getStatusCode().value()).isEqualTo(200);
++        Map<String, Object> body = response.getBody();
++        assertThat(body).isNotNull();
++        assertThat(body.get("currentAge")).isEqualTo(35);
++        assertThat(body.get("retirementAge")).isEqualTo(60);
++        assertThat(body.get("lifeExpectancy")).isEqualTo(85);
++        assertThat(body.get("inflationRate")).isEqualTo(6.0);
++        assertThat(body.get("epfReturn")).isEqualTo(10.0);
++        assertThat(body.get("ppfReturn")).isEqualTo(7.1);
++        assertThat(body.get("mfEquityReturn")).isEqualTo(12.0);
++        assertThat(body.get("mfDebtReturn")).isEqualTo(7.0);
++        assertThat(body.get("fdReturn")).isEqualTo(6.5);
++        assertThat(body.get("emergencyFundMonths")).isEqualTo(6);
++        assertThat(body.get("sipStepup")).isEqualTo(10.0);
++    }
++
++    @Test
++    @DisplayName("getUserSettings returns saved values with null fallbacks")
++    void getUserSettings_returnsSavedValues() {
++        UserSettings settings = UserSettings.builder()
++                .userId("user-1")
++                .currentAge(40)
++                .retirementAge(65)
++                .lifeExpectancy(90)
++                .inflationRate(5.5)
++                .epfReturn(null)
++                .ppfReturn(7.5)
++                .mfEquityReturn(13.0)
++                .mfDebtReturn(6.0)
++                .fdReturn(6.0)
++                .emergencyFundMonths(9)
++                .sipStepup(12.0)
++                .build();
++        when(userSettingsRepository.findByUserId("user-1")).thenReturn(Optional.of(settings));
++
++        ResponseEntity<Map<String, Object>> response = controller.getUserSettings();
++        Map<String, Object> body = response.getBody();
++
++        assertThat(body).isNotNull();
++        assertThat(body.get("currentAge")).isEqualTo(40);
++        assertThat(body.get("retirementAge")).isEqualTo(65);
++        assertThat(body.get("lifeExpectancy")).isEqualTo(90);
++        assertThat(body.get("inflationRate")).isEqualTo(5.5);
++        assertThat(body.get("epfReturn")).isEqualTo(10.0);
++        assertThat(body.get("ppfReturn")).isEqualTo(7.5);
++        assertThat(body.get("mfEquityReturn")).isEqualTo(13.0);
++        assertThat(body.get("emergencyFundMonths")).isEqualTo(9);
++        assertThat(body.get("sipStepup")).isEqualTo(12.0);
++    }
++
++    @Test
++    @DisplayName("updateUserSettings creates new settings when none exist")
++    void updateUserSettings_createsNew() {
++        when(userSettingsRepository.findByUserId("user-1")).thenReturn(Optional.empty());
++        when(userSettingsRepository.save(any(UserSettings.class))).thenAnswer(inv -> inv.getArgument(0));
++
++        Map<String, Object> payload = new HashMap<>();
++        payload.put("currentAge", 41);
++        payload.put("retirementAge", 62);
++        payload.put("lifeExpectancy", 86);
++        payload.put("inflationRate", 6.2);
++        payload.put("epfReturn", 8.15);
++        payload.put("ppfReturn", 7.1);
++        payload.put("mfEquityReturn", 12.5);
++        payload.put("mfDebtReturn", 7.2);
++        payload.put("fdReturn", 6.4);
++        payload.put("emergencyFundMonths", 8);
++        payload.put("sipStepup", 11.0);
++
++        ResponseEntity<Map<String, Object>> response = controller.updateUserSettings(payload);
++        assertThat(response.getStatusCode().value()).isEqualTo(200);
++
++        ArgumentCaptor<UserSettings> captor = ArgumentCaptor.forClass(UserSettings.class);
++        verify(userSettingsRepository).save(captor.capture());
++        UserSettings saved = captor.getValue();
++        assertThat(saved.getUserId()).isEqualTo("user-1");
++        assertThat(saved.getCurrentAge()).isEqualTo(41);
++        assertThat(saved.getRetirementAge()).isEqualTo(62);
++        assertThat(saved.getLifeExpectancy()).isEqualTo(86);
++        assertThat(saved.getInflationRate()).isEqualTo(6.2);
++        assertThat(saved.getEpfReturn()).isEqualTo(8.15);
++        assertThat(saved.getPpfReturn()).isEqualTo(7.1);
++        assertThat(saved.getMfEquityReturn()).isEqualTo(12.5);
++        assertThat(saved.getMfDebtReturn()).isEqualTo(7.2);
++        assertThat(saved.getFdReturn()).isEqualTo(6.4);
++        assertThat(saved.getEmergencyFundMonths()).isEqualTo(8);
++        assertThat(saved.getSipStepup()).isEqualTo(11.0);
++    }
++
++    @Test
++    @DisplayName("updateUserSettings updates existing settings")
++    void updateUserSettings_updatesExisting() {
++        UserSettings existing = UserSettings.builder().userId("user-1").currentAge(35).build();
++        when(userSettingsRepository.findByUserId("user-1")).thenReturn(Optional.of(existing));
++        when(userSettingsRepository.save(any(UserSettings.class))).thenAnswer(inv -> inv.getArgument(0));
++
++        Map<String, Object> payload = new HashMap<>();
++        payload.put("currentAge", 38);
++        payload.put("inflationRate", 5.8);
++        payload.put("sipStepup", 9.0);
++
++        ResponseEntity<Map<String, Object>> response = controller.updateUserSettings(payload);
++        assertThat(response.getStatusCode().value()).isEqualTo(200);
++
++        ArgumentCaptor<UserSettings> captor = ArgumentCaptor.forClass(UserSettings.class);
++        verify(userSettingsRepository).save(captor.capture());
++        UserSettings saved = captor.getValue();
++        assertThat(saved.getCurrentAge()).isEqualTo(38);
++        assertThat(saved.getInflationRate()).isEqualTo(5.8);
++        assertThat(saved.getSipStepup()).isEqualTo(9.0);
++    }
++}
+diff --git a/backend/src/test/java/com/retyrment/service/ExportServiceTest.java b/backend/src/test/java/com/retyrment/service/ExportServiceTest.java
+index b49cc43..49e60c9 100644
+--- a/backend/src/test/java/com/retyrment/service/ExportServiceTest.java
++++ b/backend/src/test/java/com/retyrment/service/ExportServiceTest.java
+@@ -211,6 +211,151 @@ class ExportServiceTest {
+         }
+     }
+ 
++    @Nested
++    @DisplayName("PDF/Excel generation")
++    class ReportGeneration {
++        @Test
++        @DisplayName("generateFinancialSummaryPdfReport with asset breakdown")
++        void generateFinancialSummaryPdfReport_withAssetBreakdown() {
++            Map<String, Object> netWorth = new HashMap<>();
++            netWorth.put("totalAssets", 100000.0);
++            netWorth.put("totalLiabilities", 20000.0);
++            netWorth.put("netWorth", 80000.0);
++            Map<String, Object> breakdown = new HashMap<>();
++            breakdown.put("cash", 50000.0);
++            breakdown.put("mutual_funds", 50000.0);
++            netWorth.put("assetBreakdown", breakdown);
++            when(analysisService.calculateNetWorth("test-user")).thenReturn(netWorth);
++
++            when(incomeRepository.findByUserId("test-user"))
++                    .thenReturn(Arrays.asList(
++                            Income.builder().monthlyAmount(10000.0).isActive(true).build(),
++                            Income.builder().monthlyAmount(5000.0).isActive(false).build()
++                    ));
++            when(expenseRepository.findByUserId("test-user"))
++                    .thenReturn(List.of(Expense.builder().amount(1200.0).frequency(Expense.ExpenseFrequency.MONTHLY).build()));
++            when(loanRepository.findByUserId("test-user"))
++                    .thenReturn(List.of(Loan.builder().emi(500.0).build()));
++            when(insuranceRepository.findByUserId("test-user"))
++                    .thenReturn(List.of(Insurance.builder().annualPremium(1200.0).build()));
++            when(investmentRepository.findByUserId("test-user"))
++                    .thenReturn(Arrays.asList(
++                            Investment.builder().type(Investment.InvestmentType.PPF).name("PPF").build(),
++                            Investment.builder().type(null).name("Unknown").build()
++                    ));
++            byte[] pdf = exportService.generateFinancialSummaryPdfReport("test-user");
++
++            assertThat(pdf).isNotNull();
++            assertThat(pdf.length).isGreaterThan(0);
++        }
++
++        @Test
++        @DisplayName("generateFinancialSummaryPdfReport without asset breakdown")
++        void generateFinancialSummaryPdfReport_withoutAssetBreakdown() {
++            Map<String, Object> netWorth = new HashMap<>();
++            netWorth.put("totalAssets", 0.0);
++            netWorth.put("totalLiabilities", 0.0);
++            netWorth.put("netWorth", 0.0);
++            netWorth.put("assetBreakdown", new HashMap<>());
++            when(analysisService.calculateNetWorth("test-user")).thenReturn(netWorth);
++            when(incomeRepository.findByUserId("test-user")).thenReturn(List.of());
++            when(expenseRepository.findByUserId("test-user")).thenReturn(List.of());
++            when(loanRepository.findByUserId("test-user")).thenReturn(List.of());
++            when(insuranceRepository.findByUserId("test-user")).thenReturn(List.of());
++            when(investmentRepository.findByUserId("test-user")).thenReturn(List.of());
++            byte[] pdf = exportService.generateFinancialSummaryPdfReport("test-user");
++
++            assertThat(pdf).isNotNull();
++            assertThat(pdf.length).isGreaterThan(0);
++        }
++
++        @Test
++        @DisplayName("generateRetirementPdfReport creates default scenario")
++        void generateRetirementPdfReport_defaultScenario() {
++            when(scenarioRepository.findByUserIdAndIsDefaultTrue("test-user"))
++                    .thenReturn(Optional.empty());
++
++            Map<String, Object> summary = new HashMap<>();
++            summary.put("currentAge", 35);
++            summary.put("retirementAge", 60);
++            summary.put("yearsToRetirement", 25);
++            summary.put("finalCorpus", 1000000.0);
++
++            Map<String, Object> gap = new HashMap<>();
++            gap.put("corpusGap", 100000.0);
++            gap.put("requiredCorpus", 1100000.0);
++            gap.put("projectedCorpus", 1000000.0);
++            gap.put("monthlySIP", 5000.0);
++            gap.put("netMonthlySavings", 3000.0);
++
++            Map<String, Object> row = new HashMap<>();
++            row.put("year", 2030);
++            row.put("age", 40);
++            row.put("ppfBalance", 10000.0);
++            row.put("epfBalance", 20000.0);
++            row.put("mfBalance", 30000.0);
++            row.put("goalOutflow", 0.0);
++            row.put("netCorpus", 60000.0);
++
++            Map<String, Object> retirementData = new HashMap<>();
++            retirementData.put("summary", summary);
++            retirementData.put("gapAnalysis", gap);
++            retirementData.put("matrix", List.of(row));
++
++            when(retirementService.generateRetirementMatrix(eq("test-user"), any(RetirementScenario.class)))
++                    .thenReturn(retirementData);
++
++            byte[] pdf = exportService.generateRetirementPdfReport("test-user");
++
++            assertThat(pdf).isNotNull();
++            assertThat(pdf.length).isGreaterThan(0);
++        }
++
++        @Test
++        @DisplayName("generateCalendarPdfReport returns bytes")
++        void generateCalendarPdfReport_returnsBytes() {
++            byte[] pdf = exportService.generateCalendarPdfReport("test-user");
++            assertThat(pdf).isNotNull();
++            assertThat(pdf.length).isGreaterThan(0);
++        }
++
++        @Test
++        @DisplayName("generateExcelReport returns workbook bytes")
++        void generateExcelReport_returnsBytes() throws Exception {
++            Map<String, Object> netWorth = new HashMap<>();
++            netWorth.put("totalAssets", 100000.0);
++            netWorth.put("totalLiabilities", 20000.0);
++            netWorth.put("netWorth", 80000.0);
++            when(analysisService.calculateNetWorth("test-user")).thenReturn(netWorth);
++
++            when(incomeRepository.findByUserId("test-user"))
++                    .thenReturn(List.of(Income.builder().monthlyAmount(10000.0).isActive(true).build()));
++            when(expenseRepository.findByUserId("test-user"))
++                    .thenReturn(Arrays.asList(
++                            Expense.builder().name("Rent").amount(1200.0).frequency(Expense.ExpenseFrequency.MONTHLY).build(),
++                            Expense.builder().name("Fees").amount(24000.0).frequency(null).build()
++                    ));
++            when(loanRepository.findByUserId("test-user"))
++                    .thenReturn(Arrays.asList(
++                            Loan.builder().type(Loan.LoanType.HOME).name("Home").emi(1000.0).build(),
++                            Loan.builder().type(null).name("Other").emi(0.0).build()
++                    ));
++            when(insuranceRepository.findByUserId("test-user"))
++                    .thenReturn(Arrays.asList(
++                            Insurance.builder().type(Insurance.InsuranceType.HEALTH).annualPremium(1200.0).build(),
++                            Insurance.builder().type(null).annualPremium(0.0).build()
++                    ));
++            when(investmentRepository.findByUserId("test-user"))
++                    .thenReturn(Arrays.asList(
++                            Investment.builder().type(Investment.InvestmentType.PPF).name("PPF").build(),
++                            Investment.builder().type(null).name("Other").build()
++                    ));
++            byte[] excel = exportService.generateExcelReport("test-user");
++            assertThat(excel).isNotNull();
++            assertThat(excel.length).isGreaterThan(0);
++        }
++    }
++
+     @Nested
+     @DisplayName("generatePdfReport")
+     class GeneratePdfReport {
+diff --git a/frontend-react/package.json b/frontend-react/package.json
+index dd498d8..db98497 100644
+--- a/frontend-react/package.json
++++ b/frontend-react/package.json
+@@ -7,7 +7,9 @@
+     "dev": "vite",
+     "build": "tsc -b && vite build",
+     "lint": "eslint .",
+-    "preview": "vite preview"
++    "preview": "vite preview",
++    "test": "vitest",
++    "test:ci": "vitest run --coverage"
+   },
+   "dependencies": {
+     "@headlessui/react": "^2.2.9",
+@@ -29,13 +31,19 @@
+     "@types/node": "^24.10.1",
+     "@types/react": "^19.2.5",
+     "@types/react-dom": "^19.2.3",
++    "@testing-library/jest-dom": "^6.6.4",
++    "@testing-library/react": "^16.3.0",
++    "@testing-library/user-event": "^14.6.1",
+     "@vitejs/plugin-react": "^5.1.1",
+     "eslint": "^9.39.1",
+     "eslint-plugin-react-hooks": "^7.0.1",
+     "eslint-plugin-react-refresh": "^0.4.24",
+     "globals": "^16.5.0",
++    "jsdom": "^25.0.1",
+     "typescript": "~5.9.3",
+     "typescript-eslint": "^8.46.4",
+-    "vite": "^7.2.4"
++    "vite": "^7.2.4",
++    "vitest": "^3.2.0",
++    "@vitest/coverage-v8": "^3.2.0"
+   }
+ }
+diff --git a/frontend-react/src/components/ui/Select.test.tsx b/frontend-react/src/components/ui/Select.test.tsx
+new file mode 100644
+index 0000000..2307b85
+--- /dev/null
++++ b/frontend-react/src/components/ui/Select.test.tsx
+@@ -0,0 +1,26 @@
++import { render, screen } from '@testing-library/react';
++import { describe, it, expect } from 'vitest';
++import { Select } from './Select';
++
++describe('Select', () => {
++  it('renders a placeholder and handles missing options', () => {
++    render(<Select aria-label="sample-select" />);
++    const select = screen.getByLabelText('sample-select');
++    expect(select).toBeInTheDocument();
++    expect(screen.getByText('Select...')).toBeInTheDocument();
++  });
++
++  it('renders provided options', () => {
++    render(
++      <Select
++        label="Type"
++        options={[
++          { value: 'A', label: 'Option A' },
++          { value: 'B', label: 'Option B' },
++        ]}
++      />
++    );
++    expect(screen.getByText('Option A')).toBeInTheDocument();
++    expect(screen.getByText('Option B')).toBeInTheDocument();
++  });
++});
+diff --git a/frontend-react/src/lib/utils.test.ts b/frontend-react/src/lib/utils.test.ts
+new file mode 100644
+index 0000000..e22de36
+--- /dev/null
++++ b/frontend-react/src/lib/utils.test.ts
+@@ -0,0 +1,47 @@
++import { describe, it, expect } from 'vitest';
++import {
++  amountInWordsHelper,
++  classNames,
++  formatCurrency,
++  formatDate,
++  formatPercentage,
++  getInitials,
++  numberToWords,
++} from './utils';
++
++describe('utils', () => {
++  it('formats currency in compact notation', () => {
++    expect(formatCurrency(1_000, true)).toBe('₹1.0K');
++    expect(formatCurrency(1_00_000, true)).toBe('₹1.00L');
++    expect(formatCurrency(1_00_00_000, true)).toBe('₹1.00Cr');
++  });
++
++  it('formats currency in full notation', () => {
++    expect(formatCurrency(1_000)).toBe('₹1,000');
++    expect(formatCurrency(1_00_000)).toBe('₹1,00,000');
++  });
++
++  it('converts numbers to words for Indian format', () => {
++    expect(numberToWords(100000)).toBe('One Lakh');
++    expect(numberToWords(150000)).toBe('One Lakh Fifty Thousand');
++  });
++
++  it('formats amount in words helper', () => {
++    expect(amountInWordsHelper(100000)).toBe('In words: One Lakh only');
++    expect(amountInWordsHelper(0)).toBeUndefined();
++  });
++
++  it('formats dates and percentages', () => {
++    expect(formatPercentage(7.15)).toBe('7.1%');
++    expect(formatDate('2025-01-01')).toContain('2025');
++  });
++
++  it('builds class names', () => {
++    expect(classNames('a', false, 'b', undefined, 'c')).toBe('a b c');
++  });
++
++  it('gets initials', () => {
++    expect(getInitials('John Doe')).toBe('JD');
++    expect(getInitials('Retyrment App')).toBe('RA');
++  });
++});
+diff --git a/frontend-react/src/test/setup.ts b/frontend-react/src/test/setup.ts
+new file mode 100644
+index 0000000..e94e16a
+--- /dev/null
++++ b/frontend-react/src/test/setup.ts
+@@ -0,0 +1 @@
++import '@testing-library/jest-dom/vitest';
+diff --git a/frontend-react/src/vite-env.d.ts b/frontend-react/src/vite-env.d.ts
+new file mode 100644
+index 0000000..a76d137
+--- /dev/null
++++ b/frontend-react/src/vite-env.d.ts
+@@ -0,0 +1,2 @@
++/// <reference types="vite/client" />
++/// <reference types="vitest" />
+diff --git a/frontend-react/vite.config.ts b/frontend-react/vite.config.ts
+index fbc60f9..32072e3 100644
+--- a/frontend-react/vite.config.ts
++++ b/frontend-react/vite.config.ts
+@@ -17,4 +17,18 @@ export default defineConfig({
+     outDir: 'dist',
+     sourcemap: true,
+   },
++  test: {
++    environment: 'jsdom',
++    setupFiles: ['./src/test/setup.ts'],
++    coverage: {
++      reporter: ['text', 'html', 'lcov'],
++      include: ['src/**/*.{ts,tsx}'],
++      exclude: [
++        'src/main.tsx',
++        'src/App.tsx',
++        'src/pages/**',
++        'src/assets/**',
++      ],
++    },
++  },
+ });

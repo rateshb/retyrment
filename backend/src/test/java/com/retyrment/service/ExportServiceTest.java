@@ -212,6 +212,151 @@ class ExportServiceTest {
     }
 
     @Nested
+    @DisplayName("PDF/Excel generation")
+    class ReportGeneration {
+        @Test
+        @DisplayName("generateFinancialSummaryPdfReport with asset breakdown")
+        void generateFinancialSummaryPdfReport_withAssetBreakdown() {
+            Map<String, Object> netWorth = new HashMap<>();
+            netWorth.put("totalAssets", 100000.0);
+            netWorth.put("totalLiabilities", 20000.0);
+            netWorth.put("netWorth", 80000.0);
+            Map<String, Object> breakdown = new HashMap<>();
+            breakdown.put("cash", 50000.0);
+            breakdown.put("mutual_funds", 50000.0);
+            netWorth.put("assetBreakdown", breakdown);
+            when(analysisService.calculateNetWorth("test-user")).thenReturn(netWorth);
+
+            when(incomeRepository.findByUserId("test-user"))
+                    .thenReturn(Arrays.asList(
+                            Income.builder().monthlyAmount(10000.0).isActive(true).build(),
+                            Income.builder().monthlyAmount(5000.0).isActive(false).build()
+                    ));
+            when(expenseRepository.findByUserId("test-user"))
+                    .thenReturn(List.of(Expense.builder().amount(1200.0).frequency(Expense.ExpenseFrequency.MONTHLY).build()));
+            when(loanRepository.findByUserId("test-user"))
+                    .thenReturn(List.of(Loan.builder().emi(500.0).build()));
+            when(insuranceRepository.findByUserId("test-user"))
+                    .thenReturn(List.of(Insurance.builder().annualPremium(1200.0).build()));
+            when(investmentRepository.findByUserId("test-user"))
+                    .thenReturn(Arrays.asList(
+                            Investment.builder().type(Investment.InvestmentType.PPF).name("PPF").build(),
+                            Investment.builder().type(null).name("Unknown").build()
+                    ));
+            byte[] pdf = exportService.generateFinancialSummaryPdfReport("test-user");
+
+            assertThat(pdf).isNotNull();
+            assertThat(pdf.length).isGreaterThan(0);
+        }
+
+        @Test
+        @DisplayName("generateFinancialSummaryPdfReport without asset breakdown")
+        void generateFinancialSummaryPdfReport_withoutAssetBreakdown() {
+            Map<String, Object> netWorth = new HashMap<>();
+            netWorth.put("totalAssets", 0.0);
+            netWorth.put("totalLiabilities", 0.0);
+            netWorth.put("netWorth", 0.0);
+            netWorth.put("assetBreakdown", new HashMap<>());
+            when(analysisService.calculateNetWorth("test-user")).thenReturn(netWorth);
+            when(incomeRepository.findByUserId("test-user")).thenReturn(List.of());
+            when(expenseRepository.findByUserId("test-user")).thenReturn(List.of());
+            when(loanRepository.findByUserId("test-user")).thenReturn(List.of());
+            when(insuranceRepository.findByUserId("test-user")).thenReturn(List.of());
+            when(investmentRepository.findByUserId("test-user")).thenReturn(List.of());
+            byte[] pdf = exportService.generateFinancialSummaryPdfReport("test-user");
+
+            assertThat(pdf).isNotNull();
+            assertThat(pdf.length).isGreaterThan(0);
+        }
+
+        @Test
+        @DisplayName("generateRetirementPdfReport creates default scenario")
+        void generateRetirementPdfReport_defaultScenario() {
+            when(scenarioRepository.findByUserIdAndIsDefaultTrue("test-user"))
+                    .thenReturn(Optional.empty());
+
+            Map<String, Object> summary = new HashMap<>();
+            summary.put("currentAge", 35);
+            summary.put("retirementAge", 60);
+            summary.put("yearsToRetirement", 25);
+            summary.put("finalCorpus", 1000000.0);
+
+            Map<String, Object> gap = new HashMap<>();
+            gap.put("corpusGap", 100000.0);
+            gap.put("requiredCorpus", 1100000.0);
+            gap.put("projectedCorpus", 1000000.0);
+            gap.put("monthlySIP", 5000.0);
+            gap.put("netMonthlySavings", 3000.0);
+
+            Map<String, Object> row = new HashMap<>();
+            row.put("year", 2030);
+            row.put("age", 40);
+            row.put("ppfBalance", 10000.0);
+            row.put("epfBalance", 20000.0);
+            row.put("mfBalance", 30000.0);
+            row.put("goalOutflow", 0.0);
+            row.put("netCorpus", 60000.0);
+
+            Map<String, Object> retirementData = new HashMap<>();
+            retirementData.put("summary", summary);
+            retirementData.put("gapAnalysis", gap);
+            retirementData.put("matrix", List.of(row));
+
+            when(retirementService.generateRetirementMatrix(eq("test-user"), any(RetirementScenario.class)))
+                    .thenReturn(retirementData);
+
+            byte[] pdf = exportService.generateRetirementPdfReport("test-user");
+
+            assertThat(pdf).isNotNull();
+            assertThat(pdf.length).isGreaterThan(0);
+        }
+
+        @Test
+        @DisplayName("generateCalendarPdfReport returns bytes")
+        void generateCalendarPdfReport_returnsBytes() {
+            byte[] pdf = exportService.generateCalendarPdfReport("test-user");
+            assertThat(pdf).isNotNull();
+            assertThat(pdf.length).isGreaterThan(0);
+        }
+
+        @Test
+        @DisplayName("generateExcelReport returns workbook bytes")
+        void generateExcelReport_returnsBytes() throws Exception {
+            Map<String, Object> netWorth = new HashMap<>();
+            netWorth.put("totalAssets", 100000.0);
+            netWorth.put("totalLiabilities", 20000.0);
+            netWorth.put("netWorth", 80000.0);
+            when(analysisService.calculateNetWorth("test-user")).thenReturn(netWorth);
+
+            when(incomeRepository.findByUserId("test-user"))
+                    .thenReturn(List.of(Income.builder().monthlyAmount(10000.0).isActive(true).build()));
+            when(expenseRepository.findByUserId("test-user"))
+                    .thenReturn(Arrays.asList(
+                            Expense.builder().name("Rent").amount(1200.0).frequency(Expense.ExpenseFrequency.MONTHLY).build(),
+                            Expense.builder().name("Fees").amount(24000.0).frequency(null).build()
+                    ));
+            when(loanRepository.findByUserId("test-user"))
+                    .thenReturn(Arrays.asList(
+                            Loan.builder().type(Loan.LoanType.HOME).name("Home").emi(1000.0).build(),
+                            Loan.builder().type(null).name("Other").emi(0.0).build()
+                    ));
+            when(insuranceRepository.findByUserId("test-user"))
+                    .thenReturn(Arrays.asList(
+                            Insurance.builder().type(Insurance.InsuranceType.HEALTH).annualPremium(1200.0).build(),
+                            Insurance.builder().type(null).annualPremium(0.0).build()
+                    ));
+            when(investmentRepository.findByUserId("test-user"))
+                    .thenReturn(Arrays.asList(
+                            Investment.builder().type(Investment.InvestmentType.PPF).name("PPF").build(),
+                            Investment.builder().type(null).name("Other").build()
+                    ));
+            byte[] excel = exportService.generateExcelReport("test-user");
+            assertThat(excel).isNotNull();
+            assertThat(excel.length).isGreaterThan(0);
+        }
+    }
+
+    @Nested
     @DisplayName("generatePdfReport")
     class GeneratePdfReport {
         @Test
