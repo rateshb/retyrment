@@ -105,7 +105,8 @@ jobs:
             -Dsonar.organization=${{ steps.sonar.outputs.organization }}
             -Dsonar.projectKey=${{ steps.sonar.outputs.projectKey }}
             -Dsonar.sources=backend/src/main/java,frontend-react/src
-            -Dsonar.tests=backend/src/test/java,frontend-react/src
+            -Dsonar.tests=backend/src/test/java
+            -Dsonar.test.inclusions=**/*.test.ts,**/*.test.tsx,**/*Test.java
             -Dsonar.java.binaries=backend/target/classes
             -Dsonar.coverage.jacoco.xmlReportPaths=backend/target/site/jacoco/jacoco.xml
             -Dsonar.javascript.lcov.reportPaths=frontend-react/coverage/lcov.info
