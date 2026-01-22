@@ -48,6 +48,9 @@ class UserDataDeletionServiceTest {
 
     @Mock
     private SettingsRepository settingsRepository;
+    
+    @Mock
+    private UserSettingsRepository userSettingsRepository;
 
     @Mock
     private UserStrategyRepository userStrategyRepository;
@@ -81,6 +84,7 @@ class UserDataDeletionServiceTest {
         when(familyMemberRepository.findByUserId(testUserId)).thenReturn(createFamilyMemberList(4));
         when(userPreferenceRepository.findByUserId(testUserId)).thenReturn(Optional.of(new UserPreference()));
         when(settingsRepository.findByUserId(testUserId)).thenReturn(Optional.of(new Settings()));
+//        when(userSettingsRepository.findByUserId(testUserId)).thenReturn(Optional.empty());
         when(userStrategyRepository.findByUserId(testUserId)).thenReturn(Optional.of(new UserStrategy()));
         when(retirementScenarioRepository.findByUserId(testUserId)).thenReturn(List.of());
         when(calendarEntryRepository.findByUserId(testUserId)).thenReturn(List.of());
@@ -121,6 +125,7 @@ class UserDataDeletionServiceTest {
         when(familyMemberRepository.findByUserId(testUserId)).thenReturn(List.of());
         when(userPreferenceRepository.findByUserId(testUserId)).thenReturn(Optional.empty());
         when(settingsRepository.findByUserId(testUserId)).thenReturn(Optional.empty());
+//        when(userSettingsRepository.findByUserId(testUserId)).thenReturn(Optional.empty());
         when(userStrategyRepository.findByUserId(testUserId)).thenReturn(Optional.empty());
         when(retirementScenarioRepository.findByUserId(testUserId)).thenReturn(List.of());
         when(calendarEntryRepository.findByUserId(testUserId)).thenReturn(List.of());
@@ -146,6 +151,7 @@ class UserDataDeletionServiceTest {
         when(familyMemberRepository.findByUserId(testUserId)).thenReturn(createFamilyMemberList(4));
         when(userPreferenceRepository.findByUserId(testUserId)).thenReturn(Optional.of(new UserPreference()));
         when(settingsRepository.findByUserId(testUserId)).thenReturn(Optional.of(new Settings()));
+        when(userSettingsRepository.findByUserId(testUserId)).thenReturn(Optional.empty());
         when(userStrategyRepository.findByUserId(testUserId)).thenReturn(Optional.of(new UserStrategy()));
         when(retirementScenarioRepository.findByUserId(testUserId)).thenReturn(List.of());
         when(calendarEntryRepository.findByUserId(testUserId)).thenReturn(List.of());
@@ -185,6 +191,7 @@ class UserDataDeletionServiceTest {
         when(familyMemberRepository.findByUserId(testUserId)).thenReturn(List.of());
         when(userPreferenceRepository.findByUserId(testUserId)).thenReturn(Optional.empty());
         when(settingsRepository.findByUserId(testUserId)).thenReturn(Optional.empty());
+        when(userSettingsRepository.findByUserId(testUserId)).thenReturn(Optional.empty());
         when(userStrategyRepository.findByUserId(testUserId)).thenReturn(Optional.empty());
         when(retirementScenarioRepository.findByUserId(testUserId)).thenReturn(List.of());
         when(calendarEntryRepository.findByUserId(testUserId)).thenReturn(List.of());
@@ -231,6 +238,7 @@ class UserDataDeletionServiceTest {
         when(familyMemberRepository.findByUserId(testUserId)).thenReturn(List.of());
         when(userPreferenceRepository.findByUserId(testUserId)).thenReturn(Optional.empty());
         when(settingsRepository.findByUserId(testUserId)).thenReturn(Optional.empty());
+//        when(userSettingsRepository.findByUserId(testUserId)).thenReturn(Optional.empty());
         when(userStrategyRepository.findByUserId(testUserId)).thenReturn(Optional.empty());
         when(retirementScenarioRepository.findByUserId(testUserId))
             .thenReturn(Arrays.asList(new RetirementScenario(), new RetirementScenario()));
@@ -264,6 +272,7 @@ class UserDataDeletionServiceTest {
         when(familyMemberRepository.findByUserId(testUserId)).thenReturn(List.of());
         when(userPreferenceRepository.findByUserId(testUserId)).thenReturn(Optional.of(pref));
         when(settingsRepository.findByUserId(testUserId)).thenReturn(Optional.of(settings));
+        when(userSettingsRepository.findByUserId(testUserId)).thenReturn(Optional.empty());
         when(userStrategyRepository.findByUserId(testUserId)).thenReturn(Optional.of(strategy));
         when(retirementScenarioRepository.findByUserId(testUserId)).thenReturn(List.of());
         when(calendarEntryRepository.findByUserId(testUserId)).thenReturn(List.of());
@@ -302,6 +311,7 @@ class UserDataDeletionServiceTest {
         when(familyMemberRepository.findByUserId(testUserId)).thenReturn(Arrays.asList(fm1, fm2));
         when(userPreferenceRepository.findByUserId(testUserId)).thenReturn(Optional.empty());
         when(settingsRepository.findByUserId(testUserId)).thenReturn(Optional.empty());
+        when(userSettingsRepository.findByUserId(testUserId)).thenReturn(Optional.empty());
         when(userStrategyRepository.findByUserId(testUserId)).thenReturn(Optional.empty());
         when(retirementScenarioRepository.findByUserId(testUserId)).thenReturn(List.of());
         when(calendarEntryRepository.findByUserId(testUserId)).thenReturn(List.of());
