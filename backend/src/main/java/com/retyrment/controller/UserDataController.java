@@ -48,7 +48,7 @@ public class UserDataController {
             Map<String, Object> summary = userDataDeletionService.getUserDataSummary(userId);
             return ResponseEntity.ok(summary);
             
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.error("Error getting data summary", e);
             Map<String, Object> error = new HashMap<>();
             error.put("error", "Failed to get data summary");
@@ -92,7 +92,7 @@ public class UserDataController {
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(result);
             }
             
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.error("Error deleting user data", e);
             Map<String, Object> error = new HashMap<>();
             error.put("success", false);

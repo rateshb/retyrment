@@ -213,6 +213,7 @@
                     <effort>Max</effort>
                     <threshold>Medium</threshold>
                     <failOnError>false</failOnError>
+                    <excludeFilterFile>spotbugs-exclude.xml</excludeFilterFile>
                     <plugins>
                         <plugin>
                             <groupId>com.h3xstream.findsecbugs</groupId>
@@ -233,10 +234,7 @@
                     <printFailingErrors>true</printFailingErrors>
                     <minimumTokens>100</minimumTokens>
                     <rulesets>
-                        <ruleset>/category/java/bestpractices.xml</ruleset>
-                        <ruleset>/category/java/codestyle.xml</ruleset>
-                        <ruleset>/category/java/design.xml</ruleset>
-                        <ruleset>/category/java/errorprone.xml</ruleset>
+                        <ruleset>pmd-ruleset.xml</ruleset>
                     </rulesets>
                 </configuration>
             </plugin>

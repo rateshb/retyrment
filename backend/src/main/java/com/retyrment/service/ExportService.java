@@ -747,7 +747,7 @@ public class ExportService {
         return String.format("₹%,.0f", num);
     }
 
-    public byte[] generateExcelReport(String userId) throws Exception {
+    public byte[] generateExcelReport(String userId) {
         try (Workbook workbook = new XSSFWorkbook()) {
             // Create styles
             CellStyle headerStyle = workbook.createCellStyle();
@@ -939,6 +939,8 @@ public class ExportService {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             workbook.write(outputStream);
             return outputStream.toByteArray();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to generate Excel report", e);
         }
     }
 

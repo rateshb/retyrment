@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+<ruleset name="Retyrment Custom Rules"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+
+    <description>
+        Custom PMD ruleset for Retyrment project
+    </description>
+
+    <!-- Use all best practices except those we want to exclude -->
+    <rule ref="category/java/bestpractices.xml">
+        <!-- Allow catching generic exceptions in top-level exception handlers (controllers, scheduled tasks) -->
+        <exclude name="AvoidCatchingGenericException"/>
+    </rule>
+    
+    <!-- Use all code style rules with customizations -->
+    <rule ref="category/java/codestyle.xml">
+        <!-- Allow short variable names for common patterns (e, i, j, id) -->
+        <exclude name="ShortVariable"/>
+        <!-- Allow long descriptive variable names -->
+        <exclude name="LongVariable"/>
+        <!-- Allow multiple returns for early exit patterns -->
+        <exclude name="OnlyOneReturn"/>
+        <!-- Allow default access modifiers without comments -->
+        <exclude name="CommentDefaultAccessModifier"/>
+        <!-- Method arguments don't need to be final -->
+        <exclude name="MethodArgumentCouldBeFinal"/>
+        <!-- Local variables don't need to be final -->
+        <exclude name="LocalVariableCouldBeFinal"/>
+    </rule>
+
+    <!-- Use all design rules -->
+    <rule ref="category/java/design.xml">
+        <!-- Allow method chaining for fluent APIs and builders -->
+        <exclude name="LawOfDemeter"/>
+        <!-- Allow dataflow anomalies for common patterns -->
+        <exclude name="DataflowAnomalyAnalysis"/>
+    </rule>
+
+    <!-- Use all error prone rules -->
+    <rule ref="category/java/errorprone.xml">
+        <!-- We handle null checks appropriately -->
+        <exclude name="NullAssignment"/>
+    </rule>
+
+    <!-- Use all performance rules -->
+    <rule ref="category/java/performance.xml"/>
+    
+    <!-- Use all security rules -->
+    <rule ref="category/java/security.xml"/>
+
+    <!-- Enforce braces for control statements -->
+    <rule ref="category/java/codestyle.xml/ControlStatementBraces"/>
+    <rule ref="category/java/codestyle.xml/IfStmtsMustUseBraces"/>
+
+</ruleset>

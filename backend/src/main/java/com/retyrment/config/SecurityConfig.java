@@ -46,6 +46,13 @@ public class SecurityConfig {
                 corsConfiguration.setExposedHeaders(List.of("Authorization"));
                 return corsConfiguration;
             }))
+            // CSRF protection is intentionally disabled because:
+            // 1. We use JWT tokens in Authorization headers (not cookies)
+            // 2. CSRF attacks cannot read/modify custom HTTP headers (SOP restriction)
+            // 3. API is stateless with no session cookies that browsers auto-send
+            // 4. CORS is strictly configured to whitelist specific origins only
+            // 5. All state-changing operations require JWT token validation
+            // Reference: https://stackoverflow.com/questions/21357182/csrf-token-necessary-when-using-stateless-sessionless-authentication
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth

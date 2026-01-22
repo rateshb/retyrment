@@ -3,6 +3,7 @@ package com.retyrment.controller;
 import com.retyrment.model.User;
 import com.retyrment.service.ExportService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -13,6 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 
+@Slf4j
 @RestController
 @RequestMapping("/export")
 @RequiredArgsConstructor
@@ -40,7 +42,8 @@ public class ExportController {
             String userId = getCurrentUserId();
             exportService.importAllData(userId, data);
             return ResponseEntity.ok(Map.of("status", "success", "message", "Data imported successfully"));
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
+            log.error("Error importing JSON data: {}", e.getMessage(), e);
             return ResponseEntity.badRequest().body(Map.of("status", "error", "message", e.getMessage()));
         }
     }
@@ -67,8 +70,8 @@ public class ExportController {
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
                     .contentType(MediaType.APPLICATION_PDF)
                     .body(pdfBytes);
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (RuntimeException e) {
+            log.error("Error generating PDF report: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().build();
         }
     }
@@ -82,7 +85,8 @@ public class ExportController {
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=Retyrment_Report.xlsx")
                     .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                     .body(excelBytes);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
+            log.error("Error generating Excel report: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().build();
         }
     }

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+    <!-- Suppress CSRF Protection warning - see SecurityConfig.java for explanation -->
+    <Match>
+        <Bug pattern="SPRING_CSRF_PROTECTION_DISABLED"/>
+    </Match>
+    
+    <!-- Suppress EI_EXPOSE_REP2 for Spring dependency injection - these are managed by Spring container -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+        <Or>
+            <Class name="~.*Config"/>
+            <Class name="~.*Controller"/>
+        </Or>
+    </Match>
+</FindBugsFilter>

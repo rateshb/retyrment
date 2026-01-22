@@ -37,7 +37,7 @@ public class RoleExpiryService {
             try {
                 revertUserRole(user, now);
                 revertedCount++;
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 log.error("Failed to revert role for user {}: {}", user.getEmail(), e.getMessage());
             }
         }
@@ -101,7 +101,7 @@ public class RoleExpiryService {
             try {
                 revertUserRole(user, now);
                 revertedCount++;
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 log.error("Failed to revert role for user {}: {}", user.getEmail(), e.getMessage());
             }
         }

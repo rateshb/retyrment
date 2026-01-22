@@ -51,7 +51,7 @@ public class UserPreferenceController {
                 UserPreference.Currency curr = UserPreference.Currency.valueOf(preferences.getCurrency());
                 existing.setCurrencySymbol(curr.getSymbol());
                 existing.setLocale(curr.getLocale());
-            } catch (Exception e) {
+            } catch (IllegalArgumentException e) {
                 existing.setCurrencySymbol(preferences.getCurrencySymbol());
             }
         }
@@ -61,22 +61,46 @@ public class UserPreferenceController {
             try {
                 UserPreference.Country country = UserPreference.Country.valueOf(preferences.getCountry());
                 existing.setFinancialYearStartMonth(country.getFyStartMonth());
-            } catch (Exception e) {
+            } catch (IllegalArgumentException e) {
                 // Keep existing
             }
         }
-        if (preferences.getDateFormat() != null) existing.setDateFormat(preferences.getDateFormat());
-        if (preferences.getNumberFormat() != null) existing.setNumberFormat(preferences.getNumberFormat());
-        if (preferences.getShowAmountInWords() != null) existing.setShowAmountInWords(preferences.getShowAmountInWords());
-        if (preferences.getTheme() != null) existing.setTheme(preferences.getTheme());
-        if (preferences.getFinancialYearStartMonth() != null) existing.setFinancialYearStartMonth(preferences.getFinancialYearStartMonth());
-        if (preferences.getDefaultInflationRate() != null) existing.setDefaultInflationRate(preferences.getDefaultInflationRate());
-        if (preferences.getDefaultEquityReturn() != null) existing.setDefaultEquityReturn(preferences.getDefaultEquityReturn());
-        if (preferences.getDefaultDebtReturn() != null) existing.setDefaultDebtReturn(preferences.getDefaultDebtReturn());
-        if (preferences.getDefaultRetirementAge() != null) existing.setDefaultRetirementAge(preferences.getDefaultRetirementAge());
-        if (preferences.getEmailNotifications() != null) existing.setEmailNotifications(preferences.getEmailNotifications());
-        if (preferences.getPaymentReminders() != null) existing.setPaymentReminders(preferences.getPaymentReminders());
-        if (preferences.getReminderDaysBefore() != null) existing.setReminderDaysBefore(preferences.getReminderDaysBefore());
+        if (preferences.getDateFormat() != null) {
+            existing.setDateFormat(preferences.getDateFormat());
+        }
+        if (preferences.getNumberFormat() != null) {
+            existing.setNumberFormat(preferences.getNumberFormat());
+        }
+        if (preferences.getShowAmountInWords() != null) {
+            existing.setShowAmountInWords(preferences.getShowAmountInWords());
+        }
+        if (preferences.getTheme() != null) {
+            existing.setTheme(preferences.getTheme());
+        }
+        if (preferences.getFinancialYearStartMonth() != null) {
+            existing.setFinancialYearStartMonth(preferences.getFinancialYearStartMonth());
+        }
+        if (preferences.getDefaultInflationRate() != null) {
+            existing.setDefaultInflationRate(preferences.getDefaultInflationRate());
+        }
+        if (preferences.getDefaultEquityReturn() != null) {
+            existing.setDefaultEquityReturn(preferences.getDefaultEquityReturn());
+        }
+        if (preferences.getDefaultDebtReturn() != null) {
+            existing.setDefaultDebtReturn(preferences.getDefaultDebtReturn());
+        }
+        if (preferences.getDefaultRetirementAge() != null) {
+            existing.setDefaultRetirementAge(preferences.getDefaultRetirementAge());
+        }
+        if (preferences.getEmailNotifications() != null) {
+            existing.setEmailNotifications(preferences.getEmailNotifications());
+        }
+        if (preferences.getPaymentReminders() != null) {
+            existing.setPaymentReminders(preferences.getPaymentReminders());
+        }
+        if (preferences.getReminderDaysBefore() != null) {
+            existing.setReminderDaysBefore(preferences.getReminderDaysBefore());
+        }
         
         UserPreference saved = preferenceRepository.save(existing);
         return ResponseEntity.ok(saved);

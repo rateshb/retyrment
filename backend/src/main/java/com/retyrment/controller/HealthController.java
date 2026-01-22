@@ -49,7 +49,7 @@ public class HealthController {
             mongoTemplate.getDb().runCommand(new org.bson.Document("ping", 1));
             dbHealth.put("status", "UP");
             dbHealth.put("database", mongoTemplate.getDb().getName());
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             dbHealth.put("status", "DOWN");
             dbHealth.put("error", e.getMessage());
             health.put("status", "DOWN");

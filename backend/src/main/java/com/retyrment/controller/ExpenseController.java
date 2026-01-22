@@ -315,7 +315,9 @@ public class ExpenseController {
     
     // Helper method for SIP future value calculation
     private double calculateSIPFutureValue(double monthlySIP, double annualRate, int years) {
-        if (years <= 0 || monthlySIP <= 0) return 0;
+        if (years <= 0 || monthlySIP <= 0) {
+            return 0;
+        }
         double monthlyRate = annualRate / 100 / 12;
         int months = years * 12;
         return monthlySIP * ((Math.pow(1 + monthlyRate, months) - 1) / monthlyRate) * (1 + monthlyRate);
