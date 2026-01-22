@@ -96,8 +96,8 @@ jobs:
         with:
           projectBaseDir: .
           args: >
-            -Dsonar.organization=retyrment
-            -Dsonar.projectKey=retyrment_retyrment-backend
+            -Dsonar.organization=${{ secrets.SONAR_ORG }}
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
             -Dsonar.sources=backend/src/main/java,frontend-react/src
             -Dsonar.tests=backend/src/test/java,frontend-react/src
             -Dsonar.java.binaries=backend/target/classes
