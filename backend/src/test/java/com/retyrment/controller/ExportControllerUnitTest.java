@@ -107,12 +107,12 @@ class ExportControllerUnitTest {
     @DisplayName("exportPdfReport")
     class ExportPdfReport {
         @Test
-        @DisplayName("should return PDF bytes")
+        @DisplayName("should return PDF bytes for summary")
         void shouldReturnPdfBytes() throws Exception {
             byte[] mockPdf = "PDF Content".getBytes();
-            when(exportService.generatePdfReport("user-1")).thenReturn(mockPdf);
+            when(exportService.generateFinancialSummaryPdfReport("user-1")).thenReturn(mockPdf);
 
-            ResponseEntity<byte[]> result = exportController.exportPdfReport();
+            ResponseEntity<byte[]> result = exportController.exportPdfReport("summary");
 
             assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(result.getBody()).isEqualTo(mockPdf);
@@ -121,9 +121,9 @@ class ExportControllerUnitTest {
         @Test
         @DisplayName("should return 500 on PDF generation failure")
         void shouldReturnServerErrorOnFailure() throws Exception {
-            when(exportService.generatePdfReport("user-1")).thenThrow(new RuntimeException("PDF generation failed"));
+            when(exportService.generateFinancialSummaryPdfReport("user-1")).thenThrow(new RuntimeException("PDF generation failed"));
 
-            ResponseEntity<byte[]> result = exportController.exportPdfReport();
+            ResponseEntity<byte[]> result = exportController.exportPdfReport("summary");
 
             assertThat(result.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
         }

@@ -23,6 +23,7 @@ public class UserDataDeletionService {
     private final FamilyMemberRepository familyMemberRepository;
     private final UserPreferenceRepository userPreferenceRepository;
     private final SettingsRepository settingsRepository;
+    private final UserSettingsRepository userSettingsRepository;
     private final UserStrategyRepository userStrategyRepository;
     private final RetirementScenarioRepository retirementScenarioRepository;
     private final CalendarEntryRepository calendarEntryRepository;
@@ -159,6 +160,12 @@ public class UserDataDeletionService {
             if (!deletionSummary.containsKey("settings")) {
                 deletionSummary.put("settings", 0);
             }
+            
+            // Delete User Settings (new user settings model)
+            userSettingsRepository.findByUserId(userId).ifPresent(userSettings -> {
+                userSettingsRepository.delete(userSettings);
+                log.info("Deleted user settings for user {}", userId);
+            });
             
             // Delete User Strategy
             userStrategyRepository.findByUserId(userId).ifPresent(strategy -> {

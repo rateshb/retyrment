@@ -100,16 +100,7 @@
                     </div>
                     
                     <!-- Additional Stats Row -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                        <div class="card p-4 border-green-200 bg-green-50">
-                            <div class="flex items-center gap-3">
-                                <span class="text-2xl">🎁</span>
-                                <div>
-                                    <div class="text-xl font-bold text-green-600" id="active-trials">0</div>
-                                    <div class="text-xs text-green-600">Active Trials</div>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                         <div class="card p-4 border-blue-200 bg-blue-50">
                             <div class="flex items-center gap-3">
                                 <span class="text-2xl">⏳</span>
@@ -169,6 +160,13 @@
             <h3 class="text-lg font-semibold text-slate-800 mb-4">Change User Role</h3>
             <p class="text-sm text-slate-500 mb-4">Select a new role for <strong id="modal-user-email"></strong></p>
             <input type="hidden" id="modal-user-id">
+            
+            <!-- Info Banner -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                <p class="text-sm text-blue-700">
+                    <strong>💡 Tip:</strong> To grant a "trial", select <strong>PRO</strong> role with a duration (e.g., 7 days). After expiry, the user will revert to FREE.
+                </p>
+            </div>
             
             <!-- Role Selection -->
             <div class="space-y-3 mb-4">
@@ -270,7 +268,6 @@
                 document.getElementById('free-users').textContent = data.stats?.free || 0;
                 document.getElementById('pro-users').textContent = data.stats?.pro || 0;
                 document.getElementById('admin-users').textContent = data.stats?.admin || 0;
-                document.getElementById('active-trials').textContent = data.stats?.activeTrials || 0;
                 document.getElementById('temp-roles').textContent = data.stats?.temporaryRoles || 0;
                 document.getElementById('expiring-soon').textContent = data.stats?.expiringIn7Days || 0;
                 
@@ -314,16 +311,11 @@
                 let roleDisplay = roleBadges[user.role] || roleBadges.FREE;
                 let statusBadges = '';
                 
-                // Show trial badge if in active trial
-                if (user.trial?.active) {
-                    statusBadges += `<span class="ml-1 px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full">🎁 Trial: ${user.trial.daysRemaining}d</span>`;
-                }
-                
                 // Show temporary role badge
                 if (user.roleInfo?.temporary && !user.roleInfo.expired) {
-                    statusBadges += `<span class="ml-1 px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full">⏳ ${user.roleInfo.daysRemaining}d left</span>`;
+                    statusBadges += `<span class="ml-2 px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full">⏰ ${user.roleInfo.daysRemaining}d left</span>`;
                 } else if (user.roleInfo?.expired) {
-                    statusBadges += `<span class="ml-1 px-2 py-0.5 text-xs bg-red-100 text-red-700 rounded-full">⚠️ Expired</span>`;
+                    statusBadges += `<span class="ml-2 px-2 py-0.5 text-xs bg-red-100 text-red-700 rounded-full">⚠️ Expired</span>`;
                 }
                 
                 return `
@@ -347,8 +339,6 @@
                                 class="text-primary-500 hover:text-primary-700 font-medium mr-2">Change Role</button>
                         <button onclick="openFeatureModal('${user.id}', '${user.email}')" 
                                 class="text-blue-500 hover:text-blue-700 font-medium mr-2">Features</button>
-                        <button onclick="extendTrial('${user.id}', '${user.email}')" 
-                                class="text-green-500 hover:text-green-700 font-medium mr-2">+Trial</button>
                         <button onclick="deleteUser('${user.id}', '${user.email}')" 
                                 class="text-slate-400 hover:text-danger-500">Delete</button>
                     </td>
@@ -414,9 +404,16 @@
             }
             
             try {
+                // For PRO role with "Permanent" duration, send a long duration (10 years = 3650 days)
+                // Backend requires duration for PRO roles
+                let durationToSend = selectedDuration;
+                if (newRole === 'PRO' && selectedDuration === null) {
+                    durationToSend = 3650; // 10 years for permanent PRO
+                }
+                
                 const data = {
                     role: newRole,
-                    durationDays: selectedDuration,
+                    durationDays: durationToSend,
                     reason: reason || undefined
                 };
                 
@@ -428,19 +425,6 @@
                 loadUsers();
             } catch (error) {
                 showToast(error.message || 'Failed to update role', 'error');
-            }
-        }
-        
-        async function extendTrial(userId, email) {
-            const days = prompt(`Extend trial for ${email} by how many days?`, '7');
-            if (!days || isNaN(parseInt(days))) return;
-            
-            try {
-                await api.admin.extendTrial(userId, parseInt(days));
-                showToast(`Trial extended by ${days} days!`);
-                loadUsers();
-            } catch (error) {
-                showToast(error.message || 'Failed to extend trial', 'error');
             }
         }
 

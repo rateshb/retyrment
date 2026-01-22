@@ -12,9 +12,13 @@ import org.springframework.security.web.authentication.SimpleUrlAuthenticationSu
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpSession;
 
 @Component
 @RequiredArgsConstructor
@@ -22,6 +26,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     private final JwtUtils jwtUtils;
     private final UserRepository userRepository;
+    private final OAuth2RedirectStateStore redirectStateStore;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -86,7 +91,49 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         String token = jwtUtils.generateToken(email, name, user.getRole().name());
         
         // Redirect to frontend with token
-        String redirectUrl = frontendUrl + "/?token=" + token;
+        String redirectBase = frontendUrl;
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            Object redirectOrigin = session.getAttribute("oauth2_redirect_origin");
+            if (redirectOrigin instanceof String origin && !origin.isBlank()) {
+                redirectBase = decodeOrigin(origin);
+                session.removeAttribute("oauth2_redirect_origin");
+            }
+        }
+
+        String state = request.getParameter("state");
+        if (state != null && !state.isBlank()) {
+            String stateOrigin = redirectStateStore.getAndRemove(state);
+            if (stateOrigin != null && !stateOrigin.isBlank()) {
+                redirectBase = stateOrigin;
+            }
+        }
+
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if ("oauth2_redirect_origin".equals(cookie.getName()) && cookie.getValue() != null && !cookie.getValue().isBlank()) {
+                    redirectBase = decodeOrigin(cookie.getValue());
+                    Cookie clear = new Cookie("oauth2_redirect_origin", "");
+                    clear.setPath("/");
+                    clear.setMaxAge(0);
+                    response.addCookie(clear);
+                    break;
+                }
+            }
+        }
+
+        String redirectUrl = redirectBase + "/?token=" + token;
         getRedirectStrategy().sendRedirect(request, response, redirectUrl);
+    }
+
+    private String decodeOrigin(String origin) {
+        if (origin == null || origin.isBlank()) {
+            return origin;
+        }
+        try {
+            return URLDecoder.decode(origin, StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException ex) {
+            return origin;
+        }
     }
 }

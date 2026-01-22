@@ -108,24 +108,34 @@ mvn spring-boot:run -Dspring-boot.run.profiles=local
 Backend runs at: `http://localhost:8080/api`
 
 ### 3. Start Frontend
+
+**Option A: React Frontend (Recommended)**
+```bash
+cd frontend-react
+npm install
+npm run dev
+```
+React app runs at: `http://localhost:3000`
+
+**Option B: Legacy Vanilla JS Frontend**
 ```bash
 cd frontend
 npx http-server -p 5000 -c-1
 ```
-Frontend runs at: `http://localhost:5000`
+Legacy frontend runs at: `http://localhost:5000`
 
 ### 4. Open Browser
-- Landing page: http://localhost:5000/landing.html
-- Login: http://localhost:5000/login.html
+- **React Frontend**: http://localhost:3000
+- **Legacy Landing page**: http://localhost:5000/landing.html
 
 ## 🏗️ Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                        Frontend                              │
+│                  Frontend (React - Recommended)              │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐       │
-│  │ HTML5    │ │ Tailwind │ │ Chart.js │ │ jsPDF    │       │
-│  │ Pages    │ │ CSS      │ │ Charts   │ │ Reports  │       │
+│  │ React 19 │ │ Tailwind │ │TanStack  │ │ Zustand  │       │
+│  │TypeScript│ │ CSS v4   │ │  Query   │ │  State   │       │
 │  └──────────┘ └──────────┘ └──────────┘ └──────────┘       │
 │                           │                                  │
 │                    REST API (JWT Auth)                       │

@@ -15,7 +15,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadRecommendations() {
     try {
-        const recommendations = await api.get('/insurance/recommendations');
+        const [recommendations, insurances] = await Promise.all([
+            api.get('/insurance/recommendations'),
+            api.insurance.getAll().catch(() => [])
+        ]);
         console.log('Insurance recommendations:', recommendations);
         
         if (!recommendations) {
@@ -23,14 +26,14 @@ async function loadRecommendations() {
             return;
         }
         
-        renderRecommendations(recommendations);
+        renderRecommendations(recommendations, insurances || []);
     } catch (error) {
         console.error('Error loading recommendations:', error);
         showError(error.message || 'Failed to load recommendations');
     }
 }
 
-function renderRecommendations(data) {
+function renderRecommendations(data, insurances) {
     // Overall Score
     renderOverallScore(data.summary || {});
     
@@ -38,7 +41,7 @@ function renderRecommendations(data) {
     renderUrgentActions(data.summary || {});
     
     // Health Insurance
-    renderHealthRecommendation(data.healthRecommendation || {});
+    renderHealthRecommendation(data.healthRecommendation || {}, insurances || []);
     
     // Term Insurance
     renderTermRecommendation(data.termRecommendation || {});
@@ -90,12 +93,20 @@ function renderUrgentActions(summary) {
     }
 }
 
-function renderHealthRecommendation(health) {
+function renderHealthRecommendation(health, insurances) {
     // Summary cards
     document.getElementById('health-existing').textContent = formatCurrency(health.existingCover || 0);
     document.getElementById('health-recommended').textContent = formatCurrency(health.totalRecommendedCover || 0);
     document.getElementById('health-gap').textContent = formatCurrency(health.gap || 0);
     document.getElementById('health-premium').textContent = formatCurrency(health.totalEstimatedPremium || 0) + '/yr';
+
+    const hasHealthPolicy = (insurances || []).some(policy => policy.type === 'HEALTH');
+    const hasNonGroupHealth = (insurances || []).some(policy => policy.type === 'HEALTH' && policy.healthType !== 'GROUP');
+    const isGroupOnlyHealth = hasHealthPolicy && !hasNonGroupHealth;
+    const groupWarning = document.getElementById('health-group-warning');
+    if (groupWarning) {
+        groupWarning.classList.toggle('hidden', !isGroupOnlyHealth);
+    }
     
     // Breakdown
     const breakdown = document.getElementById('health-breakdown');

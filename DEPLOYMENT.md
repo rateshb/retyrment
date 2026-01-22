@@ -1,623 +1,1044 @@
-# Retyrment - Production Deployment Guide
+# Deployment Guide - Retyrment Application
 
-This guide covers deploying Retyrment on a single AWS EC2 instance with NGINX as the web server.
+Complete guide to deploy the Retyrment application (Spring Boot Backend + React Frontend + VanillaJS Frontend) on AWS EC2 behind NGINX.
+
+## Table of Contents
+1. [Architecture Overview](#architecture-overview)
+2. [Prerequisites](#prerequisites)
+3. [AWS Setup](#aws-setup)
+4. [Server Configuration](#server-configuration)
+5. [Backend Deployment](#backend-deployment)
+6. [Frontend Deployment](#frontend-deployment)
+7. [NGINX Configuration](#nginx-configuration)
+8. [SSL/HTTPS Setup](#ssl-https-setup)
+9. [Database Configuration](#database-configuration)
+10. [Service Management](#service-management)
+11. [Monitoring & Maintenance](#monitoring--maintenance)
+12. [Troubleshooting](#troubleshooting)
+
+---
 
 ## Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         AWS EC2 Instance                        │
-│                                                                 │
-│  ┌─────────────┐      ┌─────────────┐      ┌─────────────┐     │
-│  │    NGINX    │──────│   Backend   │──────│   MongoDB   │     │
-│  │   (Port 80) │      │ (Port 8080) │      │ (Port 27017)│     │
-│  │  (Port 443) │      │  Spring Boot │      │             │     │
-│  └─────────────┘      └─────────────┘      └─────────────┘     │
-│         │                                                       │
-│         │ Serves static frontend files                          │
-│         │ Proxies /api/* to backend                             │
-└─────────────────────────────────────────────────────────────────┘
+Internet
+    ↓
+AWS EC2 Instance (Public IP)
+    ↓
+NGINX (Port 80/443)
+    ├── /api → Backend (localhost:8080)
+    ├── /react → React Frontend (localhost:3000 or static files)
+    └── / → VanillaJS Frontend (static files)
 ```
+
+**Ports:**
+- NGINX: 80 (HTTP), 443 (HTTPS)
+- Backend: 8080 (internal)
+- React Dev Server: 3000 (internal, optional)
 
 ---
 
 ## Prerequisites
 
-### 1. AWS Account Setup
-- AWS account with EC2 access
-- Security group configured
-- Elastic IP (optional but recommended)
-- Domain name (e.g., retyrment.com)
+### Local Machine
+- AWS Account with EC2 access
+- SSH key pair for EC2 access
+- Domain name (optional, for HTTPS)
 
-### 2. Required Software Versions
-- Java 17+
-- MongoDB 5.0+
-- NGINX 1.18+
-- Node.js 18+ (optional, for building)
+### Server Requirements
+- **Instance Type:** t2.medium or better (2 vCPU, 4GB RAM minimum)
+- **OS:** Ubuntu 22.04 LTS
+- **Storage:** 30GB minimum
+- **Database:** MongoDB (can be on same instance, MongoDB Atlas, or AWS DocumentDB)
 
 ---
 
-## Step-by-Step Deployment
+## AWS Setup
 
-### Step 1: Launch EC2 Instance
+### 1. Create EC2 Instance
 
-1. **Launch Instance**
-   - AMI: Ubuntu 22.04 LTS
-   - Instance Type: t3.medium (2 vCPU, 4GB RAM) minimum
-   - Storage: 30GB SSD minimum
-   
-2. **Configure Security Group**
+1. **Launch Instance:**
+   ```
+   - AMI: Ubuntu Server 22.04 LTS
+   - Instance Type: t2.medium
+   - Storage: 30GB gp3
+   - Key Pair: Create or select existing
+   ```
+
+2. **Configure Security Group:**
    ```
    Inbound Rules:
-   ┌──────────┬──────────┬─────────────────┐
-   │ Type     │ Port     │ Source          │
-   ├──────────┼──────────┼─────────────────┤
-   │ SSH      │ 22       │ Your IP         │
-   │ HTTP     │ 80       │ 0.0.0.0/0       │
-   │ HTTPS    │ 443      │ 0.0.0.0/0       │
-   └──────────┴──────────┴─────────────────┘
+   - SSH (22) - Your IP
+   - HTTP (80) - 0.0.0.0/0
+   - HTTPS (443) - 0.0.0.0/0
+   - Custom (8080) - Only from NGINX (optional for testing)
+   
+   Outbound Rules:
+   - All traffic - 0.0.0.0/0
    ```
 
-3. **Connect to Instance**
-   ```bash
-   ssh -i your-key.pem ubuntu@your-ec2-public-ip
-   ```
+3. **Allocate Elastic IP (recommended):**
+   - Navigate to EC2 → Elastic IPs
+   - Allocate new address
+   - Associate with your instance
+
+### 2. Connect to Instance
+
+```bash
+chmod 400 your-key.pem
+ssh -i your-key.pem ubuntu@<your-elastic-ip>
+```
 
 ---
 
-### Step 2: Install System Dependencies
+## Server Configuration
+
+### 1. Update System
 
 ```bash
-# Update system
 sudo apt update && sudo apt upgrade -y
+```
 
-# Install Java 17
-sudo apt install -y openjdk-17-jdk
+### 2. Install Java (for Backend)
 
-# Verify Java
+```bash
+# Install OpenJDK 17
+sudo apt install openjdk-17-jdk -y
+
+# Verify
 java -version
+```
 
-# Install NGINX
-sudo apt install -y nginx
+### 3. Install Maven
 
-# Install certbot for SSL
-sudo apt install -y certbot python3-certbot-nginx
+```bash
+sudo apt install maven -y
+mvn -version
+```
 
-# Install MongoDB
-curl -fsSL https://www.mongodb.org/static/pgp/server-7.0.asc | \
-   sudo gpg -o /usr/share/keyrings/mongodb-server-7.0.gpg --dearmor
+### 4. Install Node.js (for React Frontend)
 
-echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | \
-   sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+```bash
+# Install Node.js 20.x
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
 
+# Verify
+node -v
+npm -v
+```
+
+### 5. Install NGINX
+
+```bash
+sudo apt install nginx -y
+sudo systemctl enable nginx
+sudo systemctl start nginx
+```
+
+### 6. Install Git
+
+```bash
+sudo apt install git -y
+```
+
+### 7. Install MongoDB (if using local DB)
+
+```bash
+# Import MongoDB public GPG key
+curl -fsSL https://pgp.mongodb.com/server-7.0.asc | \
+   sudo gpg -o /usr/share/keyrings/mongodb-server-7.0.gpg \
+   --dearmor
+
+# Add MongoDB repository
+echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+
+# Update and install MongoDB
 sudo apt update
 sudo apt install -y mongodb-org
 
-# Start and enable MongoDB
-sudo systemctl start mongod
+# Enable and start MongoDB
 sudo systemctl enable mongod
-
-# Verify MongoDB
+sudo systemctl start mongod
 sudo systemctl status mongod
 ```
 
 ---
 
-### Step 3: Configure MongoDB Security
+## Backend Deployment
+
+### 1. Clone Repository
 
 ```bash
-# Connect to MongoDB
+cd /home/ubuntu
+git clone https://github.com/your-username/retyrment.git
+cd retyrment/backend
+```
+
+### 2. Configure Application Properties
+
+```bash
+# Create production configuration
+sudo nano src/main/resources/application-prod.yml
+```
+
+**application-prod.yml:**
+```yaml
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/retyrment}
+      # For MongoDB Atlas:
+      # uri: mongodb+srv://${MONGODB_USER}:${MONGODB_PASSWORD}@cluster0.xxxxx.mongodb.net/retyrment?retryWrites=true&w=majority
+  
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            redirect-uri: https://retyrment.com/api/oauth2/callback
+            scope:
+              - openid
+              - profile
+              - email
+
+app:
+  frontend-url: https://retyrment.com
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration-ms: 86400000
+  cors:
+    allowed-origins: https://retyrment.com,https://www.retyrment.com
+  defaults:
+    inflation-rate: 6.0
+    epf-return: 8.15
+    ppf-return: 7.1
+    mf-return: 12.0
+    nps-return: 10.0
+
+logging:
+  level:
+    root: INFO
+    com.retyrment: INFO
+  file:
+    name: /var/log/retyrment/application.log
+```
+
+### 3. Set Environment Variables
+
+```bash
+# Create environment file
+sudo nano /etc/environment.d/retyrment.conf
+```
+
+**retyrment.conf:**
+```bash
+export MONGODB_URI="mongodb://localhost:27017/retyrment"
+# Or for MongoDB Atlas:
+# export MONGODB_URI="mongodb+srv://retyrment_user:your_password@cluster0.xxxxx.mongodb.net/retyrment?retryWrites=true&w=majority"
+export JWT_SECRET="your_jwt_secret_at_least_256_bits"
+export GOOGLE_CLIENT_ID="your_google_client_id.apps.googleusercontent.com"
+export GOOGLE_CLIENT_SECRET="your_google_client_secret"
+```
+
+```bash
+# Load environment variables
+source /etc/environment.d/retyrment.conf
+```
+
+### 4. Build Backend
+
+```bash
+cd /home/ubuntu/retyrment/backend
+mvn clean package -DskipTests -Pprod
+```
+
+### 5. Create Systemd Service
+
+```bash
+sudo nano /etc/systemd/system/retyrment-backend.service
+```
+
+**retyrment-backend.service:**
+```ini
+[Unit]
+Description=Retyrment Backend API
+After=network.target mongod.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/retyrment/backend
+EnvironmentFile=/etc/environment.d/retyrment.conf
+ExecStart=/usr/bin/java -jar -Dspring.profiles.active=prod target/retyrment-1.0.0.jar
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=retyrment-backend
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### 6. Start Backend Service
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable retyrment-backend
+sudo systemctl start retyrment-backend
+
+# Check status
+sudo systemctl status retyrment-backend
+
+# View logs
+sudo journalctl -u retyrment-backend -f
+```
+
+---
+
+## Frontend Deployment
+
+### Option A: Production Build (Recommended)
+
+#### React Frontend
+
+```bash
+cd /home/ubuntu/retyrment/frontend-react
+
+# Create production environment file
+nano .env.production
+```
+
+**.env.production:**
+```
+VITE_API_URL=https://retyrment.com/api
+```
+
+```bash
+# Build for production
+npm install
+npm run build
+
+# Copy build to NGINX directory
+sudo mkdir -p /var/www/retyrment/react
+sudo cp -r dist/* /var/www/retyrment/react/
+sudo chown -R www-data:www-data /var/www/retyrment/react
+```
+
+#### VanillaJS Frontend
+
+```bash
+cd /home/ubuntu/retyrment/frontend
+
+# Update API configuration
+nano js/api.js
+```
+
+**Update API_BASE in js/api.js:**
+```javascript
+const API_BASE = 'https://retyrment.com/api';
+```
+
+```bash
+# Copy to NGINX directory
+sudo mkdir -p /var/www/retyrment/vanilla
+sudo cp -r * /var/www/retyrment/vanilla/
+sudo chown -R www-data:www-data /var/www/retyrment/vanilla
+```
+
+### Option B: React Dev Server (Not Recommended for Production)
+
+```bash
+cd /home/ubuntu/retyrment/frontend-react
+
+# Create systemd service
+sudo nano /etc/systemd/system/retyrment-react.service
+```
+
+**retyrment-react.service:**
+```ini
+[Unit]
+Description=Retyrment React Frontend
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/retyrment/frontend-react
+Environment="PORT=3000"
+ExecStart=/usr/bin/npm run dev -- --host
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable retyrment-react
+sudo systemctl start retyrment-react
+```
+
+---
+
+## NGINX Configuration
+
+### 1. Create NGINX Configuration
+
+```bash
+sudo nano /etc/nginx/sites-available/retyrment
+```
+
+### Option A: Production Build Configuration (Recommended)
+
+**retyrment (production build):**
+```nginx
+# Rate limiting
+limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
+limit_req_zone $binary_remote_addr zone=login_limit:10m rate=5r/m;
+
+# Backend upstream
+upstream backend {
+    server localhost:8080 fail_timeout=30s max_fails=3;
+}
+
+# HTTP Server (redirect to HTTPS)
+server {
+    listen 80;
+    listen [::]:80;
+    server_name retyrment.com www.retyrment.com;
+    
+    # Let's Encrypt validation
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+    
+    # Redirect all HTTP to HTTPS
+    location / {
+        return 301 https://$server_name$request_uri;
+    }
+}
+
+# HTTPS Server
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name retyrment.com www.retyrment.com;
+    
+    # SSL Configuration (will be added by Certbot)
+    # ssl_certificate /etc/letsencrypt/live/retyrment.com/fullchain.pem;
+    # ssl_certificate_key /etc/letsencrypt/live/retyrment.com/privkey.pem;
+    
+    # SSL Security Settings
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
+    
+    # Security Headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "no-referrer-when-downgrade" always;
+    add_header Content-Security-Policy "default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval';" always;
+    
+    # Gzip Compression
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/xml+rss application/json application/javascript;
+    
+    # Max upload size
+    client_max_body_size 10M;
+    
+    # Backend API
+    location /api/ {
+        limit_req zone=api_limit burst=20 nodelay;
+        
+        proxy_pass http://backend/api/;
+        proxy_http_version 1.1;
+        
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port $server_port;
+        
+        # Timeouts
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+        
+        # OAuth callback specific
+        location /api/oauth2/ {
+            limit_req zone=login_limit burst=5 nodelay;
+            proxy_pass http://backend/api/oauth2/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+    
+    # React Frontend (served at /react)
+    location /react {
+        alias /var/www/retyrment/react;
+        try_files $uri $uri/ /react/index.html;
+        
+        # Cache static assets
+        location ~* \.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$ {
+            alias /var/www/retyrment/react;
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+    }
+    
+    # VanillaJS Frontend (default)
+    location / {
+        root /var/www/retyrment/vanilla;
+        try_files $uri $uri/ /index.html;
+        index index.html;
+        
+        # Cache static assets
+        location ~* \.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$ {
+            root /var/www/retyrment/vanilla;
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+    }
+    
+    # Health check endpoint
+    location /health {
+        access_log off;
+        return 200 "healthy\n";
+        add_header Content-Type text/plain;
+    }
+}
+```
+
+### Option B: React Dev Server Configuration
+
+**retyrment (with React dev server):**
+```nginx
+# Add this upstream for React dev server
+upstream react_frontend {
+    server localhost:3000;
+}
+
+# Then in the server block, replace React location with:
+location /react {
+    proxy_pass http://react_frontend;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection 'upgrade';
+    proxy_set_header Host $host;
+    proxy_cache_bypass $http_upgrade;
+}
+```
+
+### 2. Enable Configuration
+
+```bash
+# Test configuration
+sudo nginx -t
+
+# Enable site
+sudo ln -s /etc/nginx/sites-available/retyrment /etc/nginx/sites-enabled/
+
+# Remove default site
+sudo rm /etc/nginx/sites-enabled/default
+
+# Reload NGINX
+sudo systemctl reload nginx
+```
+
+---
+
+## SSL/HTTPS Setup
+
+### Using Let's Encrypt (Certbot)
+
+```bash
+# Install Certbot
+sudo apt install certbot python3-certbot-nginx -y
+
+# Obtain certificate
+sudo certbot --nginx -d retyrment.com -d www.retyrment.com
+
+# Certbot will automatically update your NGINX configuration
+# Test automatic renewal
+sudo certbot renew --dry-run
+
+# Auto-renewal is set up via systemd timer
+sudo systemctl status certbot.timer
+```
+
+### Manual SSL Certificate
+
+If using a purchased SSL certificate:
+
+```bash
+# Copy certificate files
+sudo mkdir -p /etc/ssl/certs/retyrment
+sudo cp fullchain.pem /etc/ssl/certs/retyrment/
+sudo cp privkey.pem /etc/ssl/certs/retyrment/
+
+# Update NGINX configuration
+sudo nano /etc/nginx/sites-available/retyrment
+```
+
+Add in the HTTPS server block:
+```nginx
+ssl_certificate /etc/ssl/certs/retyrment/fullchain.pem;
+ssl_certificate_key /etc/ssl/certs/retyrment/privkey.pem;
+```
+
+---
+
+## Database Configuration
+
+### MongoDB Setup (Local)
+
+```bash
+# MongoDB is already running from installation
+# Create database and user
 mongosh
 
-# Create admin user
+# Switch to admin database
 use admin
+
+# Create user
 db.createUser({
-  user: "retyrment_admin",
-  pwd: "YOUR_SECURE_PASSWORD_HERE",
-  roles: [{ role: "userAdminAnyDatabase", db: "admin" }]
+  user: "retyrment_user",
+  pwd: "your_secure_password",
+  roles: [
+    { role: "readWrite", db: "retyrment" }
+  ]
 })
 
-# Create application database and user
-use retyrment_prod
-db.createUser({
-  user: "retyrment_app",
-  pwd: "YOUR_APP_PASSWORD_HERE",
-  roles: [{ role: "readWrite", db: "retyrment_prod" }]
-})
+# Switch to retyrment database
+use retyrment
 
+# Verify connection
+db.runCommand({ ping: 1 })
+
+# Exit
 exit
 ```
 
-**Enable MongoDB Authentication:**
+### Enable Authentication (Recommended for Production)
+
 ```bash
+# Edit MongoDB configuration
 sudo nano /etc/mongod.conf
 ```
 
-Add/modify:
+Update:
 ```yaml
 security:
   authorization: enabled
-
-net:
-  port: 27017
-  bindIp: 127.0.0.1
 ```
 
-Restart MongoDB:
 ```bash
+# Restart MongoDB
 sudo systemctl restart mongod
 ```
 
----
-
-### Step 4: Deploy Backend Application
-
-1. **Create application directory**
-   ```bash
-   sudo mkdir -p /opt/retyrment
-   sudo chown ubuntu:ubuntu /opt/retyrment
-   cd /opt/retyrment
-   ```
-
-2. **Upload JAR file** (from your local machine)
-   ```bash
-   # On your local machine, build the JAR
-   cd backend
-   mvn clean package -DskipTests -Pprod
-   
-   # Upload to server
-   scp -i your-key.pem target/retyrment-1.0.0.jar ubuntu@your-ec2-ip:/opt/retyrment/
-   ```
-
-3. **Create environment file**
-   ```bash
-   sudo nano /opt/retyrment/.env
-   ```
-   
-   Add:
-   ```bash
-   # MongoDB
-   MONGO_URI=mongodb://retyrment_app:YOUR_APP_PASSWORD@localhost:27017/retyrment_prod?authSource=retyrment_prod
-   MONGO_DATABASE=retyrment_prod
-   
-   # JWT Secret (generate a secure random string)
-   JWT_SECRET=your-super-secure-jwt-secret-key-at-least-256-bits-long-change-this
-   
-   # Google OAuth2 (get from Google Cloud Console)
-   GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
-   GOOGLE_CLIENT_SECRET=your-google-client-secret
-   
-   # Application URLs
-   APP_URL=https://retyrment.com
-   FRONTEND_URL=https://retyrment.com
-   
-   # Admin emails
-   ADMIN_EMAILS=your-admin@email.com
-   
-   # CORS
-   CORS_ORIGINS=https://retyrment.com
-   ```
-
-4. **Create systemd service**
-   ```bash
-   sudo nano /etc/systemd/system/retyrment.service
-   ```
-   
-   Add:
-   ```ini
-   [Unit]
-   Description=Retyrment Backend Service
-   After=network.target mongod.service
-   
-   [Service]
-   Type=simple
-   User=ubuntu
-   WorkingDirectory=/opt/retyrment
-   EnvironmentFile=/opt/retyrment/.env
-   ExecStart=/usr/bin/java -Xms512m -Xmx1024m -jar /opt/retyrment/retyrment-1.0.0.jar --spring.profiles.active=prod
-   Restart=always
-   RestartSec=10
-   StandardOutput=append:/var/log/retyrment/app.log
-   StandardError=append:/var/log/retyrment/error.log
-   
-   [Install]
-   WantedBy=multi-user.target
-   ```
-
-5. **Create log directory and start service**
-   ```bash
-   sudo mkdir -p /var/log/retyrment
-   sudo chown ubuntu:ubuntu /var/log/retyrment
-   
-   sudo systemctl daemon-reload
-   sudo systemctl enable retyrment
-   sudo systemctl start retyrment
-   
-   # Check status
-   sudo systemctl status retyrment
-   
-   # View logs
-   tail -f /var/log/retyrment/app.log
-   ```
-
----
-
-### Step 5: Deploy Frontend
-
-1. **Create frontend directory**
-   ```bash
-   sudo mkdir -p /var/www/retyrment
-   sudo chown ubuntu:ubuntu /var/www/retyrment
-   ```
-
-2. **Upload frontend files** (from your local machine)
-   ```bash
-   # On your local machine
-   scp -i your-key.pem -r frontend/* ubuntu@your-ec2-ip:/var/www/retyrment/
-   ```
-
-3. **Update API base URL in frontend**
-   ```bash
-   # On server, edit the API configuration
-   nano /var/www/retyrment/js/api.js
-   ```
-   
-   Update `API_BASE_URL`:
-   ```javascript
-   const API_BASE_URL = 'https://retyrment.com/api';
-   ```
-
----
-
-### Step 6: Configure NGINX
-
-1. **Create NGINX configuration**
-   ```bash
-   sudo nano /etc/nginx/sites-available/retyrment
-   ```
-   
-   Add:
-   ```nginx
-   server {
-       listen 80;
-       server_name retyrment.com www.retyrment.com;
-       
-       # Redirect HTTP to HTTPS
-       return 301 https://$server_name$request_uri;
-   }
-   
-   server {
-       listen 443 ssl http2;
-       server_name retyrment.com www.retyrment.com;
-       
-       # SSL certificates (will be added by certbot)
-       # ssl_certificate /etc/letsencrypt/live/retyrment.com/fullchain.pem;
-       # ssl_certificate_key /etc/letsencrypt/live/retyrment.com/privkey.pem;
-       
-       # Frontend static files
-       root /var/www/retyrment;
-       index index.html;
-       
-       # Security headers
-       add_header X-Frame-Options "SAMEORIGIN" always;
-       add_header X-XSS-Protection "1; mode=block" always;
-       add_header X-Content-Type-Options "nosniff" always;
-       add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-       
-       # Gzip compression
-       gzip on;
-       gzip_vary on;
-       gzip_min_length 1024;
-       gzip_types text/plain text/css application/json application/javascript text/xml application/xml;
-       
-       # API proxy to backend
-       location /api/ {
-           proxy_pass http://127.0.0.1:8080/api/;
-           proxy_http_version 1.1;
-           proxy_set_header Host $host;
-           proxy_set_header X-Real-IP $remote_addr;
-           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-           proxy_set_header X-Forwarded-Proto $scheme;
-           proxy_connect_timeout 60s;
-           proxy_send_timeout 60s;
-           proxy_read_timeout 60s;
-           
-           # CORS headers (if needed)
-           add_header 'Access-Control-Allow-Origin' '$http_origin' always;
-           add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS' always;
-           add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type' always;
-           add_header 'Access-Control-Allow-Credentials' 'true' always;
-           
-           if ($request_method = 'OPTIONS') {
-               return 204;
-           }
-       }
-       
-       # Static file caching
-       location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
-           expires 30d;
-           add_header Cache-Control "public, immutable";
-       }
-       
-       # SPA routing - serve index.html for all routes
-       location / {
-           try_files $uri $uri/ /index.html;
-       }
-       
-       # Health check endpoint
-       location /health {
-           access_log off;
-           return 200 "OK";
-           add_header Content-Type text/plain;
-       }
-   }
-   ```
-
-2. **Enable site and test configuration**
-   ```bash
-   sudo ln -s /etc/nginx/sites-available/retyrment /etc/nginx/sites-enabled/
-   sudo rm /etc/nginx/sites-enabled/default
-   sudo nginx -t
-   sudo systemctl reload nginx
-   ```
-
----
-
-### Step 7: Configure SSL with Let's Encrypt
-
+Update environment variable:
 ```bash
-# Obtain SSL certificate
-sudo certbot --nginx -d retyrment.com -d www.retyrment.com
-
-# Auto-renewal is automatically configured
-# Test renewal
-sudo certbot renew --dry-run
+export MONGODB_URI="mongodb://retyrment_user:your_secure_password@localhost:27017/retyrment?authSource=admin"
 ```
 
+### Using MongoDB Atlas (Recommended for Production)
+
+1. Create account at [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
+2. Create a cluster (Free tier available)
+3. Create database user
+4. Whitelist your EC2 instance IP
+5. Get connection string
+6. Update `application-prod.yml`:
+   ```yaml
+   spring:
+     data:
+       mongodb:
+         uri: mongodb+srv://retyrment_user:password@cluster0.xxxxx.mongodb.net/retyrment?retryWrites=true&w=majority
+   ```
+
+### Using AWS DocumentDB (Alternative)
+
+1. Create DocumentDB cluster in AWS Console
+2. Note the endpoint URL
+3. Download SSL certificate
+4. Update `application-prod.yml`:
+   ```yaml
+   spring:
+     data:
+       mongodb:
+         uri: mongodb://username:password@docdb-cluster.cluster-xxxxx.region.docdb.amazonaws.com:27017/retyrment?ssl=true&replicaSet=rs0&readPreference=secondaryPreferred
+   ```
+
 ---
 
-### Step 8: Configure Google OAuth2
+## Service Management
 
-1. **Go to Google Cloud Console**: https://console.cloud.google.com
-
-2. **Create OAuth 2.0 Credentials**:
-   - Navigate to APIs & Services > Credentials
-   - Create OAuth 2.0 Client ID
-   - Application type: Web application
-   
-3. **Configure Authorized URLs**:
-   ```
-   Authorized JavaScript origins:
-   - https://retyrment.com
-   
-   Authorized redirect URIs:
-   - https://retyrment.com/api/login/oauth2/code/google
-   ```
-
-4. **Update environment file** with client ID and secret:
-   ```bash
-   sudo nano /opt/retyrment/.env
-   # Update GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET
-   
-   sudo systemctl restart retyrment
-   ```
-
----
-
-### Step 9: Configure Firewall (UFW)
+### Start All Services
 
 ```bash
-sudo ufw allow OpenSSH
-sudo ufw allow 'Nginx Full'
-sudo ufw enable
-sudo ufw status
+# Backend
+sudo systemctl start retyrment-backend
+
+# React (if using dev server)
+sudo systemctl start retyrment-react
+
+# NGINX
+sudo systemctl start nginx
 ```
 
----
-
-## Post-Deployment Checklist
-
-### Verification Steps
-
-- [ ] **MongoDB**: `mongosh` connects successfully
-- [ ] **Backend**: `curl http://localhost:8080/api/actuator/health` returns OK
-- [ ] **NGINX**: `curl http://localhost` serves frontend
-- [ ] **SSL**: https://retyrment.com loads without warnings
-- [ ] **OAuth**: Google login works correctly
-- [ ] **API**: All endpoints respond correctly
-
-### Test Commands
+### Check Service Status
 
 ```bash
-# Check services
-sudo systemctl status mongod
-sudo systemctl status retyrment
+# Backend
+sudo systemctl status retyrment-backend
+sudo journalctl -u retyrment-backend -f
+
+# React
+sudo systemctl status retyrment-react
+sudo journalctl -u retyrment-react -f
+
+# NGINX
 sudo systemctl status nginx
+sudo tail -f /var/log/nginx/error.log
+sudo tail -f /var/log/nginx/access.log
+```
 
-# Check ports
-sudo netstat -tlpn | grep -E '80|443|8080|27017'
+### Restart Services
 
-# Check logs
-tail -f /var/log/retyrment/app.log
-tail -f /var/log/nginx/access.log
-tail -f /var/log/nginx/error.log
+```bash
+sudo systemctl restart retyrment-backend
+sudo systemctl restart retyrment-react
+sudo systemctl reload nginx
+```
 
-# Test API health
-curl -k https://retyrment.com/api/actuator/health
+### Enable Services on Boot
+
+```bash
+sudo systemctl enable retyrment-backend
+sudo systemctl enable retyrment-react
+sudo systemctl enable nginx
 ```
 
 ---
 
-## Maintenance
+## Monitoring & Maintenance
 
-### Updating the Application
-
-```bash
-# Stop service
-sudo systemctl stop retyrment
-
-# Backup current JAR
-cp /opt/retyrment/retyrment-1.0.0.jar /opt/retyrment/retyrment-1.0.0.jar.bak
-
-# Upload new JAR (from local)
-scp -i your-key.pem target/retyrment-1.0.0.jar ubuntu@your-ec2-ip:/opt/retyrment/
-
-# Start service
-sudo systemctl start retyrment
-sudo systemctl status retyrment
-```
-
-### Database Backup
+### 1. Log Management
 
 ```bash
-# Create backup script
-sudo nano /opt/retyrment/backup.sh
-```
+# Create log directories
+sudo mkdir -p /var/log/retyrment
+sudo chown ubuntu:ubuntu /var/log/retyrment
 
-```bash
-#!/bin/bash
-BACKUP_DIR="/opt/retyrment/backups"
-DATE=$(date +%Y%m%d_%H%M%S)
-mkdir -p $BACKUP_DIR
-
-mongodump --uri="mongodb://retyrment_app:YOUR_PASSWORD@localhost:27017/retyrment_prod?authSource=retyrment_prod" \
-    --out="$BACKUP_DIR/backup_$DATE"
-
-# Keep only last 7 days
-find $BACKUP_DIR -type d -mtime +7 -exec rm -rf {} +
-```
-
-```bash
-chmod +x /opt/retyrment/backup.sh
-
-# Add to cron (daily at 2 AM)
-crontab -e
-# Add: 0 2 * * * /opt/retyrment/backup.sh
-```
-
-### Log Rotation
-
-```bash
+# Configure log rotation
 sudo nano /etc/logrotate.d/retyrment
 ```
 
+**/etc/logrotate.d/retyrment:**
 ```
 /var/log/retyrment/*.log {
     daily
     rotate 14
     compress
     delaycompress
-    missingok
     notifempty
-    create 0644 ubuntu ubuntu
+    create 0640 ubuntu ubuntu
+    sharedscripts
+    postrotate
+        systemctl reload retyrment-backend > /dev/null 2>&1 || true
+    endscript
+}
+
+/var/log/nginx/*.log {
+    daily
+    rotate 14
+    compress
+    delaycompress
+    notifempty
+    create 0640 www-data adm
+    sharedscripts
+    postrotate
+        systemctl reload nginx > /dev/null 2>&1 || true
+    endscript
 }
 ```
 
----
+### 2. Monitoring Script
 
-## Monitoring (Optional)
-
-### Install CloudWatch Agent (AWS)
+Create monitoring script:
 
 ```bash
-wget https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
-sudo dpkg -i amazon-cloudwatch-agent.deb
+nano ~/monitor.sh
 ```
 
-### Simple Health Check Script
-
-```bash
-sudo nano /opt/retyrment/health-check.sh
-```
-
+**monitor.sh:**
 ```bash
 #!/bin/bash
-HEALTH=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/actuator/health)
-if [ "$HEALTH" != "200" ]; then
-    echo "Backend unhealthy! Restarting..."
-    sudo systemctl restart retyrment
-fi
+
+echo "=== Retyrment Application Status ==="
+echo ""
+echo "Backend Service:"
+systemctl is-active retyrment-backend
+echo ""
+echo "NGINX Service:"
+systemctl is-active nginx
+echo ""
+echo "Disk Usage:"
+df -h | grep -E '^/dev/'
+echo ""
+echo "Memory Usage:"
+free -h
+echo ""
+echo "Backend Logs (last 5 lines):"
+journalctl -u retyrment-backend -n 5 --no-pager
 ```
 
 ```bash
-chmod +x /opt/retyrment/health-check.sh
+chmod +x ~/monitor.sh
+```
 
-# Add to cron (every 5 minutes)
+### 3. Backup Script
+
+```bash
+nano ~/backup.sh
+```
+
+**backup.sh:**
+```bash
+#!/bin/bash
+
+BACKUP_DIR="/home/ubuntu/backups"
+DATE=$(date +%Y%m%d_%H%M%S)
+
+# Create backup directory
+mkdir -p $BACKUP_DIR
+
+# Backup MongoDB database
+mongodump --uri="${MONGODB_URI}" --out=$BACKUP_DIR/mongo_$DATE
+# Compress the backup
+tar -czf $BACKUP_DIR/mongo_$DATE.tar.gz -C $BACKUP_DIR mongo_$DATE
+rm -rf $BACKUP_DIR/mongo_$DATE
+
+# Backup application files
+tar -czf $BACKUP_DIR/app_$DATE.tar.gz /home/ubuntu/retyrment
+
+# Keep only last 7 days of backups
+find $BACKUP_DIR -name "*.tar.gz" -mtime +7 -delete
+
+echo "Backup completed: $DATE"
+```
+
+```bash
+chmod +x ~/backup.sh
+
+# Add to crontab for daily backups at 2 AM
 crontab -e
-# Add: */5 * * * * /opt/retyrment/health-check.sh
+```
+
+Add:
+```
+0 2 * * * /home/ubuntu/backup.sh >> /home/ubuntu/backup.log 2>&1
+```
+
+### 4. System Updates
+
+```bash
+# Weekly updates (add to crontab)
+0 3 * * 0 sudo apt update && sudo apt upgrade -y && sudo systemctl restart retyrment-backend
 ```
 
 ---
 
 ## Troubleshooting
 
-### Backend won't start
+### Backend Not Starting
+
 ```bash
 # Check logs
-tail -100 /var/log/retyrment/error.log
+sudo journalctl -u retyrment-backend -n 100 --no-pager
 
-# Check Java
-java -version
+# Common issues:
+# 1. Port already in use
+sudo lsof -i :8080
 
-# Test MongoDB connection
-mongosh "mongodb://retyrment_app:PASSWORD@localhost:27017/retyrment_prod?authSource=retyrment_prod"
+# 2. Database connection
+mongosh $MONGODB_URI
+
+# 3. Permission issues
+ls -la /home/ubuntu/retyrment/backend/target/
 ```
 
-### NGINX errors
+### NGINX 502 Bad Gateway
+
 ```bash
+# Check if backend is running
+sudo systemctl status retyrment-backend
+
+# Check NGINX error logs
+sudo tail -f /var/log/nginx/error.log
+
+# Test backend directly
+curl http://localhost:8080/api/health
+
+# Check NGINX configuration
 sudo nginx -t
-tail -f /var/log/nginx/error.log
 ```
 
-### OAuth not working
-- Verify redirect URIs in Google Console match exactly
-- Check CORS settings in backend
-- Ensure HTTPS is working
+### CORS Errors
 
-### Performance issues
+Update `application-prod.yml`:
+```yaml
+app:
+  cors:
+    allowed-origins: https://retyrment.com,https://www.retyrment.com,http://localhost:3000
+```
+
+### SSL Certificate Issues
+
 ```bash
-# Check memory
-free -h
+# Check certificate expiry
+sudo certbot certificates
 
-# Check disk
-df -h
+# Renew manually
+sudo certbot renew
 
-# Check CPU
-top
+# Check NGINX SSL configuration
+sudo nginx -t
+```
+
+### High Memory Usage
+
+```bash
+# Check Java heap size
+ps aux | grep java
+
+# Adjust in systemd service
+sudo nano /etc/systemd/system/retyrment-backend.service
+```
+
+Modify ExecStart:
+```ini
+ExecStart=/usr/bin/java -Xmx1024m -Xms512m -jar -Dspring.profiles.active=prod target/retyrment-1.0.0.jar
+```
+
+### Database Connection Pool Exhausted
+
+Update `application-prod.yml`:
+```yaml
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
 ```
 
 ---
 
-## Security Recommendations
+## Deployment Checklist
 
-1. **Regular Updates**: `sudo apt update && sudo apt upgrade`
-2. **Fail2ban**: Install to prevent brute force attacks
-3. **MongoDB**: Keep authentication enabled
-4. **Secrets**: Never commit secrets to git
-5. **Backups**: Test restore process regularly
-6. **Monitoring**: Set up alerts for downtime
-7. **SSL**: Ensure auto-renewal is working
-
----
-
-## Cost Estimation (AWS)
-
-| Resource | Type | Monthly Cost (approx) |
-|----------|------|----------------------|
-| EC2 | t3.medium | $30-40 |
-| EBS | 30GB SSD | $3 |
-| Elastic IP | Static IP | $4 (if not attached) |
-| Data Transfer | 50GB/month | $5 |
-| **Total** | | **~$40-50/month** |
-
-For lower costs, consider t3.small ($15/month) if traffic is low.
+- [ ] AWS EC2 instance created and accessible
+- [ ] Security groups configured
+- [ ] Elastic IP allocated
+- [ ] Java, Maven, Node.js installed
+- [ ] NGINX installed and running
+- [ ] PostgreSQL database created
+- [ ] Backend compiled and service created
+- [ ] Frontend(s) built and deployed
+- [ ] NGINX configuration created and tested
+- [ ] SSL certificate installed
+- [ ] Environment variables set
+- [ ] All services started and enabled
+- [ ] Log rotation configured
+- [ ] Backup script scheduled
+- [ ] Monitoring script created
+- [ ] DNS records updated (if using domain)
+- [ ] Application tested in production
+- [ ] Google OAuth redirect URIs updated
+- [ ] Firewall rules verified
 
 ---
 
-## Support
+## Post-Deployment
 
-For issues, check:
-1. Application logs: `/var/log/retyrment/`
-2. NGINX logs: `/var/log/nginx/`
-3. MongoDB logs: `/var/log/mongodb/`
-4. System logs: `journalctl -xe`
+### Update OAuth Redirect URIs
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com)
+2. Select your project
+3. Navigate to APIs & Services → Credentials
+4. Edit your OAuth 2.0 Client ID
+5. Add Authorized redirect URIs:
+   - `https://retyrment.com/api/oauth2/callback`
+   - `https://www.retyrment.com/api/oauth2/callback`
+
+### Test Application
+
+1. **Health Check:**
+   ```bash
+   curl https://retyrment.com/health
+   curl https://retyrment.com/api/health
+   ```
+
+2. **Frontend Access:**
+   - VanillaJS: https://retyrment.com
+   - React: https://retyrment.com/react
+
+3. **API Test:**
+   ```bash
+   curl https://retyrment.com/api/health
+   ```
+
+4. **Login Flow:**
+   - Test Google OAuth login
+   - Verify redirect works correctly
+
+### Performance Optimization
+
+1. **Enable Caching:**
+   ```nginx
+   proxy_cache_path /var/cache/nginx levels=1:2 keys_zone=api_cache:10m max_size=100m;
+   
+   location /api/ {
+       proxy_cache api_cache;
+       proxy_cache_valid 200 5m;
+       add_header X-Cache-Status $upstream_cache_status;
+   }
+   ```
+
+2. **Enable HTTP/2:**
+   Already enabled in configuration with `http2` flag
+
+3. **CDN Integration:**
+   Consider using AWS CloudFront for static assets
+
+---
+
+## Support & Resources
+
+- **Application Logs:** `/var/log/retyrment/application.log`
+- **NGINX Logs:** `/var/log/nginx/access.log`, `/var/log/nginx/error.log`
+- **Service Status:** `sudo systemctl status retyrment-backend`
+- **Database Logs:** `/var/log/postgresql/postgresql-14-main.log`
+
+For issues, check the logs first, then refer to the Troubleshooting section.

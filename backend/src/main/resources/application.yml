@@ -46,7 +46,7 @@ app:
     expiration: 86400000  # 24 hours in milliseconds
   
   # Frontend URL for OAuth2 redirect
-  frontend-url: http://localhost:3000
+  frontend-url: http://localhost:3001
   
   # Admin/Superuser configuration
   admin:
@@ -67,6 +67,6 @@ app:
   
   # CORS settings
   cors:
-    allowed-origins: http://localhost:5000,http://localhost:3000,http://127.0.0.1:5000
+    allowed-origins: http://localhost:5000,http://localhost:3000,http://localhost:3002,http://127.0.0.1:5000,https://retyrment.com,https://www.retyrment.com
     allowed-methods: GET,POST,PUT,DELETE,OPTIONS
     allowed-headers: "*"

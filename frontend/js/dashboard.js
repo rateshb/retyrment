@@ -56,7 +56,7 @@ async function loadDashboard() {
 
         // Render charts
         createNetWorthChart('networth-chart', netWorth);
-        createGoalProgressChart('goals-chart', goalAnalysis);
+        createGoalProgressChart('goals-chart', goalAnalysis, retirementData?.matrix);
         
         // Generate High Priority Alerts
         generateHighPriorityAlerts(retirementData, netWorth, loans, maturingData, goalAnalysis);
@@ -72,7 +72,11 @@ async function loadDashboard() {
             // Pro users get full recommendations
             try {
                 const recommendations = await api.analysis.getRecommendations();
-                document.getElementById('monthly-savings').textContent = formatCurrency(recommendations?.monthlySavings || 0, true);
+                const gapNetMonthly = retirementData?.gapAnalysis?.netMonthlySavings;
+                const monthlySavingsValue = (gapNetMonthly !== undefined && gapNetMonthly !== null)
+                    ? gapNetMonthly
+                    : (recommendations?.monthlySavings || 0);
+                document.getElementById('monthly-savings').textContent = formatCurrency(monthlySavingsValue, true);
                 
                 const recs = recommendations?.recommendations || [];
                 if (recs.length > 0) {
@@ -156,6 +160,9 @@ function updateCriticalAreasSummary(retirementData, netWorth, investments, insur
     // Health coverage: based on insurance recommendations gap
     const healthRec = insuranceRecs?.healthRecommendation;
     const healthMet = healthRec ? (healthRec.gap <= 0 && healthRec.totalRecommendedCover > 0) : null;
+    const hasHealthPolicy = (insurances || []).some(policy => policy.type === 'HEALTH');
+    const hasNonGroupHealth = (insurances || []).some(policy => policy.type === 'HEALTH' && policy.healthType !== 'GROUP');
+    const isGroupOnlyHealth = hasHealthPolicy && !hasNonGroupHealth;
 
     // Accidental cover: heuristic based on policy name/type
     const accidentKeywords = ['accident', 'accidental', 'personal accident'];
@@ -167,8 +174,10 @@ function updateCriticalAreasSummary(retirementData, netWorth, investments, insur
     const items = [
         {
             label: 'Health Cover',
-            status: healthMet,
-            detail: healthRec ? (healthMet ? 'Adequate coverage' : 'Coverage gap exists') : 'Add family/insurance data',
+            status: isGroupOnlyHealth ? false : healthMet,
+            detail: isGroupOnlyHealth
+                ? 'Group cover only (ends at retirement). Add personal/family policy.'
+                : healthRec ? (healthMet ? 'Adequate coverage' : 'Coverage gap exists') : 'Add family/insurance data',
             action: 'insurance-recommendations.html'
         },
         {

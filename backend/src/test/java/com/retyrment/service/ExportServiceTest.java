@@ -223,11 +223,14 @@ class ExportServiceTest {
             netWorth.put("netWorth", 4000000.0);
             when(analysisService.calculateNetWorth("test-user")).thenReturn(netWorth);
 
-            byte[] result = exportService.generatePdfReport("test-user");
+            byte[] result = exportService.generateFinancialSummaryPdfReport("test-user");
 
             assertThat(result).isNotNull();
-            assertThat(new String(result)).contains("RETYRMENT FINANCIAL REPORT");
-            assertThat(new String(result)).contains("NET WORTH SUMMARY");
+            assertThat(result.length).isGreaterThan(100); // PDF should have substantial content
+            
+            // Verify it's a valid PDF by checking the header
+            String pdfHeader = new String(result, 0, Math.min(10, result.length));
+            assertThat(pdfHeader).startsWith("%PDF-");
         }
     }
 

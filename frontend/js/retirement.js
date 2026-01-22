@@ -30,17 +30,18 @@ let strategyData = {
     netWorth: null,
     loans: [],
     goals: [],
-    expenseOpportunities: [] // Investment opportunities from ending expenses
+    expenseOpportunities: [], // Investment opportunities from ending expenses
+    investments: []
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // Initialize tabs - ensure only income tab is visible on page load
-    if (typeof window.switchAnalysisTab === 'function') {
-        window.switchAnalysisTab('income');
+    // Initialize primary navigation - show overview by default
+    if (typeof window.switchPrimaryTab === 'function') {
+        window.switchPrimaryTab('overview');
     }
     
     initializeEffectiveYearDropdown();
-    loadSavedParams();
+    await loadSavedParams(); // Load settings from backend first
     await applyRetirementFeatureRestrictions(); // Apply feature restrictions first
     loadRetirementData();
     applyProRestrictions();
@@ -148,49 +149,161 @@ function initializeEffectiveYearDropdown() {
     });
 }
 
-// Tab switching for analysis section
-// Make sure it's in global scope for onclick handlers
-window.switchAnalysisTab = function switchAnalysisTab(tab) {
-    // Update tab buttons
-    ['income', 'gap', 'expenses', 'maturing', 'ending-expenses', 'strategy', 'withdrawal'].forEach(t => {
-        const tabBtn = document.getElementById(`tab-${t}`);
-        const panel = document.getElementById(`panel-${t}`);
-        if (!tabBtn || !panel) return;
-        if (t === tab) {
-            tabBtn.className = 'flex-1 px-6 py-3 text-sm font-medium text-primary-600 border-b-2 border-primary-500 bg-primary-50/50';
-            panel.classList.remove('hidden');
+// Two-tier navigation state
+let currentPrimaryTab = 'overview';
+let currentSecondaryTab = {
+    projections: 'income',
+    strategy: 'strategy-planner',
+    events: 'maturing'
+};
+
+// Secondary tabs configuration
+const SECONDARY_TABS = {
+    projections: [
+        { id: 'income', label: 'Income Strategy' },
+        { id: 'gap', label: 'GAP Analysis' },
+        { id: 'matrix', label: 'Year-by-Year' }
+    ],
+    strategy: [
+        { id: 'strategy-planner', label: 'Strategy Planner' },
+        { id: 'withdrawal', label: 'Withdrawal Strategy' }
+    ],
+    events: [
+        { id: 'maturing', label: 'Maturing Before Retirement' },
+        { id: 'expenses', label: 'Expense Projection' },
+        { id: 'ending-expenses', label: 'Ending Expenses' }
+    ]
+};
+
+// Switch primary tab
+window.switchPrimaryTab = function(tabId) {
+    currentPrimaryTab = tabId;
+    
+    // Update primary tab buttons
+    ['overview', 'projections', 'strategy', 'events'].forEach(t => {
+        const btn = document.getElementById(`primary-${t}`);
+        if (!btn) return;
+        if (t === tabId) {
+            btn.className = 'flex items-center gap-2 px-6 py-3 text-sm font-medium border-b-2 border-primary-500 text-primary-700 bg-primary-50/50';
         } else {
-            tabBtn.className = 'flex-1 px-6 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 border-b-2 border-transparent';
-            panel.classList.add('hidden');
+            btn.className = 'flex items-center gap-2 px-6 py-3 text-sm font-medium border-b-2 border-transparent text-slate-600 hover:text-primary-600 hover:border-slate-300';
         }
     });
     
-    // Load strategy planner data when tab is selected
-    if (tab === 'strategy') {
+    // Show/hide secondary navigation
+    const secondaryNav = document.getElementById('secondary-nav');
+    const secondaryContainer = document.getElementById('secondary-tabs-container');
+    
+    if (tabId === 'overview') {
+        secondaryNav.classList.add('hidden');
+        showAnalysisTab('overview');
+    } else {
+        secondaryNav.classList.remove('hidden');
+        // Render secondary tabs
+        const tabs = SECONDARY_TABS[tabId] || [];
+        secondaryContainer.innerHTML = tabs.map(tab => `
+            <button 
+                onclick="switchSecondaryTab('${tabId}', '${tab.id}')" 
+                id="secondary-${tab.id}"
+                class="px-4 py-2 text-sm rounded-lg transition-colors ${
+                    currentSecondaryTab[tabId] === tab.id
+                        ? 'bg-primary-100 text-primary-700 font-medium'
+                        : 'text-slate-600 hover:bg-slate-100'
+                }"
+            >
+                ${tab.label}
+            </button>
+        `).join('');
+        
+        // Show the active secondary tab's content
+        const activeSecondary = currentSecondaryTab[tabId] || tabs[0]?.id;
+        if (activeSecondary) {
+            showAnalysisTab(activeSecondary);
+        }
+    }
+};
+
+// Switch secondary tab
+window.switchSecondaryTab = function(primaryId, secondaryId) {
+    currentSecondaryTab[primaryId] = secondaryId;
+    
+    // Update secondary tab buttons
+    const tabs = SECONDARY_TABS[primaryId] || [];
+    tabs.forEach(tab => {
+        const btn = document.getElementById(`secondary-${tab.id}`);
+        if (!btn) return;
+        if (tab.id === secondaryId) {
+            btn.className = 'px-4 py-2 text-sm rounded-lg bg-primary-100 text-primary-700 font-medium';
+        } else {
+            btn.className = 'px-4 py-2 text-sm rounded-lg text-slate-600 hover:bg-slate-100';
+        }
+    });
+    
+    // Show the content panel
+    showAnalysisTab(secondaryId);
+};
+
+// Show specific analysis tab content
+function showAnalysisTab(tab) {
+    // Hide all panels
+    const allTabs = ['overview', 'income', 'gap', 'matrix', 'expenses', 'maturing', 'ending-expenses', 'strategy-planner', 'withdrawal'];
+    allTabs.forEach(t => {
+        const panel = document.getElementById(`panel-${t}`);
+        if (panel) panel.classList.add('hidden');
+    });
+    
+    // Show the selected panel (map strategy to strategy-planner for backward compat)
+    const panelId = tab === 'strategy' ? 'strategy-planner' : tab;
+    const panel = document.getElementById(`panel-${panelId}`);
+    if (panel) panel.classList.remove('hidden');
+    
+    // Load specific data when tabs are selected
+    if (tab === 'strategy-planner' || tab === 'strategy') {
         if (window.cachedRetirementData) {
-            // Ensure strategy data is loaded before rendering
             loadStrategyDataAndRender(window.cachedRetirementData);
         } else {
-            document.getElementById('strategy-allocation-breakdown').innerHTML = 
-                '<div class="text-center py-4 text-slate-400">Loading data... Please wait.</div>';
+            const breakdownEl = document.getElementById('strategy-allocation-breakdown');
+            if (breakdownEl) {
+                breakdownEl.innerHTML = '<div class="text-center py-4 text-slate-400">Loading data... Please wait.</div>';
+            }
         }
     }
     
-    // Load ending expenses data when tab is selected
     if (tab === 'ending-expenses') {
         loadEndingExpensesData();
     }
     
-    // Load withdrawal strategy data when tab is selected
     if (tab === 'withdrawal') {
         renderWithdrawalSchedule();
     }
-};
-
-// Ensure function is available globally for onclick handlers
-if (typeof window !== 'undefined') {
-    window.switchAnalysisTab = switchAnalysisTab;
+    
+    if (tab === 'gap') {
+        document.getElementById('analysis-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 }
+
+// Backward compatibility: keep old switchAnalysisTab function
+window.switchAnalysisTab = function(tab) {
+    // Map old tab names to new navigation
+    const tabMapping = {
+        'income': { primary: 'projections', secondary: 'income' },
+        'gap': { primary: 'projections', secondary: 'gap' },
+        'matrix': { primary: 'projections', secondary: 'matrix' },
+        'expenses': { primary: 'events', secondary: 'expenses' },
+        'maturing': { primary: 'events', secondary: 'maturing' },
+        'ending-expenses': { primary: 'events', secondary: 'ending-expenses' },
+        'strategy': { primary: 'strategy', secondary: 'strategy-planner' },
+        'withdrawal': { primary: 'strategy', secondary: 'withdrawal' }
+    };
+    
+    const mapping = tabMapping[tab];
+    if (mapping) {
+        switchPrimaryTab(mapping.primary);
+        if (mapping.secondary) {
+            switchSecondaryTab(mapping.primary, mapping.secondary);
+        }
+    }
+};
 
 // Load strategy data and then render
 async function loadStrategyDataAndRender(retirementData) {
@@ -348,11 +461,74 @@ function handleExportExcel() {
     }
 }
 
-function loadSavedParams() {
-    const saved = localStorage.getItem('retyrment_retirement_params');
-    if (saved) {
-        currentParams = { ...defaultParams, ...JSON.parse(saved) };
+async function loadSavedParams() {
+    try {
+        // 1. Start with defaults
+        let mergedParams = { ...defaultParams };
+        
+        // 2. Load global user settings from backend
+        try {
+            const response = await fetch(`${API_BASE}/settings`, {
+                headers: auth.getHeaders(),
+                credentials: 'include'
+            });
+            
+            if (response.ok) {
+                const userSettings = await response.json();
+                console.log('Loaded user settings from backend:', userSettings);
+                
+                if (userSettings) {
+                    // Use !== undefined to allow 0 or falsy values
+                    mergedParams = {
+                        ...mergedParams,
+                        currentAge: userSettings.currentAge !== undefined ? userSettings.currentAge : mergedParams.currentAge,
+                        retirementAge: userSettings.retirementAge !== undefined ? userSettings.retirementAge : mergedParams.retirementAge,
+                        lifeExpectancy: userSettings.lifeExpectancy !== undefined ? userSettings.lifeExpectancy : mergedParams.lifeExpectancy,
+                        inflation: userSettings.inflationRate !== undefined ? userSettings.inflationRate : mergedParams.inflation,
+                        epfReturn: userSettings.epfReturn !== undefined ? userSettings.epfReturn : mergedParams.epfReturn,
+                        ppfReturn: userSettings.ppfReturn !== undefined ? userSettings.ppfReturn : mergedParams.ppfReturn,
+                        mfReturn: userSettings.mfEquityReturn !== undefined ? userSettings.mfEquityReturn : mergedParams.mfReturn,
+                        sipStepup: userSettings.sipStepup !== undefined ? userSettings.sipStepup : mergedParams.sipStepup
+                    };
+                    console.log('Merged params after backend settings:', mergedParams);
+                }
+            }
+        } catch (error) {
+            console.error('Failed to load user settings from backend:', error);
+        }
+        
+        // 3. Override ONLY Retirement-specific saved params from localStorage
+        // (NOT the basic settings that come from Settings page)
+        const saved = localStorage.getItem('retyrment_retirement_params');
+        if (saved) {
+            try {
+                const parsedParams = JSON.parse(saved);
+                console.log('Loaded retirement params from localStorage:', parsedParams);
+                
+                // ONLY use localStorage for Retirement-specific fields, NOT basic settings
+                // Basic settings (currentAge, retirementAge, inflation, epfReturn, ppfReturn, mfReturn, sipStepup) 
+                // should come from Settings page backend
+                const retirementOnlyFields = ['effectiveFromYear', 'incomeStrategy', 'corpusReturnRate', 
+                                               'enableRateReduction', 'rateReductionPercent', 'rateReductionYears'];
+                
+                retirementOnlyFields.forEach(field => {
+                    if (parsedParams[field] !== undefined) {
+                        mergedParams[field] = parsedParams[field];
+                    }
+                });
+                
+                console.log('Final merged params after localStorage (retirement-specific only):', mergedParams);
+            } catch (e) {
+                console.error('Failed to parse saved params:', e);
+            }
+        }
+        
+        currentParams = mergedParams;
+    } catch (error) {
+        console.error('Error in loadSavedParams:', error);
+        currentParams = { ...defaultParams };
     }
+    
     updateParamInputs();
 }
 
@@ -438,10 +614,38 @@ function toggleSettings() {
     }
 }
 
-function resetDefaults() {
-    currentParams = { ...defaultParams };
+async function resetDefaults() {
+    // Clear localStorage retirement params
+    localStorage.removeItem('retyrment_retirement_params');
+    
+    // Load from backend Settings page, not hardcoded defaults
+    let resetParams = { ...defaultParams };
+    try {
+        const response = await fetch(`${API_BASE}/settings`, {
+            headers: auth.getHeaders(),
+            credentials: 'include'
+        });
+        
+        if (response.ok) {
+            const userSettings = await response.json();
+            if (userSettings) {
+                resetParams.currentAge = userSettings.currentAge !== undefined ? userSettings.currentAge : resetParams.currentAge;
+                resetParams.retirementAge = userSettings.retirementAge !== undefined ? userSettings.retirementAge : resetParams.retirementAge;
+                resetParams.lifeExpectancy = userSettings.lifeExpectancy !== undefined ? userSettings.lifeExpectancy : resetParams.lifeExpectancy;
+                resetParams.inflation = userSettings.inflationRate !== undefined ? userSettings.inflationRate : resetParams.inflation;
+                resetParams.epfReturn = userSettings.epfReturn !== undefined ? userSettings.epfReturn : resetParams.epfReturn;
+                resetParams.ppfReturn = userSettings.ppfReturn !== undefined ? userSettings.ppfReturn : resetParams.ppfReturn;
+                resetParams.mfReturn = userSettings.mfEquityReturn !== undefined ? userSettings.mfEquityReturn : resetParams.mfReturn;
+                resetParams.sipStepup = userSettings.sipStepup !== undefined ? userSettings.sipStepup : resetParams.sipStepup;
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load settings from backend:', error);
+    }
+    
+    currentParams = resetParams;
     updateParamInputs();
-    showToast('Reset to default values');
+    showToast('Reset to Settings page values', 'success');
 }
 
 async function recalculate() {
@@ -451,10 +655,27 @@ async function recalculate() {
     // Update currentParams for this calculation
     currentParams = params;
     
-    // Only save to localStorage if effectiveFromYear is 0 or 1 (Current or Next Year)
+    // Only save Retirement-specific fields to localStorage (NOT basic settings from Settings page)
+    // Basic settings should be managed via Settings page only
     if (!isAnalysisOnly) {
-        localStorage.setItem('retyrment_retirement_params', JSON.stringify(currentParams));
-        showToast('Recalculating and saving parameters...');
+        const retirementOnlyFields = ['effectiveFromYear', 'incomeStrategy', 'corpusReturnRate', 
+                                       'enableRateReduction', 'rateReductionPercent', 'rateReductionYears'];
+        
+        // Load existing localStorage, update only retirement-specific fields
+        let saved = {};
+        try {
+            const savedStr = localStorage.getItem('retyrment_retirement_params');
+            saved = savedStr ? JSON.parse(savedStr) : {};
+        } catch (e) {}
+        
+        retirementOnlyFields.forEach(field => {
+            if (params[field] !== undefined) {
+                saved[field] = params[field];
+            }
+        });
+        
+        localStorage.setItem('retyrment_retirement_params', JSON.stringify(saved));
+        showToast('Recalculating...');
     } else {
         showToast(`📊 Analysis mode (from ${CURRENT_YEAR + params.effectiveFromYear}) - not saving`);
     }
@@ -484,6 +705,60 @@ function updateSaveButtonState(effectiveFromYear) {
             recalculateBtn.classList.add('btn-primary');
             recalculateBtn.classList.remove('bg-amber-500', 'hover:bg-amber-600', 'text-white');
         }
+    }
+}
+
+// Save current Retirement parameters to Settings database
+async function saveToSettings() {
+    try {
+        const params = getParamsFromInputs();
+        
+        // First fetch existing settings to preserve fields we're not changing
+        let existingSettings = {};
+        try {
+            const response = await fetch(`${API_BASE}/settings`, {
+                headers: auth.getHeaders(),
+                credentials: 'include'
+            });
+            if (response.ok) {
+                existingSettings = await response.json() || {};
+            }
+        } catch (e) {
+            console.log('No existing settings, will create new');
+        }
+        
+        // Map Retirement params to Settings format
+        const settingsData = {
+            ...existingSettings,
+            currentAge: params.currentAge,
+            retirementAge: params.retirementAge,
+            lifeExpectancy: params.lifeExpectancy,
+            inflationRate: params.inflation,
+            epfReturn: params.epfReturn,
+            ppfReturn: params.ppfReturn,
+            mfEquityReturn: params.mfReturn,
+            sipStepup: params.sipStepup,
+            // Set defaults for fields not in Retirement params if they don't exist
+            mfDebtReturn: existingSettings.mfDebtReturn || 7.0,
+            fdReturn: existingSettings.fdReturn || 6.5,
+            emergencyFundMonths: existingSettings.emergencyFundMonths || 6,
+        };
+        
+        const response = await fetch(`${API_BASE}/settings`, {
+            method: 'PUT',
+            headers: auth.getHeaders(),
+            body: JSON.stringify(settingsData),
+            credentials: 'include'
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        showToast('Settings saved successfully! These will be used as defaults.', 'success');
+    } catch (error) {
+        console.error('Failed to save settings:', error);
+        showToast('Failed to save settings to database', 'error');
     }
 }
 
@@ -545,12 +820,14 @@ function renderGapAnalysis(gap) {
     
     // Update status badge in tab
     const statusBadge = document.getElementById('gap-status-badge');
-    if (gap.isOnTrack) {
-        statusBadge.className = 'ml-2 px-2 py-0.5 text-xs rounded-full bg-success-100 text-success-700';
-        statusBadge.textContent = '✓';
-    } else {
-        statusBadge.className = 'ml-2 px-2 py-0.5 text-xs rounded-full bg-danger-100 text-danger-700';
-        statusBadge.textContent = '⚠';
+    if (statusBadge) {
+        if (gap.isOnTrack) {
+            statusBadge.className = 'ml-2 px-2 py-0.5 text-xs rounded-full bg-success-100 text-success-700';
+            statusBadge.textContent = '✓';
+        } else {
+            statusBadge.className = 'ml-2 px-2 py-0.5 text-xs rounded-full bg-danger-100 text-danger-700';
+            statusBadge.textContent = '⚠';
+        }
     }
     
     // Update corpus cards
@@ -828,7 +1105,7 @@ function highlightSelectedStrategy(strategy) {
 }
 
 // Render retirement income projection table (compact)
-function renderIncomeProjection(projection) {
+function renderIncomeProjection(projection, summary) {
     const tbody = document.getElementById('income-projection-body');
     
     if (!projection || projection.length === 0) {
@@ -836,12 +1113,34 @@ function renderIncomeProjection(projection) {
         return;
     }
     
+    const selectedStrategy = summary?.incomeStrategy || currentParams.incomeStrategy || 'SUSTAINABLE';
+    const retirementYears = summary?.retirementYears || ((summary?.lifeExpectancy || currentParams.lifeExpectancy || 85) - (summary?.retirementAge || currentParams.retirementAge || 60));
+    const withdrawalRate = summary?.withdrawalRate || 8;
+    const finalCorpus = summary?.finalCorpus || 0;
+
+    const getMonthlyIncome = (row) => {
+        if (row.monthlyIncome && row.monthlyIncome > 0) return row.monthlyIncome;
+        if (!row.corpus || row.corpus <= 0) return 0;
+        if (selectedStrategy === 'SIMPLE_DEPLETION') {
+            const remainingYears = Math.max(retirementYears - (row.year || 0), 0);
+            return remainingYears > 0 ? row.corpus / remainingYears / 12 : 0;
+        }
+        if (selectedStrategy === 'SAFE_4_PERCENT') {
+            return finalCorpus * 0.04 / 12;
+        }
+        // SUSTAINABLE default
+        return row.corpus * (withdrawalRate / 100) / 12;
+    };
+
     tbody.innerHTML = projection.map((row, idx) => `
         <tr class="${idx === 0 ? 'bg-success-50 font-semibold' : ''}">
             <td class="px-2 py-1 text-slate-700">${row.year === 0 ? 'Retire' : `+${row.year}y`}</td>
             <td class="px-2 py-1 text-slate-600">${row.age}</td>
             <td class="px-2 py-1 text-right font-mono text-slate-700">${formatCurrency(row.corpus, true)}</td>
-            <td class="px-2 py-1 text-right font-mono text-success-700">${formatCurrency(row.monthlyIncome)}</td>
+            <td class="px-2 py-1 text-right font-mono text-success-700">
+                ${formatCurrency(getMonthlyIncome(row))}
+                ${row.annuityMonthlyIncome ? `<div class="text-xs text-emerald-600">Annuity ${formatCurrency(row.annuityMonthlyIncome)}/mo</div>` : ''}
+            </td>
         </tr>
     `).join('');
 }
@@ -884,23 +1183,45 @@ function renderRetirementMatrix(data) {
     }
     
     // Update primary income display using selected strategy
-    const selectedIncome = summary.selectedMonthlyIncome || summary.monthlyIncomeFromCorpus || (summary.finalCorpus || 0) * 0.08 / 12;
+    const fallbackMonthlyRetirementIncome = (summary.finalCorpus || 0) > 0 && summary.retirementYears > 0
+        ? (summary.finalCorpus / summary.retirementYears / 12)
+        : 0;
+    const fallbackMonthlyIncome4Percent = (summary.finalCorpus || 0) * 0.04 / 12;
+    const withdrawalRate = summary.withdrawalRate || 8;
+    const fallbackMonthlyIncomeFromCorpus = (summary.finalCorpus || 0) * (withdrawalRate / 100) / 12;
+    
+    const monthlyRetirementIncome = (summary.monthlyRetirementIncome > 0)
+        ? summary.monthlyRetirementIncome
+        : fallbackMonthlyRetirementIncome;
+    const monthlyIncome4Percent = (summary.monthlyIncome4Percent > 0)
+        ? summary.monthlyIncome4Percent
+        : fallbackMonthlyIncome4Percent;
+    const monthlyIncomeFromCorpus = (summary.monthlyIncomeFromCorpus > 0)
+        ? summary.monthlyIncomeFromCorpus
+        : fallbackMonthlyIncomeFromCorpus;
+    
+    const selectedIncome = (summary.selectedMonthlyIncome > 0)
+        ? summary.selectedMonthlyIncome
+        : (monthlyIncomeFromCorpus || fallbackMonthlyIncomeFromCorpus);
     document.getElementById('monthly-income').textContent = formatCurrency(selectedIncome);
     
     // Update the income note with selected strategy
     const incomeNote = document.getElementById('income-note');
     if (incomeNote && summary.selectedStrategyName) {
-        incomeNote.textContent = `(${summary.selectedStrategyName})`;
+        const annuityNote = summary.annuityMonthlyIncome && summary.annuityMonthlyIncome > 0
+            ? ` + Annuity ${formatCurrency(summary.annuityMonthlyIncome)}/mo`
+            : '';
+        incomeNote.textContent = `(${summary.selectedStrategyName}${annuityNote})`;
     }
     
     // Update income breakdown cards
-    document.getElementById('income-depletion').textContent = formatCurrency(summary.monthlyRetirementIncome) + '/mo';
-    document.getElementById('income-4percent').textContent = formatCurrency(summary.monthlyIncome4Percent) + '/mo';
-    document.getElementById('income-sustainable').textContent = formatCurrency(summary.monthlyIncomeFromCorpus) + '/mo';
+    document.getElementById('income-depletion').textContent = formatCurrency(monthlyRetirementIncome) + '/mo';
+    document.getElementById('income-4percent').textContent = formatCurrency(monthlyIncome4Percent) + '/mo';
+    document.getElementById('income-sustainable').textContent = formatCurrency(monthlyIncomeFromCorpus) + '/mo';
     
     // Update sustainable label with actual rates
     const corpusReturn = summary.corpusReturnRate || 10;
-    const withdrawal = summary.withdrawalRate || 8;
+    const withdrawal = withdrawalRate || 8;
     const sustainableLabel = document.getElementById('sustainable-label');
     const sustainableNote = document.getElementById('sustainable-note');
     if (sustainableLabel) {
@@ -915,7 +1236,7 @@ function renderRetirementMatrix(data) {
     highlightSelectedStrategy(summary.incomeStrategy);
     
     // Render retirement income projection table
-    renderIncomeProjection(summary.retirementIncomeProjection);
+    renderIncomeProjection(summary.retirementIncomeProjection, summary);
 
     // Render matrix table
     const tbody = document.getElementById('matrix-body');
@@ -974,9 +1295,9 @@ function renderRetirementMatrix(data) {
     }
     
     tbody.innerHTML = matrix.map((row, idx) => {
-        // Calculate inflows this year (insurance maturity + investment maturity)
-        const hasInflow = row.insuranceMaturity > 0 || row.investmentMaturity > 0;
-        const totalInflow = (row.insuranceMaturity || 0) + (row.investmentMaturity || 0);
+        // Calculate inflows this year (insurance maturity + investment maturity + money-back payouts)
+        const totalInflow = (row.insuranceMaturity || 0) + (row.investmentMaturity || 0) + (row.moneyBackPayout || 0);
+        const hasInflow = totalInflow > 0;
         
         // Determine step-up status for this row
         const isStepUpActive = row.sipStepUpActive;
@@ -1038,12 +1359,39 @@ function renderRetirementMatrix(data) {
                 ${hasInflow ? '+' + formatCurrency(totalInflow, true) : '-'}
                 ${row.maturingPolicies?.length ? `<div class="text-xs text-emerald-500">${row.maturingPolicies.join(', ')}</div>` : ''}
                 ${row.maturingInvestments?.length ? `<div class="text-xs text-emerald-500">${row.maturingInvestments.join(', ')}</div>` : ''}
+                ${row.moneyBackPayout > 0 ? `<div class="text-xs text-emerald-500">Money-Back: ${formatCurrency(row.moneyBackPayout, true)}</div>` : ''}
             </td>
             <td class="px-4 py-3 text-right font-mono ${row.goalOutflow > 0 ? 'text-danger-600' : 'text-slate-400'}">
-                ${row.goalOutflow > 0 ? '-' + formatCurrency(row.goalOutflow, true) : '-'}
+                <div class="flex items-center justify-end gap-1">
+                    ${row.goalOutflow > 0 ? formatCurrency(row.goalOutflow, true) : '-'}
+                    ${row.goalOutflow > 0 && hasInflow ? `
+                        <span class="cursor-help group relative">
+                            <span class="text-amber-500">ℹ️</span>
+                            <div class="absolute right-0 bottom-full mb-1 hidden group-hover:block z-10 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-lg p-2 whitespace-nowrap shadow-lg">
+                                <div class="font-semibold">Net impact on corpus:</div>
+                                <div class="text-danger-600">Goal outflow: ${formatCurrency(row.goalOutflow, true)}</div>
+                                <div class="text-emerald-600">Inflow: ${formatCurrency(totalInflow, true)}</div>
+                                <div class="border-t border-amber-200 mt-1 pt-1 font-semibold">
+                                    Net: ${totalInflow >= row.goalOutflow 
+                                        ? '<span class="text-emerald-600">+' + formatCurrency(totalInflow - row.goalOutflow, true) + '</span>'
+                                        : '<span class="text-danger-600">' + formatCurrency(row.goalOutflow - totalInflow, true) + ' used from corpus</span>'
+                                    }
+                                </div>
+                            </div>
+                        </span>
+                    ` : ''}
+                </div>
                 ${row.goalsThisYear?.length ? `<div class="text-xs text-slate-500">${row.goalsThisYear.join(', ')}</div>` : ''}
             </td>
-            <td class="px-4 py-3 text-right font-mono font-bold text-primary-600">${corpusDisplay}</td>
+            <td class="px-4 py-3 text-right font-mono font-bold ${row.netCorpus < 0 ? 'text-danger-600' : 'text-primary-600'}">
+                <div class="flex flex-col items-end">
+                    <div class="flex items-center gap-1">
+                        ${corpusDisplay}
+                        ${row.netCorpus < 0 && row.goalOutflow > 0 ? '<span class="text-danger-500" title="Goal cannot be fully funded from corpus!">⚠️</span>' : ''}
+                    </div>
+                    ${row.netCorpus < 0 && row.goalOutflow > 0 ? `<div class="text-xs font-normal text-danger-500">Goal shortfall: ${formatCurrency(Math.abs(row.netCorpus), true)}</div>` : ''}
+                </div>
+            </td>
         </tr>
     `}).join('');
 }
@@ -1053,7 +1401,8 @@ function renderMaturingInvestments(data) {
     const container = document.getElementById('maturing-investments-container');
     if (!container) return;
     
-    if (!data || (data.investmentCount === 0 && data.insuranceCount === 0)) {
+    const moneyBackCount = data.moneyBackCount || (data.moneyBackPayouts ? data.moneyBackPayouts.length : 0);
+    if (!data || (data.investmentCount === 0 && data.insuranceCount === 0 && moneyBackCount === 0)) {
         container.innerHTML = `
             <div class="text-center py-6 text-slate-400">
                 <div class="text-4xl mb-2">📅</div>
@@ -1073,7 +1422,7 @@ function renderMaturingInvestments(data) {
                 </div>
                 <div class="text-right">
                     <div class="text-xs text-slate-500">Before retirement</div>
-                    <div class="text-sm text-slate-600">${data.investmentCount} investments, ${data.insuranceCount} policies</div>
+                    <div class="text-sm text-slate-600">${data.investmentCount} investments, ${data.insuranceCount} policies, ${moneyBackCount} payouts</div>
                 </div>
             </div>
         </div>
@@ -1146,6 +1495,38 @@ function renderMaturingInvestments(data) {
                                     </td>
                                     <td class="px-3 py-2 text-right font-mono text-slate-600">${formatCurrency(ins.currentFundValue)}</td>
                                     <td class="px-3 py-2 text-right font-mono font-semibold text-emerald-600">${formatCurrency(ins.expectedMaturityValue)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
+    if (data.moneyBackPayouts && data.moneyBackPayouts.length > 0) {
+        html += `
+            <div class="mt-4">
+                <h4 class="text-sm font-semibold text-slate-700 mb-2">💵 Money-Back Payouts</h4>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-100">
+                            <tr>
+                                <th class="px-3 py-2 text-left text-slate-600">Policy</th>
+                                <th class="px-3 py-2 text-right text-slate-600">Year</th>
+                                <th class="px-3 py-2 text-right text-slate-600">Policy Year</th>
+                                <th class="px-3 py-2 text-right text-slate-600">Amount</th>
+                                <th class="px-3 py-2 text-left text-slate-600">Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            ${data.moneyBackPayouts.map(p => `
+                                <tr class="hover:bg-slate-50">
+                                    <td class="px-3 py-2 font-medium text-slate-800">${p.policyName}</td>
+                                    <td class="px-3 py-2 text-right text-slate-600">${p.calendarYear}</td>
+                                    <td class="px-3 py-2 text-right text-slate-600">${p.policyYear || '-'}</td>
+                                    <td class="px-3 py-2 text-right font-mono font-semibold text-emerald-600">${formatCurrency(p.amount || 0)}</td>
+                                    <td class="px-3 py-2 text-slate-600">${p.description || ''}</td>
                                 </tr>
                             `).join('')}
                         </tbody>
@@ -1758,10 +2139,11 @@ async function loadStrategyData(retirementData) {
         const currentAge = params.currentAge || 35;
         const retirementAge = params.retirementAge || 60;
         
-        const [netWorth, loans, goals, expenseOpportunitiesResponse] = await Promise.all([
+        const [netWorth, loans, goals, investments, expenseOpportunitiesResponse] = await Promise.all([
             api.analysis.getNetWorth().catch(() => null),
             api.loans.getAll().catch(() => []),
             api.goals.getAll().catch(() => []),
+            api.investments.getAll().catch(() => []),
             api.expenses.getInvestmentOpportunities(currentAge, retirementAge).catch(() => ({}))
         ]);
         
@@ -1771,6 +2153,7 @@ async function loadStrategyData(retirementData) {
         strategyData.netWorth = netWorth;
         strategyData.loans = loans || [];
         strategyData.goals = goals || [];
+        strategyData.investments = investments || [];
         strategyData.expenseOpportunities = expenseOpportunities;
         
         // If strategy tab is visible, render it
@@ -1859,7 +2242,9 @@ function renderSavingsAllocation(gapAnalysis, summary) {
     // Use the correctly calculated values from backend
     const monthlyIncome = gapAnalysis.monthlyIncome || 0;
     const totalExpenses = gapAnalysis.totalCurrentMonthlyExpenses || gapAnalysis.currentMonthlyExpenses || 0;
-    const monthlyEMI = gapAnalysis.monthlyEMI || 0;
+    const loansData = strategyData?.loans || [];
+    const computedMonthlyEMI = Array.isArray(loansData) ? loansData.reduce((sum, l) => sum + (l.emi || 0), 0) : 0;
+    const monthlyEMI = Math.max(gapAnalysis.monthlyEMI || 0, computedMonthlyEMI);
     const monthlySIP = gapAnalysis.monthlySIP || 0;
     
     // Net savings = Income - Expenses - EMIs (SIPs are investments, not expenses)
@@ -1893,9 +2278,14 @@ function renderSavingsAllocation(gapAnalysis, summary) {
     const netWorthData = strategyData?.netWorth || {};
     const assetBreakdown = netWorthData.assetBreakdown || {};
     const currentCash = assetBreakdown.CASH || 0;
+    const investments = strategyData?.investments || [];
+    const emergencyFundValue = investments
+        .filter(inv => (inv.type === 'FD' || inv.type === 'RD') && inv.isEmergencyFund)
+        .reduce((sum, inv) => sum + (inv.currentValue || inv.investedAmount || 0), 0);
+    const emergencyFundAvailable = currentCash + emergencyFundValue;
     const monthlyExpenses = totalExpenses > 0 ? totalExpenses : 50000; // Default if no expenses
     const emergencyFund = monthlyExpenses * 6;
-    const emergencyGap = Math.max(0, emergencyFund - currentCash);
+    const emergencyGap = Math.max(0, emergencyFund - emergencyFundAvailable);
     
     const corpusGap = gapAnalysis.corpusGap || 0;
     const yearsToRetirement = summary.yearsToRetirement || 25;
@@ -1905,8 +2295,7 @@ function renderSavingsAllocation(gapAnalysis, summary) {
     const requiredMonthlySIP = corpusGap > 0 ? calculateRequiredSIP(corpusGap, 10, yearsToRetirement) : 0;
     
     // Active loans EMI
-    const loansData = strategyData?.loans || [];
-    const totalEMI = Array.isArray(loansData) ? loansData.reduce((sum, l) => sum + (l.emi || 0), 0) : 0;
+    const totalEMI = computedMonthlyEMI;
     
     // Goals
     const goalsData = strategyData?.goals || [];
@@ -1923,7 +2312,7 @@ function renderSavingsAllocation(gapAnalysis, summary) {
         allocations.push({
             name: '🆘 Emergency Fund',
             amount: emergencyAllocation,
-            description: `Build ${formatCurrency(emergencyFund)} emergency fund (currently ${formatCurrency(currentCash)})`,
+            description: `Build ${formatCurrency(emergencyFund)} emergency fund (currently ${formatCurrency(emergencyFundAvailable)})`,
             priority: 'High',
             color: 'bg-amber-100 border-amber-300'
         });
@@ -2308,7 +2697,7 @@ function renderWhatIfScenarios(summary, gapAnalysis, maturingData) {
     }
     
     // Scenario 4: Increase SIP by 20%
-    const currentSIP = gapAnalysis.monthlySIP || summary.startingBalances?.mfSipMonthly || 10000;
+    const currentSIP = gapAnalysis.monthlySIP || 0;
     const increasedSIP = currentSIP * 1.2;
     const sipIncrease = currentSIP * 0.2;
     const additionalFromIncrease = calculateSIPFutureValue(sipIncrease, 12, yearsToRetirement);
@@ -2379,6 +2768,54 @@ function renderWhatIfScenarios(summary, gapAnalysis, maturingData) {
         }
     }
     
+    const startingBalances = summary.startingBalances || {};
+    const currentCorpus = (startingBalances.totalStarting || 0) + (startingBalances.otherLiquidTotal || 0);
+    const existingMonthlySIP = gapAnalysis.monthlySIP || 0;
+
+    function getScenarioProjection(scenario) {
+        let deploymentYear = currentYear;
+        let scenarioType = 'lumpsum';
+        let scenarioValue = scenario.value || 0;
+
+        if (scenario.id === 'sell_illiquid') {
+            deploymentYear = scenario.sellYear || currentYear + Math.floor(yearsToRetirement / 2);
+            scenarioType = 'lumpsum';
+        } else if (scenario.id === 'reinvest_maturities') {
+            deploymentYear = scenario.maturityYear || (currentYear + Math.floor(yearsToRetirement / 2));
+            scenarioType = 'reinvest';
+        } else if (scenario.id === 'redirect_emi') {
+            deploymentYear = scenario.startYear || currentYear + 5;
+            scenarioType = 'sip';
+        } else if (scenario.id === 'increase_sip') {
+            deploymentYear = currentYear;
+            scenarioType = 'sip';
+        } else if (scenario.id === 'freed_expenses') {
+            deploymentYear = scenario.startYear || currentYear + 5;
+            scenarioType = 'sip';
+        }
+
+        return { deploymentYear, scenarioType, scenarioValue };
+    }
+
+    function getScenarioImpact(scenario) {
+        const projection = getScenarioProjection(scenario);
+        const chartData = generateScenarioChart(currentCorpus, projected, {
+            yearsToRetirement: yearsToRetirement,
+            deploymentYear: projection.deploymentYear,
+            type: projection.scenarioType,
+            lumpsumValue: projection.scenarioType === 'lumpsum' ? projection.scenarioValue : 0,
+            reinvestValue: projection.scenarioType === 'reinvest' ? projection.scenarioValue : 0,
+            monthlySIP: projection.scenarioType === 'sip' ? projection.scenarioValue : 0,
+            existingMonthlySIP: existingMonthlySIP
+        });
+        const last = chartData[chartData.length - 1] || { difference: 0, baselineCorpus: 0, corpus: 0 };
+        return {
+            impact: last.difference || 0,
+            baseline: last.baselineCorpus || 0,
+            strategy: last.corpus || 0
+        };
+    }
+
     // Store scenarios for later use
     window.whatIfScenarios = scenarios;
     
@@ -2389,7 +2826,9 @@ function renderWhatIfScenarios(summary, gapAnalysis, maturingData) {
     }
     
     scenariosEl.innerHTML = `
-        ${scenarios.map(scenario => `
+        ${scenarios.map(scenario => {
+            const impact = getScenarioImpact(scenario);
+            return `
             <div class="${scenario.bgClass} border rounded-lg p-4 relative">
                 <div class="absolute top-2 right-2">
                     <label class="inline-flex items-center cursor-pointer">
@@ -2404,13 +2843,15 @@ function renderWhatIfScenarios(summary, gapAnalysis, maturingData) {
                 </div>
                 <p class="text-sm text-slate-600 mb-2">${scenario.description}</p>
                 ${scenario.timing ? `<div class="text-xs text-blue-600 mb-2">${scenario.timing}</div>` : ''}
-                <div class="text-sm font-medium text-primary-600 mb-2">${scenario.impact}</div>
+                <div class="text-sm font-medium text-primary-600 mb-1">Estimated corpus impact: +${formatCurrency(impact.impact, true)}</div>
+                <div class="text-xs text-slate-500 mb-2">At retirement: ${formatCurrency(impact.baseline, true)} → ${formatCurrency(impact.strategy, true)}</div>
                 <div class="text-sm font-semibold ${scenario.resultClass}">${scenario.result}</div>
                 <button onclick="showScenarioChart('${scenario.id}')" class="mt-2 text-xs text-primary-600 hover:text-primary-700 underline">
                     📊 View projection
                 </button>
             </div>
-        `).join('')}
+        `;
+        }).join('')}
         
         <div class="col-span-2 mt-4 p-4 bg-primary-50 border border-primary-200 rounded-lg">
             <div class="flex items-center justify-between">
@@ -2557,6 +2998,11 @@ function showScenarioChart(scenarioId) {
         existingMonthlySIP: existingMonthlySIP // Existing SIP for baseline
     });
     
+    const finalRow = chartData[chartData.length - 1] || { difference: 0, baselineCorpus: 0, corpus: 0 };
+    const finalImpact = finalRow.difference || 0;
+    const finalBaseline = finalRow.baselineCorpus || 0;
+    const finalStrategy = finalRow.corpus || 0;
+
     // Create modal with chart
     const modal = document.createElement('div');
     modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50';
@@ -2569,6 +3015,21 @@ function showScenarioChart(scenarioId) {
             </div>
             <div class="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-blue-700">
                 <strong>Strategy Deployment:</strong> ${deploymentYear} (${deploymentYear - currentYear} years from now)
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                <div class="p-3 rounded-lg border border-slate-200 bg-slate-50">
+                    <div class="text-xs text-slate-500">Baseline Corpus</div>
+                    <div class="text-lg font-semibold text-slate-800">${formatCurrency(finalBaseline, true)}</div>
+                </div>
+                <div class="p-3 rounded-lg border border-emerald-200 bg-emerald-50">
+                    <div class="text-xs text-emerald-700">With Strategy</div>
+                    <div class="text-lg font-semibold text-emerald-700">${formatCurrency(finalStrategy, true)}</div>
+                </div>
+                <div class="p-3 rounded-lg border border-blue-200 bg-blue-50">
+                    <div class="text-xs text-blue-700">Difference (Impact)</div>
+                    <div class="text-lg font-semibold text-blue-700">+${formatCurrency(finalImpact, true)}</div>
+                    <div class="text-xs text-slate-500 mt-1">Difference at retirement</div>
+                </div>
             </div>
             <div class="bg-slate-50 rounded-lg p-4 mb-4 overflow-x-auto">
                 <table class="w-full text-sm">
@@ -2596,7 +3057,7 @@ function showScenarioChart(scenarioId) {
                                 <td class="py-2 text-right font-mono text-primary-700 font-semibold">${formatCurrency(d.corpus, true)}</td>
                                 <td class="py-2 text-right font-mono ${d.difference >= 0 ? 'text-emerald-600' : 'text-slate-500'}">
                                     ${d.difference > 0 ? '+' : ''}${formatCurrency(d.difference, true)}
-                                    ${prev ? `<div class="text-xs text-slate-400">(${growthDiff > 0 ? '+' : ''}${formatCurrency(growthDiff, true)} growth)</div>` : ''}
+                                    ${prev ? `<div class="text-xs text-slate-400">(Δ growth ${growthDiff > 0 ? '+' : ''}${formatCurrency(growthDiff, true)})</div>` : ''}
                                 </td>
                             </tr>
                         `;
@@ -2605,7 +3066,7 @@ function showScenarioChart(scenarioId) {
                 </table>
             </div>
             <div class="text-sm text-slate-600 space-y-1">
-                <div><strong>Impact:</strong> ${scenario.impact}</div>
+                <div><strong>Impact:</strong> +${formatCurrency(finalImpact, true)} corpus at retirement</div>
                 ${scenario.timing ? `<div><strong>Timing:</strong> ${scenario.timing}</div>` : ''}
                 <div class="mt-2 p-2 bg-slate-100 rounded text-xs">
                     <strong>Note:</strong> Current Corpus is your starting balance. Baseline Corpus shows growth without strategy. 

@@ -7,6 +7,7 @@ const loanFields = [
     { name: 'outstandingAmount', label: 'Outstanding Amount (₹)', type: 'number', required: true, min: 0, hint: 'Required. Current outstanding principal. Must be 0 or greater.' },
     { name: 'interestRate', label: 'Interest Rate (%)', type: 'number', required: true, step: '0.01', min: 0, hint: 'Required. Annual interest rate. Must be 0 or greater.' },
     { name: 'emi', label: 'Monthly EMI (₹)', type: 'number', required: true, min: 0, hint: 'Required. Monthly EMI amount. Must be 0 or greater.' },
+    { name: 'emiDay', label: 'EMI Debit Day (1-31)', type: 'number', required: true, min: 1, max: 31, hint: 'Required. Day of month when EMI is debited.' },
     { name: 'tenureMonths', label: 'Original Tenure (Months)', type: 'number', required: true, min: 1, hint: 'Required. Original loan tenure in months. Must be at least 1.' },
     { name: 'remainingMonths', label: 'Remaining Months', type: 'number', min: 0, hint: 'Optional. Remaining EMIs to pay. Must be 0 or greater.' },
     { name: 'startDate', label: 'Start Date', type: 'date', hint: 'Required. When the loan was disbursed.' }

@@ -267,7 +267,7 @@
                 const featuresResponse = await api.auth.features();
                 const features = featuresResponse.features || {};
                 if (features.canExportPdf === true) {
-                    generateFinancialSummaryPDF();
+                    downloadPDFFromBackend('summary');
                 } else {
                     showUpgradePrompt();
                 }
@@ -282,7 +282,7 @@
                 const featuresResponse = await api.auth.features();
                 const features = featuresResponse.features || {};
                 if (features.canExportPdf === true) {
-                    generateRetirementPDF();
+                    downloadPDFFromBackend('retirement');
                 } else {
                     showUpgradePrompt();
                 }
@@ -297,13 +297,40 @@
                 const featuresResponse = await api.auth.features();
                 const features = featuresResponse.features || {};
                 if (features.canExportPdf === true) {
-                    generateCalendarPDF();
+                    downloadPDFFromBackend('calendar');
                 } else {
                     showUpgradePrompt();
                 }
             } catch (error) {
                 console.error('Error checking feature access:', error);
                 showUpgradePrompt();
+            }
+        }
+        
+        async function downloadPDFFromBackend(type) {
+            showToast(`Generating ${type} report...`);
+            try {
+                const url = `${api.export.pdf()}&type=${type}`;
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error('Export failed');
+                }
+                
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = `retyrment-${type}-report-${new Date().toISOString().split('T')[0]}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(downloadUrl);
+                document.body.removeChild(a);
+                
+                showToast('PDF report generated successfully');
+            } catch (error) {
+                console.error('PDF generation failed:', error);
+                showToast('Failed to generate PDF report', 'error');
             }
         }
 

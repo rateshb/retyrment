@@ -47,6 +47,10 @@ public class Loan {
     @NotNull(message = "EMI amount is required")
     @Positive(message = "EMI must be positive")
     private Double emi;                 // Monthly EMI
+
+    @Min(value = 1, message = "EMI day must be between 1 and 31")
+    @Max(value = 31, message = "EMI day must be between 1 and 31")
+    private Integer emiDay;             // Day of month for EMI debit
     
     @NotNull(message = "Interest rate is required")
     @Min(value = 0, message = "Interest rate cannot be negative")

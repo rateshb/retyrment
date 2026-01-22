@@ -82,6 +82,7 @@ public class CalendarService {
             entry.put("description", loan.getName() + " EMI");
             entry.put("category", "EMI");
             entry.put("autoLinked", true);
+            entry.put("emiDay", loan.getEmiDay() != null ? loan.getEmiDay() : 1);
             
             Map<String, Double> months = new LinkedHashMap<>();
             int remainingMonths = Math.min(loan.getRemainingMonths(), 12);

@@ -46,15 +46,29 @@ public class ExportController {
     }
 
     @GetMapping("/pdf")
-    public ResponseEntity<byte[]> exportPdfReport() {
+    public ResponseEntity<byte[]> exportPdfReport(@RequestParam(defaultValue = "summary") String type) {
         try {
             String userId = getCurrentUserId();
-            byte[] pdfBytes = exportService.generatePdfReport(userId);
+            byte[] pdfBytes;
+            String filename;
+            
+            if ("retirement".equals(type)) {
+                pdfBytes = exportService.generateRetirementPdfReport(userId);
+                filename = "Retyrment_Retirement_Report.pdf";
+            } else if ("calendar".equals(type)) {
+                pdfBytes = exportService.generateCalendarPdfReport(userId);
+                filename = "Retyrment_Calendar_Report.pdf";
+            } else {
+                pdfBytes = exportService.generateFinancialSummaryPdfReport(userId);
+                filename = "Retyrment_Financial_Summary.pdf";
+            }
+            
             return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=Retyrment_Report.pdf")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
                     .contentType(MediaType.APPLICATION_PDF)
                     .body(pdfBytes);
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.internalServerError().build();
         }
     }

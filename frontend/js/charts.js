@@ -204,7 +204,7 @@ function createCalendarChart(canvasId, calendarData) {
 }
 
 // Create Goal Progress Chart
-function createGoalProgressChart(canvasId, goalData) {
+function createGoalProgressChart(canvasId, goalData, retirementMatrix) {
     destroyChart(canvasId);
     const ctx = document.getElementById(canvasId)?.getContext('2d');
     if (!ctx || !goalData) return;
@@ -212,8 +212,36 @@ function createGoalProgressChart(canvasId, goalData) {
     const goals = goalData.goals || [];
     if (goals.length === 0) return;
 
-    const labels = goals.map(g => g.name || 'Goal');
-    const percentages = goals.map(g => Math.min(g.fundingPercent || 0, 100));
+    // Check retirement matrix for actual goal fundability
+    const matrix = retirementMatrix || [];
+    const goalsWithShortfall = goals.map(g => {
+        const goalYear = g.targetYear;
+        const matrixRow = matrix.find(row => row.year === goalYear);
+        const hasShortfall = matrixRow && matrixRow.netCorpus < 0 && matrixRow.goalOutflow > 0;
+        
+        let actualPercent = Math.min(g.fundingPercent || 0, 100);
+        if (hasShortfall) {
+            const goalAmount = matrixRow.goalOutflow || g.inflatedAmount || g.targetAmount;
+            const shortfall = Math.abs(matrixRow.netCorpus);
+            const fundable = Math.max(0, goalAmount - shortfall);
+            actualPercent = goalAmount > 0 ? Math.min(100, (fundable / goalAmount) * 100) : 0;
+        }
+        
+        return { ...g, actualPercent: Math.round(actualPercent), hasShortfall };
+    });
+
+    // Show warning if any goal has shortfall
+    const warningEl = document.getElementById('goal-shortfall-warning');
+    if (warningEl) {
+        if (goalsWithShortfall.some(g => g.hasShortfall)) {
+            warningEl.classList.remove('hidden');
+        } else {
+            warningEl.classList.add('hidden');
+        }
+    }
+
+    const labels = goalsWithShortfall.map(g => g.name || 'Goal');
+    const percentages = goalsWithShortfall.map(g => g.actualPercent);
 
     charts[canvasId] = new Chart(ctx, {
         type: 'bar',
@@ -222,9 +250,10 @@ function createGoalProgressChart(canvasId, goalData) {
             datasets: [{
                 label: 'Funding %',
                 data: percentages,
-                backgroundColor: percentages.map(p => 
-                    p >= 100 ? chartColors.success : 
-                    p >= 50 ? chartColors.warning : chartColors.danger
+                backgroundColor: goalsWithShortfall.map(g => 
+                    g.hasShortfall ? chartColors.danger :
+                    g.actualPercent >= 100 ? chartColors.success : 
+                    g.actualPercent >= 50 ? chartColors.warning : chartColors.danger
                 ),
                 borderRadius: 6,
                 borderSkipped: false
@@ -235,7 +264,19 @@ function createGoalProgressChart(canvasId, goalData) {
             indexAxis: 'y',
             plugins: {
                 ...defaultOptions.plugins,
-                legend: { display: false }
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const goal = goalsWithShortfall[context.dataIndex];
+                            let label = context.parsed.x + '% funded';
+                            if (goal.hasShortfall) {
+                                label += ' (SHORTFALL!)';
+                            }
+                            return label;
+                        }
+                    }
+                }
             },
             scales: {
                 x: {
@@ -307,8 +348,12 @@ function createRetirementChart(canvasId, matrixData) {
     // Pad SIP values for post-retirement (no SIP after retirement)
     const sipValuesPadded = [...sipValues, ...incomeProjection.slice(1).map(() => 0)];
     
-    // Get corpus values - pre-retirement from matrix, post-retirement from income projection
-    const preRetirementCorpus = matrix.map(r => r.netCorpus);
+    // Get corpus values - pre-retirement from matrix (exclude one-time inflows), post-retirement from income projection
+    const preRetirementCorpus = matrix.map(r => {
+        const netCorpus = r.netCorpus || 0;
+        const inflow = r.totalInflow || 0;
+        return Math.max(0, netCorpus - inflow);
+    });
     const postRetirementCorpus = incomeProjection.slice(1).map(p => p.corpus || 0);
     const combinedCorpus = [...preRetirementCorpus, ...postRetirementCorpus];
     
@@ -323,6 +368,9 @@ function createRetirementChart(canvasId, matrixData) {
     // Get other liquid assets for the chart
     const otherLiquidValues = [...matrix.map(r => r.otherLiquidBalance || 0), ...incomeProjection.slice(1).map(() => null)];
     
+    const maturityInflows = [...matrix.map(r => r.totalInflow || 0), ...incomeProjection.slice(1).map(() => 0)];
+    const maturityMarkers = maturityInflows.map((val, idx) => (val > 0 ? combinedCorpus[idx] : null));
+
     const datasets = [
         {
             label: 'Total Corpus',
@@ -333,6 +381,16 @@ function createRetirementChart(canvasId, matrixData) {
             tension: 0.4,
             borderWidth: 3,
             pointRadius: 0
+        },
+        {
+            label: 'Maturity Events',
+            data: maturityMarkers,
+            borderColor: '#f59e0b',
+            backgroundColor: '#ffffff',
+            showLine: false,
+            pointRadius: 6,
+            pointHoverRadius: 7,
+            pointBorderWidth: 2
         },
         {
             label: 'PPF + EPF',
@@ -434,6 +492,10 @@ function createRetirementChart(canvasId, matrixData) {
                         label: (ctx) => {
                             const value = ctx.raw;
                             if (value === null) return null; // Don't show null values
+                            if (ctx.dataset.label === 'Maturity Events') {
+                                const inflow = maturityInflows[ctx.dataIndex] || 0;
+                                return `Maturity Inflow: ${formatCurrency(inflow)}`;
+                            }
                             if (ctx.dataset.label === 'Goal Outflows' && value > 0) {
                                 // Find goal names for this year
                                 const yearIndex = ctx.dataIndex;

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error - Retyrment</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc', 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' },
+                        danger: { 50: '#fef2f2', 500: '#ef4444', 600: '#dc2626' }
+                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body class="min-h-screen font-sans flex items-center justify-center p-6">
+    <div class="glass-card rounded-2xl shadow-2xl w-full max-w-xl p-8">
+        <div class="text-center space-y-4">
+            <div class="text-5xl">⚠️</div>
+            <h1 id="error-title" class="text-2xl font-semibold text-slate-800">Oops!</h1>
+            <p id="error-message" class="text-slate-600">
+                Something went wrong. Please try again.
+            </p>
+            <div class="flex flex-wrap justify-center gap-3 pt-2">
+                <button id="btn-back" class="px-4 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50">
+                    Go Back
+                </button>
+                <a href="/index.html" class="px-4 py-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700">
+                    Go to Home
+                </a>
+                <a href="/login.html" class="px-4 py-2 rounded-lg text-primary-600 hover:bg-primary-50">
+                    Go to Login
+                </a>
+            </div>
+            <p class="text-xs text-slate-400 pt-2">
+                If this keeps happening, please refresh the page or contact support.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            const params = new URLSearchParams(window.location.search);
+            const title = params.get('title');
+            const message = params.get('message');
+
+            if (title) {
+                document.getElementById('error-title').textContent = title;
+            }
+            if (message) {
+                document.getElementById('error-message').textContent = message;
+            }
+
+            const backButton = document.getElementById('btn-back');
+            backButton.addEventListener('click', () => window.history.back());
+        })();
+    </script>
+</body>
+</html>

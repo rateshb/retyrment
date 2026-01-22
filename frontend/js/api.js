@@ -404,6 +404,12 @@ const api = {
     userData: {
         getSummary: () => api.get('/user/data/summary'),
         deleteAll: (confirmation) => api.delete(`/user/data/all?confirmation=${confirmation}`)
+    },
+    
+    // User Settings
+    settings: {
+        get: () => api.get('/settings'),
+        update: (data) => api.put('/settings', data)
     }
 };
 

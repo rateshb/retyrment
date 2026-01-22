@@ -3,12 +3,14 @@ package com.retyrment.service;
 import com.retyrment.model.*;
 import com.retyrment.repository.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.*;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RetirementService {
@@ -97,6 +99,7 @@ public class RetirementService {
         List<Insurance> investmentPolicies = insuranceRepository.findByUserIdAndTypeIn(userId,
                 Arrays.asList(Insurance.InsuranceType.ULIP, Insurance.InsuranceType.ENDOWMENT, 
                               Insurance.InsuranceType.MONEY_BACK));
+        List<Insurance> allInsurance = insuranceRepository.findByUserId(userId);
         
         // Pre-calculate money-back payout schedules for all money-back policies
         Map<Integer, Double> moneyBackPayoutsByYear = new HashMap<>();
@@ -127,6 +130,10 @@ public class RetirementService {
         
         // Year from which user adjustments take effect (default: 1 = next year)
         int effectiveFromYear = scenario.getEffectiveFromYear() != null ? scenario.getEffectiveFromYear() : 1;
+        
+        // Debug logging for SIP step-up configuration
+        log.info("Retirement Calculation START - sipStepUp from scenario: {}%, effectiveFromYear: {}, mfSipMonthly: {}", 
+                sipStepUp, effectiveFromYear, mfSipMonthly);
         
         // Income strategy and corpus return settings
         String incomeStrategy = scenario.getIncomeStrategy() != null ? scenario.getIncomeStrategy() : "SUSTAINABLE";
@@ -299,20 +306,22 @@ public class RetirementService {
         double finalCorpus = ((Number) lastRow.get("netCorpus")).doubleValue();
         int lifeExpectancy = scenario.getLifeExpectancy() != null ? scenario.getLifeExpectancy() : 85;
         int retirementYears = lifeExpectancy - retirementAge;
+        int retirementYearCalendar = currentYear + yearsToRetirement;
         
         // Use user-specified or default rates for corpus returns
         double actualCorpusReturn = corpusReturnRate / 100;  // Convert from % to decimal
         double actualWithdrawalRate = withdrawalRate / 100;
         
+        double annuityMonthlyIncomeAtRetirement = getAnnuityMonthlyIncomeForYear(allInsurance, retirementYearCalendar);
         // Method 1: Simple depletion (divide corpus by years)
-        double monthlyRetirementIncome = finalCorpus / retirementYears / 12;
+        double monthlyRetirementIncome = finalCorpus / retirementYears / 12 + annuityMonthlyIncomeAtRetirement;
         
         // Method 2: 4% Safe Withdrawal Rule
-        double monthlyIncome4Percent = (finalCorpus * 0.04) / 12;
+        double monthlyIncome4Percent = (finalCorpus * 0.04) / 12 + annuityMonthlyIncomeAtRetirement;
         
         // Method 3: Sustainable income (user-configurable return and withdrawal rates)
         double yearlyIncomeFromCorpus = finalCorpus * actualWithdrawalRate;
-        double monthlyIncomeFromCorpus = yearlyIncomeFromCorpus / 12;
+        double monthlyIncomeFromCorpus = yearlyIncomeFromCorpus / 12 + annuityMonthlyIncomeAtRetirement;
         
         // Determine selected income based on strategy
         double selectedMonthlyIncome;
@@ -344,14 +353,15 @@ public class RetirementService {
             projection.put("year", year);
             projection.put("age", retirementAge + year);
             projection.put("corpus", Math.round(projectedCorpus));
-            
+            double annuityMonthlyIncome = getAnnuityMonthlyIncomeForYear(allInsurance, retirementYearCalendar + year);
             double monthlyIncome;
             switch (incomeStrategy) {
                 case "SIMPLE_DEPLETION":
                     // Simple depletion: divide remaining corpus by remaining years
                     int remainingYears = retirementYears - year;
-                    monthlyIncome = remainingYears > 0 ? projectedCorpus / remainingYears / 12 : 0;
+                    monthlyIncome = (remainingYears > 0 ? projectedCorpus / remainingYears / 12 : 0) + annuityMonthlyIncome;
                     projection.put("monthlyIncome", Math.round(monthlyIncome));
+                    projection.put("annuityMonthlyIncome", Math.round(annuityMonthlyIncome));
                     // Corpus depletes proportionally
                     for (int m = 0; m < 5 && (year + m) < retirementYears; m++) {
                         projectedCorpus = projectedCorpus - (monthlyIncome * 12);
@@ -360,8 +370,9 @@ public class RetirementService {
                 case "SAFE_4_PERCENT":
                     // 4% withdrawal rule - fixed percentage of initial corpus
                     double annual4PercentWithdrawal = finalCorpus * 0.04;
-                    monthlyIncome = annual4PercentWithdrawal / 12;
+                    monthlyIncome = annual4PercentWithdrawal / 12 + annuityMonthlyIncome;
                     projection.put("monthlyIncome", Math.round(monthlyIncome));
+                    projection.put("annuityMonthlyIncome", Math.round(annuityMonthlyIncome));
                     // Assuming 6% growth, 4% withdrawal = 2% net growth
                     for (int m = 0; m < 5 && (year + m) < retirementYears; m++) {
                         projectedCorpus = projectedCorpus * 1.02;  // 2% net growth per year
@@ -370,8 +381,9 @@ public class RetirementService {
                 case "SUSTAINABLE":
                 default:
                     // Sustainable: withdrawal based on configured rate
-                    monthlyIncome = projectedCorpus * actualWithdrawalRate / 12;
+                    monthlyIncome = projectedCorpus * actualWithdrawalRate / 12 + annuityMonthlyIncome;
                     projection.put("monthlyIncome", Math.round(monthlyIncome));
+                    projection.put("annuityMonthlyIncome", Math.round(annuityMonthlyIncome));
                     // Corpus after this year: grows by return rate, minus withdrawal
                     for (int m = 0; m < 5 && (year + m) < retirementYears; m++) {
                         projectedCorpus = projectedCorpus * (1 + actualCorpusReturn) - (projectedCorpus * actualWithdrawalRate);
@@ -408,6 +420,7 @@ public class RetirementService {
         summary.put("monthlyIncome4Percent", Math.round(monthlyIncome4Percent));
         summary.put("monthlyIncomeFromCorpus", Math.round(monthlyIncomeFromCorpus));
         summary.put("yearlyIncomeFromCorpus", Math.round(yearlyIncomeFromCorpus));
+        summary.put("annuityMonthlyIncome", Math.round(annuityMonthlyIncomeAtRetirement));
         summary.put("corpusReturnRate", corpusReturnRate);
         summary.put("withdrawalRate", withdrawalRate);
         summary.put("incomeStrategy", incomeStrategy);
@@ -587,14 +600,28 @@ public class RetirementService {
         
         Map<String, Object> result = new LinkedHashMap<>();
         
+        // Debug logging
+        log.info("SIP Step-up Calculation INPUT - mfSipMonthly: {}, sipStepUp: {}%, yearsToRetirement: {}, effectiveFromYear: {}, requiredCorpus: {}, currentProjectedCorpus: {}", 
+                mfSipMonthly, sipStepUp, yearsToRetirement, effectiveFromYear, Math.round(requiredCorpus), Math.round(currentProjectedCorpus));
+        
         // If no step-up configured or already at target, no optimization needed
         if (sipStepUp <= 0 || yearsToRetirement <= 0 || mfSipMonthly <= 0) {
+            log.warn("SIP Step-up EARLY EXIT - sipStepUp: {}, yearsToRetirement: {}, mfSipMonthly: {}", 
+                    sipStepUp, yearsToRetirement, mfSipMonthly);
             result.put("optimalStopYear", null);
             result.put("canStopEarly", false);
             result.put("reason", "No SIP step-up configured or no SIP investments");
             result.put("currentProjectedCorpus", Math.round(currentProjectedCorpus));
             result.put("requiredCorpus", Math.round(requiredCorpus));
+            result.put("sipAtStart", Math.round(mfSipMonthly));
+            result.put("sipAtFullStepUp", Math.round(mfSipMonthly));
             return result;
+        }
+        
+        // Calculate sipAtFullStepUp for comparison
+        double sipAtFullStepUp = mfSipMonthly;
+        for (int y = effectiveFromYear; y < yearsToRetirement; y++) {
+            sipAtFullStepUp = sipAtFullStepUp * (1 + sipStepUp / 100);
         }
         
         // If already under required corpus even with full step-up, can't stop early
@@ -605,6 +632,8 @@ public class RetirementService {
             result.put("currentProjectedCorpus", Math.round(currentProjectedCorpus));
             result.put("requiredCorpus", Math.round(requiredCorpus));
             result.put("deficit", Math.round(requiredCorpus - currentProjectedCorpus));
+            result.put("sipAtStart", Math.round(mfSipMonthly));
+            result.put("sipAtFullStepUp", Math.round(sipAtFullStepUp));
             return result;
         }
         
@@ -652,18 +681,17 @@ public class RetirementService {
             }
         }
         
-        // Calculate savings from stopping early
-        double sipAtFullStepUp = mfSipMonthly;
-        for (int y = effectiveFromYear; y < yearsToRetirement; y++) {
-            sipAtFullStepUp = sipAtFullStepUp * (1 + sipStepUp / 100);
-        }
-        
+        // Calculate sipAtOptimalStop
         double sipAtOptimalStop = mfSipMonthly;
         for (int y = effectiveFromYear; y < optimalStopYear; y++) {
             sipAtOptimalStop = sipAtOptimalStop * (1 + sipStepUp / 100);
         }
         
         double monthlyRelief = sipAtFullStepUp - sipAtOptimalStop;
+        
+        // Debug logging - final values
+        log.info("SIP Step-up Results - sipAtStart: {}, sipAtFullStepUp: {}, sipAtOptimalStop: {}, optimalStopYear: {}", 
+                Math.round(mfSipMonthly), Math.round(sipAtFullStepUp), Math.round(sipAtOptimalStop), firstMeetingYear);
         
         result.put("optimalStopYear", firstMeetingYear);
         result.put("canStopEarly", firstMeetingYear != null && firstMeetingYear < yearsToRetirement);
@@ -1016,7 +1044,9 @@ public class RetirementService {
         gap.put("netMonthlySavings", Math.round(netMonthlySavings));
         gap.put("availableMonthlySavings", Math.round(availableMonthlySavings));
         gap.put("inflatedMonthlyExpenses", Math.round(inflatedMonthlyExpense));
+        gap.put("monthlyExpensesAtRetirement", Math.round(inflatedMonthlyExpense)); // Frontend compatibility
         gap.put("yearlyExpenseAtRetirement", Math.round(yearlyExpenseAtRetirement));
+        gap.put("annualExpensesAtRetirement", Math.round(yearlyExpenseAtRetirement)); // Frontend compatibility
         gap.put("requiredCorpus", Math.round(requiredCorpus));
         gap.put("requiredCorpusForExpenses", Math.round(requiredCorpusForExpenses));
         gap.put("projectedCorpus", Math.round(projectedCorpus));
@@ -1108,6 +1138,7 @@ public class RetirementService {
         Map<String, Object> result = new LinkedHashMap<>();
         List<Map<String, Object>> maturingInvestments = new ArrayList<>();
         List<Map<String, Object>> maturingInsurance = new ArrayList<>();
+        List<Map<String, Object>> moneyBackPayouts = new ArrayList<>();
         
         LocalDate today = LocalDate.now();
         int yearsToRetirement = retirementAge - currentAge;
@@ -1161,8 +1192,9 @@ public class RetirementService {
                 item.put("maturityDate", ins.getMaturityDate());
                 item.put("yearsToMaturity", java.time.temporal.ChronoUnit.YEARS.between(today, ins.getMaturityDate()));
                 
-                // Expected maturity value (sum assured + bonuses for traditional, fund value for ULIP)
-                double maturityValue = ins.getSumAssured() != null ? ins.getSumAssured() : 0;
+                // Expected maturity value (prefer explicit maturity benefit, otherwise sum assured; ULIP uses fund value)
+                double maturityValue = ins.getMaturityBenefit() != null ? ins.getMaturityBenefit() :
+                        (ins.getSumAssured() != null ? ins.getSumAssured() : 0);
                 if (type == Insurance.InsuranceType.ULIP && ins.getFundValue() != null) {
                     // For ULIP, project fund value growth
                     long yearsToMaturity = java.time.temporal.ChronoUnit.YEARS.between(today, ins.getMaturityDate());
@@ -1176,6 +1208,26 @@ public class RetirementService {
                 totalMaturingAmount += maturityValue;
             }
         }
+
+        // Money-back payout schedule (intermediate payouts before retirement)
+        for (Insurance ins : insurances) {
+            if (ins.getType() != Insurance.InsuranceType.MONEY_BACK) continue;
+            List<Insurance.PayoutSchedule> schedules = ins.getPayoutSchedule();
+            for (Insurance.PayoutSchedule payout : schedules) {
+                LocalDate payoutDate = LocalDate.of(payout.getCalendarYear(), 1, 1);
+                if (payoutDate.isAfter(today) && payoutDate.isBefore(retirementDate)) {
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("policyName", ins.getPolicyName());
+                    item.put("policyYear", payout.getPolicyYear());
+                    item.put("calendarYear", payout.getCalendarYear());
+                    item.put("amount", Math.round(payout.getAmount()));
+                    item.put("percentage", payout.getPercentage());
+                    item.put("description", payout.getDescription());
+                    moneyBackPayouts.add(item);
+                    totalMaturingAmount += payout.getAmount();
+                }
+            }
+        }
         
         // Sort by maturity date
         maturingInvestments.sort((a, b) -> ((LocalDate) a.get("maturityDate")).compareTo((LocalDate) b.get("maturityDate")));
@@ -1183,9 +1235,11 @@ public class RetirementService {
         
         result.put("maturingInvestments", maturingInvestments);
         result.put("maturingInsurance", maturingInsurance);
+        result.put("moneyBackPayouts", moneyBackPayouts);
         result.put("totalMaturingBeforeRetirement", Math.round(totalMaturingAmount));
         result.put("investmentCount", maturingInvestments.size());
         result.put("insuranceCount", maturingInsurance.size());
+        result.put("moneyBackCount", moneyBackPayouts.size());
         result.put("retirementDate", retirementDate);
         
         return result;
@@ -1199,6 +1253,25 @@ public class RetirementService {
         double monthlyRate = annualRate / 100 / 12;
         int months = years * 12;
         return monthlySIP * ((Math.pow(1 + monthlyRate, months) - 1) / monthlyRate) * (1 + monthlyRate);
+    }
+
+    private double getAnnuityMonthlyIncomeForYear(List<Insurance> policies, int calendarYear) {
+        if (policies == null || policies.isEmpty()) return 0;
+        double total = 0;
+        for (Insurance policy : policies) {
+            boolean isAnnuity = policy.getType() == Insurance.InsuranceType.ANNUITY || Boolean.TRUE.equals(policy.getIsAnnuityPolicy());
+            if (!isAnnuity || policy.getMonthlyAnnuityAmount() == null || policy.getMonthlyAnnuityAmount() <= 0) {
+                continue;
+            }
+            if (policy.getStartDate() == null) continue;
+            int startYear = policy.getStartDate().getYear() + (policy.getAnnuityStartYear() != null ? policy.getAnnuityStartYear() : 0);
+            if (calendarYear < startYear) continue;
+            double growthRate = policy.getAnnuityGrowthRate() != null ? policy.getAnnuityGrowthRate() : 0;
+            int yearsElapsed = Math.max(0, calendarYear - startYear);
+            double amount = policy.getMonthlyAnnuityAmount() * Math.pow(1 + (growthRate / 100), yearsElapsed);
+            total += amount;
+        }
+        return total;
     }
     
     /**
