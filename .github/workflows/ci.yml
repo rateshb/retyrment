@@ -88,6 +88,9 @@ jobs:
         with:
           name: frontend-coverage
           path: frontend-react/coverage/
+      - name: Build backend classes for Sonar
+        working-directory: backend
+        run: mvn -B -DskipTests compile
       - name: Set SonarCloud project key
         id: sonar
         run: |
