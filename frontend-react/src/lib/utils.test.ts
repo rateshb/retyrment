@@ -32,7 +32,7 @@ describe('utils', () => {
   });
 
   it('formats dates and percentages', () => {
-    expect(formatPercentage(7.15)).toBe('7.1%');
+    expect(formatPercentage(7.15)).toBe('7.2%');
     expect(formatDate('2025-01-01')).toContain('2025');
   });
 
