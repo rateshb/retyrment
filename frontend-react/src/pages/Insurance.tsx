@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MainLayout } from '../components/Layout';
 import { Card, Button, Modal, Input, Select, toast } from '../components/ui';
-import { api, Insurance as InsuranceType } from '../lib/api';
+import { insuranceApi, Insurance as InsuranceType } from '../lib/api';
 import { amountInWordsHelper, formatCurrency, formatDate } from '../lib/utils';
 import { Plus, Pencil, Trash2, Shield, Heart, Umbrella } from 'lucide-react';
+import { useAuthStore } from '../stores/authStore';
 
 const INSURANCE_TYPES = [
   { value: 'TERM_LIFE', label: 'Term Life Insurance' },
@@ -31,14 +32,20 @@ export function Insurance() {
   const [editingItem, setEditingItem] = useState<InsuranceType | null>(null);
   const [formData, setFormData] = useState<Partial<InsuranceType>>({});
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const { features } = useAuthStore();
+  
+  // Filter insurance types based on blocked types from backend
+  const filteredInsuranceTypes = features?.blockedInsuranceTypes 
+    ? INSURANCE_TYPES.filter(type => !features.blockedInsuranceTypes.includes(type.value))
+    : INSURANCE_TYPES;
 
   const { data: insurances = [], isLoading } = useQuery({
     queryKey: ['insurance'],
-    queryFn: api.insurance.getAll,
+    queryFn: insuranceApi.getAll,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: InsuranceType) => api.insurance.create(data),
+    mutationFn: (data: InsuranceType) => insuranceApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['insurance'] });
       queryClient.invalidateQueries({ queryKey: ['insurance-recommendations'] });
@@ -50,7 +57,7 @@ export function Insurance() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: InsuranceType }) => api.insurance.update(id, data),
+    mutationFn: ({ id, data }: { id: string; data: InsuranceType }) => insuranceApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['insurance'] });
       queryClient.invalidateQueries({ queryKey: ['insurance-recommendations'] });
@@ -62,7 +69,7 @@ export function Insurance() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.insurance.delete(id),
+    mutationFn: (id: string) => insuranceApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['insurance'] });
       queryClient.invalidateQueries({ queryKey: ['insurance-recommendations'] });
@@ -354,7 +361,7 @@ export function Insurance() {
                 });
                 if (formErrors.type) setFormErrors(prev => ({ ...prev, type: '' }));
               }}
-              options={INSURANCE_TYPES}
+              options={filteredInsuranceTypes}
               error={formErrors.type}
               required
             />

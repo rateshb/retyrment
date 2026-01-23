@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MainLayout } from '../components/Layout';
 import { Card, Button, Modal, Input, Select, toast } from '../components/ui';
-import { api, Investment } from '../lib/api';
+import { investmentsApi, Investment } from '../lib/api';
 import { amountInWordsHelper, formatCurrency } from '../lib/utils';
 import { Plus, Pencil, Trash2, Shield } from 'lucide-react';
+import { useAuthStore } from '../stores/authStore';
 
 const INVESTMENT_TYPES = [
   { value: 'MUTUAL_FUND', label: 'Mutual Fund', icon: '📈' },
@@ -116,17 +117,23 @@ export function Investments() {
   const [editingItem, setEditingItem] = useState<Investment | null>(null);
   const [formData, setFormData] = useState<Partial<Investment>>({});
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const { features } = useAuthStore();
+  
+  // Filter investment types based on allowed types from backend
+  const filteredInvestmentTypes = features?.allowedInvestmentTypes 
+    ? INVESTMENT_TYPES.filter(type => features.allowedInvestmentTypes.includes(type.value))
+    : INVESTMENT_TYPES;
 
   const selectedType = formData.type || 'MUTUAL_FUND';
   const typeConfig = TYPE_FIELDS[selectedType] || TYPE_FIELDS.OTHER;
 
   const { data: investments = [], isLoading } = useQuery({
     queryKey: ['investments'],
-    queryFn: api.investments.getAll,
+    queryFn: investmentsApi.getAll,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: Investment) => api.investments.create(data),
+    mutationFn: (data: Investment) => investmentsApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['investments'] });
       toast.success('Investment added successfully');
@@ -139,7 +146,7 @@ export function Investments() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Investment }) => 
-      api.investments.update(id, data),
+      investmentsApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['investments'] });
       toast.success('Investment updated successfully');
@@ -151,7 +158,7 @@ export function Investments() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.investments.delete(id),
+    mutationFn: (id: string) => investmentsApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['investments'] });
       toast.success('Investment deleted successfully');
@@ -432,7 +439,7 @@ export function Investments() {
               setFormData({ ...formData, type: e.target.value });
               if (formErrors.type) setFormErrors(prev => ({ ...prev, type: '' }));
             }}
-            options={INVESTMENT_TYPES.map(t => ({ value: t.value, label: `${t.icon} ${t.label}` }))}
+            options={filteredInvestmentTypes.map(t => ({ value: t.value, label: `${t.icon} ${t.label}` }))}
             error={formErrors.type}
             required
           />

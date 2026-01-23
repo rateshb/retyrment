@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { api, auth } from './api';
+import { authApi, analysisApi, auth } from './api';
 
 const mockFetch = vi.fn();
 const mockStorage = {
@@ -26,6 +26,7 @@ describe('api', () => {
   });
 
   afterEach(() => {
+    // @ts-expect-error restore original location
     window.location = originalLocation;
   });
 
@@ -55,7 +56,7 @@ describe('api', () => {
       text: async () => '',
     });
 
-    await expect(api.auth.me()).rejects.toThrow('Session expired');
+    await expect(authApi.me()).rejects.toThrow('Session expired');
     expect(mockStorage.removeItem).toHaveBeenCalledWith('retyrment_token');
   });
 
@@ -66,7 +67,7 @@ describe('api', () => {
       text: async () => JSON.stringify({ ok: true }),
     });
 
-    const result = await api.analysis.networth();
+    const result = await analysisApi.networth();
     expect(result).toEqual({ ok: true });
   });
 
@@ -77,7 +78,7 @@ describe('api', () => {
       text: async () => '',
     });
 
-    const result = await api.analysis.goals();
+    const result = await analysisApi.goals();
     expect(result).toEqual({});
   });
 });

@@ -1328,14 +1328,14 @@ export function Retirement() {
                             tickFormatter={(v) => v >= 10000000 ? `${(v/10000000).toFixed(1)}Cr` : `${(v/100000).toFixed(0)}L`}
                           />
                           <Tooltip 
-                            formatter={(value: number, name: string, props: any) => {
+                            formatter={(value: number | undefined, name: string | undefined, props: any) => {
                               if (name === 'Maturity Events') {
                                 const inflow = props?.payload?.totalInflow || 0;
                                 if (inflow > 0) return [formatCurrency(inflow, true), 'Maturity Inflow'];
                                 return null;
                               }
                               if (value === null || value === undefined) return null;
-                              return [formatCurrency(value), name];
+                              return [formatCurrency(value), name || ''];
                             }}
                             labelFormatter={(label) => {
                               const dataPoint = corpusChartData.find((d: any) => d.year === label);
@@ -1597,8 +1597,7 @@ export function Retirement() {
                       <tbody className="divide-y divide-slate-100">
                         {incomeProjection.slice(0, 25).map((proj: any, i: number) => {
                           const rowMonthlyIncome = proj.monthlyIncome
-                            ?? ((proj.withdrawal || 0) / 12)
-                            ?? 0;
+                            ?? ((proj.withdrawal || 0) / 12);
                           const corpusWithdrawal = rowMonthlyIncome > 0
                             ? rowMonthlyIncome
                             : (params.incomeStrategy === 'SIMPLE_DEPLETION'
@@ -2465,7 +2464,7 @@ export function Retirement() {
                                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                                 <XAxis dataKey="year" />
                                 <YAxis tickFormatter={(v) => `${(v / 100000).toFixed(0)}L`} />
-                                <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                                <Tooltip formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''} />
                                 <Legend />
                                 <Line type="monotone" dataKey="baselineCorpus" name="Baseline Corpus" stroke="#94a3b8" strokeWidth={2} />
                                 <Line type="monotone" dataKey="strategyCorpus" name="With Strategy" stroke="#10b981" strokeWidth={2} />
@@ -2546,7 +2545,7 @@ export function Retirement() {
                                 fontSize={11}
                                 tickFormatter={(v) => `${(v/100000).toFixed(0)}L`}
                               />
-                              <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                              <Tooltip formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''} />
                               <Legend />
                               <Bar dataKey="withdrawal" name="Annual Withdrawal" fill="#6366f1" radius={[4, 4, 0, 0]} />
                               <Bar dataKey="corpus" name="Remaining Corpus" fill="#10b981" radius={[4, 4, 0, 0]} />

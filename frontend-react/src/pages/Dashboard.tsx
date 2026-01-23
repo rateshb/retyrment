@@ -692,7 +692,8 @@ export function Dashboard() {
                     <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
                     <YAxis type="category" dataKey="name" width={100} />
                     <Tooltip 
-                      formatter={(value: number, name: string, props: any) => {
+                      formatter={(value: number | undefined, name: string | undefined, props: any) => {
+                        if (value === undefined) return ['', name || ''];
                         const entry = props.payload;
                         if (entry.hasShortfall) {
                           return [`${value}% (Shortfall: ${formatCurrency(entry.shortfallAmount)})`, 'Funded'];

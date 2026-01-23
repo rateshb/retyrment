@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { Button } from '../components/ui';
+import { config } from '../config/env';
 
 export function Login() {
   const navigate = useNavigate();
@@ -28,7 +29,7 @@ export function Login() {
   const handleGoogleLogin = () => {
     // Redirect to backend OAuth2 endpoint
     const redirect = encodeURIComponent(window.location.origin);
-    window.location.href = `http://localhost:8080/api/oauth2/authorization/google?redirect=${redirect}`;
+    window.location.href = `${config.oauthBaseUrl}/api/oauth2/authorization/google?redirect=${redirect}`;
   };
 
   return (

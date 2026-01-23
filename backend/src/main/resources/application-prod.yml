@@ -4,7 +4,7 @@
 spring:
   data:
     mongodb:
-      uri: ${MONGO_URI:mongodb://localhost:27017}
+      uri: ${MONGO_URI:mongodb://172.31.9.182:27017}
       database: ${MONGO_DATABASE:retyrment_prod}
       auto-index-creation: false  # Indexes should be created via migration scripts
   
@@ -14,18 +14,31 @@ spring:
       client:
         registration:
           google:
-            client-id: ${GOOGLE_CLIENT_ID}
-            client-secret: ${GOOGLE_CLIENT_SECRET}
-            redirect-uri: ${APP_URL}/api/login/oauth2/code/google
+            client-id: 176349050677-3tl9bknedujcl9qqq3vfr7phdmkvo9pr.apps.googleusercontent.com
+            client-secret: Oa7ulLInCJLhzTbv7jP-oG21
             scope:
               - email
               - profile
 
 # Server configuration
 server:
-  port: ${PORT:8080}
+  tomcat:
+# This regex allows all IP addresses to be trusted as proxies.
+# Replace with your specific Nginx IP if you want to be more secure.
+    remote-ip-header: x-forwarded-for
+    protocol-header: x-forwarded-proto
+    internal-proxies: ".*"
+  port: 8081
   servlet:
     context-path: /api
+    session:
+      cookie:
+        # Give this a unique name so it doesn't conflict with your port 3000 app
+        name: RETYRMENT_SESSION 
+        path: /
+        http-only: true
+        secure: true # Essential for HTTPS
+  forward-headers-strategy: native
   
   # Enable compression for better performance
   compression:
@@ -52,7 +65,7 @@ app:
   
   # JWT Settings - MUST be set via environment variable in production
   jwt:
-    secret: ${JWT_SECRET}
+    secret: a0a2abd8-6162-41c3-83d6-1cf559b46afc
     expiration: 86400000  # 24 hours
   
   # Frontend URL
@@ -60,11 +73,11 @@ app:
   
   # Admin emails
   admin:
-    emails: ${ADMIN_EMAILS:admin@retyrment.com}
+    emails: ${ADMIN_EMAILS:bansalitadvisory@gmail.com}
   
   # CORS - Only allow specific origins
   cors:
-    allowed-origins: ${CORS_ORIGINS:https://retyrment.com}
+    allowed-origins: ${CORS_ORIGINS:https://retyrment.com,https://www.retyrment.com}
     allowed-methods: GET,POST,PUT,DELETE,OPTIONS
     allowed-headers: "*"
 
@@ -72,9 +85,9 @@ app:
 logging:
   level:
     root: WARN
-    com.retyrment: INFO
-    org.springframework.security: WARN
-    org.springframework.web: WARN
+    com.retyrment: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.web: DEBUG
     org.mongodb: WARN
   
   # Log to file in production
@@ -98,6 +111,7 @@ management:
   info:
     env:
       enabled: true
+
 
 # Info endpoint data
 info:

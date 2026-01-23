@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockApi = {
-  auth: {
+  authApi: {
     me: vi.fn(),
     features: vi.fn(),
   },
@@ -15,7 +15,7 @@ const mockAuth = {
 };
 
 vi.mock('../lib/api', () => ({
-  api: mockApi,
+  authApi: mockApi.authApi,
   auth: mockAuth,
 }));
 
@@ -23,8 +23,8 @@ let useAuthStore: typeof import('./authStore').useAuthStore;
 
 beforeEach(async () => {
   vi.resetModules();
-  mockApi.auth.me.mockReset();
-  mockApi.auth.features.mockReset();
+  mockApi.authApi.me.mockReset();
+  mockApi.authApi.features.mockReset();
   mockAuth.isLoggedIn.mockReset();
   mockAuth.setToken.mockReset();
   mockAuth.setUser.mockReset();
@@ -51,23 +51,23 @@ describe('authStore', () => {
 
   it('login fetches user and features', async () => {
     mockAuth.isLoggedIn.mockReturnValue(false);
-    mockApi.auth.me.mockResolvedValue({ id: 'u1', email: 'u1@test.com', role: 'FREE' });
-    mockApi.auth.features.mockResolvedValue({ features: { incomePage: true } });
+    mockApi.authApi.me.mockResolvedValue({ id: 'u1', email: 'u1@test.com', role: 'FREE' });
+    mockApi.authApi.features.mockResolvedValue({ features: { incomePage: true } });
 
     ({ useAuthStore } = await import('./authStore'));
 
     await useAuthStore.getState().login('token-123');
 
     expect(mockAuth.setToken).toHaveBeenCalledWith('token-123');
-    expect(mockApi.auth.me).toHaveBeenCalled();
-    expect(mockApi.auth.features).toHaveBeenCalled();
+    expect(mockApi.authApi.me).toHaveBeenCalled();
+    expect(mockApi.authApi.features).toHaveBeenCalled();
     expect(useAuthStore.getState().user?.email).toBe('u1@test.com');
     expect(useAuthStore.getState().features?.incomePage).toBe(true);
   });
 
   it('refreshFeaturesIfNeeded calls fetch when cache is stale', async () => {
     mockAuth.isLoggedIn.mockReturnValue(true);
-    mockApi.auth.features.mockResolvedValue({ features: { reportsPage: true } });
+    mockApi.authApi.features.mockResolvedValue({ features: { reportsPage: true } });
 
     ({ useAuthStore } = await import('./authStore'));
 
@@ -78,7 +78,7 @@ describe('authStore', () => {
 
     await useAuthStore.getState().refreshFeaturesIfNeeded();
 
-    expect(mockApi.auth.features).toHaveBeenCalled();
+    expect(mockApi.authApi.features).toHaveBeenCalled();
   });
 
   it('logout clears auth state', async () => {

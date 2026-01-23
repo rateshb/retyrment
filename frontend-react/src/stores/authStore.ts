@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { User, FeatureAccess, api, auth } from '../lib/api';
+import { User, FeatureAccess, authApi, auth } from '../lib/api';
 
 interface AuthState {
   user: User | null;
@@ -54,7 +54,7 @@ export const useAuthStore = create<AuthState>()(
 
       fetchUser: async () => {
         try {
-          const user = await api.auth.me();
+          const user = await authApi.me();
           auth.setUser(user);
           set({ user, isAuthenticated: true });
         } catch (error) {
@@ -65,7 +65,7 @@ export const useAuthStore = create<AuthState>()(
 
       fetchFeatures: async () => {
         try {
-          const response = await api.auth.features();
+          const response = await authApi.features();
           set({ features: response.features, lastFeaturesRefresh: Date.now() });
           // Also store in localStorage for backward compatibility
           localStorage.setItem('retyrment_features', JSON.stringify(response.features));
