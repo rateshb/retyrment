@@ -29,7 +29,6 @@ export default defineConfig({
       exclude: [
         'src/main.tsx',
         'src/App.tsx',
-        'src/pages/**',
         'src/assets/**',
       ],
     },

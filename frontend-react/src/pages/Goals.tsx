@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MainLayout } from '../components/Layout';
 import { Card, Button, Modal, Input, Select, toast } from '../components/ui';
-import { api, Goal } from '../lib/api';
+import { goalsApi, Goal } from '../lib/api';
 import { amountInWordsHelper, formatCurrency } from '../lib/utils';
 import { Plus, Pencil, Trash2, Target, TrendingUp, AlertTriangle, CheckCircle } from 'lucide-react';
 
@@ -21,11 +21,11 @@ export function Goals() {
 
   const { data: goals = [], isLoading } = useQuery({
     queryKey: ['goals'],
-    queryFn: api.goals.getAll,
+    queryFn: goalsApi.getAll,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: Goal) => api.goals.create(data),
+    mutationFn: (data: Goal) => goalsApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
       toast.success('Goal added successfully');
@@ -35,7 +35,7 @@ export function Goals() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Goal }) => api.goals.update(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Goal }) => goalsApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
       toast.success('Goal updated successfully');
@@ -45,7 +45,7 @@ export function Goals() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.goals.delete(id),
+    mutationFn: (id: string) => goalsApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
       toast.success('Goal deleted successfully');

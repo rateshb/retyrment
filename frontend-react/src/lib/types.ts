@@ -70,6 +70,15 @@ export interface Investment {
   // Emergency fund tagging (for FD/RD)
   isEmergencyFund?: boolean;
   tenureMonths?: number;
+  // Real Estate specific fields
+  realEstateType?: 'SELF_OCCUPIED' | 'RENTAL' | 'INVESTMENT' | 'INHERITED';
+  monthlyRentalIncome?: number;
+  rentalYield?: number;
+  isPrimaryResidence?: boolean;
+  expectedAppreciation?: number;
+  maintenanceCost?: number;
+  propertyTax?: number;
+  vacancyRate?: number;
 }
 
 export interface Loan {

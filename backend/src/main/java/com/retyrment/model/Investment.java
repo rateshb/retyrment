@@ -89,6 +89,32 @@ public class Investment {
     @Max(value = 600, message = "Tenure cannot exceed 50 years (600 months)")
     private Integer tenureMonths;       // For RD, FD
 
+    // Real Estate specific fields
+    private String realEstateType;       // SELF_OCCUPIED, RENTAL, INVESTMENT, INHERITED
+    
+    @PositiveOrZero(message = "Monthly rental income cannot be negative")
+    private Double monthlyRentalIncome;  // Monthly rental income for rental properties
+    
+    @Min(value = 0, message = "Rental yield cannot be negative")
+    @Max(value = 100, message = "Rental yield cannot exceed 100%")
+    private Double rentalYield;          // Annual rental yield percentage
+    
+    @Min(value = -50, message = "Expected appreciation cannot be less than -50%")
+    @Max(value = 100, message = "Expected appreciation cannot exceed 100%")
+    private Double expectedAppreciation; // Expected annual appreciation rate for real estate
+    
+    @Min(value = 0, message = "Vacancy rate cannot be negative")
+    @Max(value = 100, message = "Vacancy rate cannot exceed 100%")
+    private Double vacancyRate;          // Expected vacancy rate for rental properties
+    
+    @PositiveOrZero(message = "Maintenance cost cannot be negative")
+    private Double maintenanceCost;      // Annual maintenance cost
+    
+    @PositiveOrZero(message = "Property tax cannot be negative")
+    private Double propertyTax;          // Annual property tax
+    
+    private Boolean isPrimaryResidence;  // For self-occupied properties
+
     @CreatedDate
     private LocalDateTime createdAt;
 

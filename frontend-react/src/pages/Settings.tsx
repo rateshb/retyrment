@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MainLayout } from '../components/Layout';
 import { Card, CardContent, Button, Input, toast } from '../components/ui';
 import { Settings as SettingsIcon, Save, RotateCcw } from 'lucide-react';
-import { api } from '../lib/api';
+import { settingsApi } from '../lib/api';
 
 interface AppSettings {
   currentAge: number;
@@ -40,7 +40,7 @@ export function Settings() {
   // Load settings from backend
   const { data: serverSettings, isLoading } = useQuery({
     queryKey: ['user-settings'],
-    queryFn: api.settings.get,
+    queryFn: settingsApi.get,
   });
 
   useEffect(() => {
@@ -51,7 +51,7 @@ export function Settings() {
 
   // Save mutation
   const saveMutation = useMutation({
-    mutationFn: (data: AppSettings) => api.settings.update(data),
+    mutationFn: (data: AppSettings) => settingsApi.update(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user-settings'] });
       toast.success('Settings saved successfully');

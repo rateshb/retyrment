@@ -149,7 +149,7 @@ export function Landing() {
               <h4 className="font-semibold text-white mb-4">Company</h4>
               <ul className="space-y-2">
                 <li><Link to="/about" className="hover:text-white transition-colors">About Us</Link></li>
-                <li><Link to="/contact" className="hover:text-white transition-colors">Contact</Link></li>
+                {/*<li><Link to="/contact" className="hover:text-white transition-colors">Contact</Link></li>*/}
               </ul>
             </div>
             <div>
@@ -162,7 +162,7 @@ export function Landing() {
             </div>
             <div>
               <h4 className="font-semibold text-white mb-4">Contact</h4>
-              <p className="text-sm">support@retyrment.com</p>
+              <p className="text-sm">bansalitadvisory@gmail.com</p>
             </div>
           </div>
           <div className="border-t border-slate-800 pt-8 text-center">

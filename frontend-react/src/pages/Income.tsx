@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MainLayout } from '../components/Layout';
 import { Card, Button, Modal, Input, toast } from '../components/ui';
-import { api, Income as IncomeType } from '../lib/api';
+import { incomeApi, Income as IncomeType } from '../lib/api';
 import { amountInWordsHelper, formatCurrency } from '../lib/utils';
 import { Plus, Pencil, Trash2, Wallet, TrendingUp, Calendar } from 'lucide-react';
 
@@ -15,11 +15,11 @@ export function Income() {
 
   const { data: incomes = [], isLoading } = useQuery({
     queryKey: ['income'],
-    queryFn: api.income.getAll,
+    queryFn: incomeApi.getAll,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: IncomeType) => api.income.create(data),
+    mutationFn: (data: IncomeType) => incomeApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['income'] });
       toast.success('Income added successfully');
@@ -29,7 +29,7 @@ export function Income() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: IncomeType }) => api.income.update(id, data),
+    mutationFn: ({ id, data }: { id: string; data: IncomeType }) => incomeApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['income'] });
       toast.success('Income updated successfully');
@@ -39,7 +39,7 @@ export function Income() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.income.delete(id),
+    mutationFn: (id: string) => incomeApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['income'] });
       toast.success('Income deleted successfully');

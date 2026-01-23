@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { MainLayout } from '../components/Layout';
 import { Card, CardContent, Button, toast } from '../components/ui';
-import { api } from '../lib/api';
+import { exportApi, analysisApi, retirementApi } from '../lib/api';
 import { useAuthStore } from '../stores/authStore';
 import { formatCurrency } from '../lib/utils';
 import { 
@@ -17,12 +17,12 @@ export function Reports() {
 
   const { data: networth } = useQuery({
     queryKey: ['networth'],
-    queryFn: api.analysis.networth,
+    queryFn: analysisApi.networth,
   });
 
   const { data: retirementData } = useQuery({
     queryKey: ['retirement-reports'],
-    queryFn: () => api.retirement.calculate({ currentAge: 35, retirementAge: 60, lifeExpectancy: 85 }),
+    queryFn: () => retirementApi.calculate({ currentAge: 35, retirementAge: 60, lifeExpectancy: 85 }),
   });
 
   const canExportPdf = features?.canExportPdf === true;
@@ -39,7 +39,7 @@ export function Reports() {
     
     setIsExporting(true);
     try {
-      const url = `${api.export.getPdfUrl()}&type=${type}`;
+      const url = `${exportApi.getPdfUrl()}&type=${type}`;
       const response = await fetch(url);
       
       if (!response.ok) throw new Error('Export failed');
@@ -70,7 +70,7 @@ export function Reports() {
 
     setIsExporting(true);
     try {
-      const url = api.export.getExcelUrl();
+      const url = exportApi.getExcelUrl();
       const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('retyrment_token')}`,
@@ -105,7 +105,7 @@ export function Reports() {
 
     setIsExporting(true);
     try {
-      const data = await api.export.json();
+      const data = await exportApi.json();
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -138,7 +138,7 @@ export function Reports() {
     try {
       const text = await file.text();
       const data = JSON.parse(text);
-      await api.export.importJson(data);
+      await exportApi.importJson(data);
       toast.success('Data imported successfully! Refreshing...');
       window.location.reload();
     } catch (error) {

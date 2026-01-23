@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MainLayout } from '../components/Layout';
 import { Card, Button, Modal, Input, Select, toast } from '../components/ui';
-import { api, FamilyMember } from '../lib/api';
+import { familyApi, FamilyMember } from '../lib/api';
 import { formatCurrency } from '../lib/utils';
 import { Plus, Pencil, Trash2, Users, Heart, Calendar } from 'lucide-react';
 
@@ -29,11 +29,11 @@ export function Family() {
 
   const { data: members = [], isLoading } = useQuery({
     queryKey: ['family'],
-    queryFn: api.family.getAll,
+    queryFn: familyApi.getAll,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: FamilyMember) => api.family.create(data),
+    mutationFn: (data: FamilyMember) => familyApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['family'] });
       toast.success('Family member added successfully');
@@ -43,7 +43,7 @@ export function Family() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: FamilyMember }) => api.family.update(id, data),
+    mutationFn: ({ id, data }: { id: string; data: FamilyMember }) => familyApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['family'] });
       toast.success('Family member updated successfully');
@@ -53,7 +53,7 @@ export function Family() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.family.delete(id),
+    mutationFn: (id: string) => familyApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['family'] });
       toast.success('Family member removed successfully');

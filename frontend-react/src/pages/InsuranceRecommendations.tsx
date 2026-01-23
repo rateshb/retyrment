@@ -1,18 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
 import { MainLayout } from '../components/Layout';
 import { Card, CardContent } from '../components/ui';
-import { api } from '../lib/api';
+import { insuranceRecommendationsApi, insuranceApi } from '../lib/api';
 import { formatCurrency } from '../lib/utils';
 import { Shield, Heart, Umbrella, CheckCircle, AlertTriangle, Users } from 'lucide-react';
 
 export function InsuranceRecommendations() {
   const { data: recommendations, isLoading, error } = useQuery({
     queryKey: ['insurance-recommendations'],
-    queryFn: api.insuranceRecommendations.getOverall,
+    queryFn: insuranceRecommendationsApi.getOverall,
   });
   const { data: insurances = [] } = useQuery({
     queryKey: ['insurance'],
-    queryFn: api.insurance.getAll,
+    queryFn: insuranceApi.getAll,
   });
 
   const health = recommendations?.healthRecommendation || {};

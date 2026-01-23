@@ -13,10 +13,11 @@ export class ApiError extends Error {
 
 // Generic API request function
 export async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const { auth } = await import('./auth');
   const response = await fetch(`${config.apiUrl}${endpoint}`, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      ...auth.getHeaders(),
       ...options.headers,
     },
   });

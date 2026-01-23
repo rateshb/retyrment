@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MainLayout } from '../components/Layout';
 import { Card, CardContent, Button, toast } from '../components/ui';
-import { api } from '../lib/api';
+import { userDataApi } from '../lib/api';
 import { useAuthStore } from '../stores/authStore';
 import { User, Mail, Shield, Calendar, Trash2, AlertTriangle } from 'lucide-react';
 
@@ -14,11 +14,11 @@ export function Account() {
 
   const { data: dataSummary } = useQuery({
     queryKey: ['user-data-summary'],
-    queryFn: api.userData.getSummary,
+    queryFn: userDataApi.getSummary,
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => api.userData.deleteAll('DELETE_ALL_DATA'),
+    mutationFn: () => userDataApi.deleteAll('DELETE_ALL_DATA'),
     onSuccess: () => {
       toast.success('All data deleted successfully');
       setShowDeleteModal(false);

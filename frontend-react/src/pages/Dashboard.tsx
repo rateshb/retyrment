@@ -3,8 +3,16 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { MainLayout } from '../components/Layout';
 import { Card, CardContent } from '../components/ui';
-import { api } from '../lib/api';
+import { 
+  analysisApi, 
+  investmentsApi, 
+  insuranceApi, 
+  loansApi, 
+  retirementApi, 
+  insuranceRecommendationsApi 
+} from '../lib/api';
 import { useAuthStore } from '../stores/authStore';
+import { calculateTotalRentalIncome } from '../lib/realEstateUtils';
 import { 
   Wallet, TrendingUp, Building2, PiggyBank, AlertTriangle, CheckCircle,
   Shield, Heart, Umbrella, Target, ArrowRight, Info
@@ -20,53 +28,53 @@ export function Dashboard() {
   
   const { data: networth, isLoading: networthLoading } = useQuery({
     queryKey: ['networth'],
-    queryFn: api.analysis.networth,
+    queryFn: analysisApi.networth,
   });
 
   const { data: recommendations } = useQuery({
     queryKey: ['recommendations'],
-    queryFn: api.analysis.recommendations,
+    queryFn: analysisApi.recommendations,
   });
 
   const { data: goalAnalysis } = useQuery({
     queryKey: ['goalAnalysis'],
-    queryFn: api.analysis.goals,
+    queryFn: analysisApi.goals,
   });
 
   const { data: investments = [] } = useQuery({
     queryKey: ['investments'],
-    queryFn: api.investments.getAll,
+    queryFn: investmentsApi.getAll,
   });
 
   const { data: insurances = [] } = useQuery({
     queryKey: ['insurance'],
-    queryFn: api.insurance.getAll,
+    queryFn: insuranceApi.getAll,
   });
 
   const { data: loans = [] } = useQuery({
     queryKey: ['loans'],
-    queryFn: api.loans.getAll,
+    queryFn: loansApi.getAll,
   });
 
   const { data: retirementData } = useQuery({
     queryKey: ['retirement'],
-    queryFn: () => api.retirement.calculate({ currentAge: 35, retirementAge: 60, lifeExpectancy: 85 }),
+    queryFn: () => retirementApi.calculate({ currentAge: 35, retirementAge: 60, lifeExpectancy: 85 }),
   });
 
   const { data: maturingData } = useQuery({
     queryKey: ['maturingBeforeRetirement'],
-    queryFn: () => api.retirement.getMaturing(35, 60),
+    queryFn: () => retirementApi.getMaturing(35, 60),
   });
 
   const { data: savedStrategy } = useQuery({
     queryKey: ['retirementStrategy'],
-    queryFn: api.retirement.getStrategy,
+    queryFn: retirementApi.getStrategy,
     retry: false,
   });
 
   const { data: insuranceRecs } = useQuery({
     queryKey: ['insuranceRecs'],
-    queryFn: api.insuranceRecommendations.getOverall,
+    queryFn: insuranceRecommendationsApi.getOverall,
   });
 
   // Calculate critical areas
@@ -167,7 +175,9 @@ export function Dashboard() {
   const alerts: Array<{ type: string; icon: string; title: string; description: string; link: string; action: string }> = [];
 
   const gapAnalysisMonthlyIncome = gapAnalysis.monthlyIncome || 0;
-  const monthlySavings = gapAnalysisMonthlyIncome - monthlyExpenses;
+  const totalRentalIncome = calculateTotalRentalIncome(investments || []);
+  const effectiveMonthlyIncome = gapAnalysisMonthlyIncome + totalRentalIncome;
+  const monthlySavings = effectiveMonthlyIncome - monthlyExpenses;
 
   let strategy = savedStrategy;
   if (!strategy) {
@@ -352,7 +362,7 @@ export function Dashboard() {
   const monthlySurplus = gapAnalysis.netMonthlySavings
     ?? gapAnalysis.availableMonthlySavings
     ?? recommendations?.monthlySavings
-    ?? (gapAnalysis.monthlyIncome || 0) - monthlyExpenses;
+    ?? effectiveMonthlyIncome - monthlyExpenses;
 
   const stats = [
     {
@@ -366,6 +376,7 @@ export function Dashboard() {
       value: monthlySurplus || 0,
       icon: <TrendingUp className="text-success-500" size={24} />,
       color: 'bg-success-50 border-success-200',
+      detail: totalRentalIncome > 0 ? `Includes ${formatCurrency(totalRentalIncome, true)}/mo rental income` : undefined,
     },
     {
       label: 'Liabilities',
@@ -403,6 +414,9 @@ export function Dashboard() {
                 <p className={`text-2xl font-bold ${stat.highlight ? 'text-primary-700' : 'text-slate-800'}`}>
                   {networthLoading ? '...' : formatCurrency(stat.value, true)}
                 </p>
+                {stat.detail && (
+                  <p className="text-xs text-blue-600 font-medium mt-1">{stat.detail}</p>
+                )}
               </div>
             </CardContent>
           </Card>

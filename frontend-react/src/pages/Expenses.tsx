@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MainLayout } from '../components/Layout';
 import { Card, Button, Modal, Input, Select, toast } from '../components/ui';
-import { api, Expense } from '../lib/api';
+import { expensesApi, Expense } from '../lib/api';
 import { amountInWordsHelper, formatCurrency } from '../lib/utils';
 import { Plus, Pencil, Trash2, ShoppingCart, TrendingUp, AlertCircle } from 'lucide-react';
 
@@ -49,11 +49,11 @@ export function Expenses() {
 
   const { data: expenses = [], isLoading } = useQuery({
     queryKey: ['expenses'],
-    queryFn: api.expenses.getAll,
+    queryFn: expensesApi.getAll,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: Expense) => api.expenses.create(data),
+    mutationFn: (data: Expense) => expensesApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
       toast.success('Expense added successfully');
@@ -63,7 +63,7 @@ export function Expenses() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Expense }) => api.expenses.update(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Expense }) => expensesApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
       toast.success('Expense updated successfully');
@@ -73,7 +73,7 @@ export function Expenses() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.expenses.delete(id),
+    mutationFn: (id: string) => expensesApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
       toast.success('Expense deleted successfully');

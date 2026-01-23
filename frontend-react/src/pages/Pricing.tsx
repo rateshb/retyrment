@@ -36,7 +36,7 @@ export function Pricing() {
       ],
       cta: 'Start 7-Day Trial',
       highlighted: true,
-    },
+    }/*,
     {
       name: 'Enterprise',
       price: 'Custom',
@@ -54,7 +54,7 @@ export function Pricing() {
       ],
       cta: 'Contact Sales',
       highlighted: false,
-    },
+    },*/
   ];
 
   return (
@@ -77,7 +77,7 @@ export function Pricing() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
           {plans.map((plan, i) => (
             <div 
               key={i} 

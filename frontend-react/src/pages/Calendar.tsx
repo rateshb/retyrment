@@ -2,7 +2,12 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { MainLayout } from '../components/Layout';
 import { Card, CardContent } from '../components/ui';
-import { api } from '../lib/api';
+import { 
+  insuranceApi, 
+  investmentsApi, 
+  loansApi, 
+  goalsApi 
+} from '../lib/api';
 import { formatCurrency, formatDate } from '../lib/utils';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Shield, TrendingUp, CreditCard, Target } from 'lucide-react';
 
@@ -21,22 +26,22 @@ export function Calendar() {
   // Fetch data to generate calendar events
   const { data: insurances = [] } = useQuery({
     queryKey: ['insurance'],
-    queryFn: api.insurance.getAll,
+    queryFn: insuranceApi.getAll,
   });
 
   const { data: investments = [] } = useQuery({
     queryKey: ['investments'],
-    queryFn: api.investments.getAll,
+    queryFn: investmentsApi.getAll,
   });
 
   const { data: loans = [] } = useQuery({
     queryKey: ['loans'],
-    queryFn: api.loans.getAll,
+    queryFn: loansApi.getAll,
   });
 
   const { data: goals = [] } = useQuery({
     queryKey: ['goals'],
-    queryFn: api.goals.getAll,
+    queryFn: goalsApi.getAll,
   });
 
   // Generate calendar events

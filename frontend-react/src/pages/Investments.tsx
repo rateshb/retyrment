@@ -31,6 +31,7 @@ const TYPE_FIELDS: Record<string, {
   showEmergencyFund: boolean;
   showYearlyContribution: boolean;
   showInterestRate: boolean;
+  showRealEstateFields?: boolean;
   sipLabel: string;
   dateLabel: string;
   investedLabel: string;
@@ -83,7 +84,8 @@ const TYPE_FIELDS: Record<string, {
     showSip: false, showSipDay: false, showRdDay: false, showMaturityDate: false, showEmergencyFund: false,
     showYearlyContribution: false, showInterestRate: false,
     sipLabel: '', dateLabel: 'Purchase Date',
-    investedLabel: 'Purchase Price (₹)', currentLabel: 'Current Market Value (₹)', defaultReturn: 8
+    investedLabel: 'Purchase Price (₹)', currentLabel: 'Current Market Value (₹)', defaultReturn: 8,
+    showRealEstateFields: true
   },
   GOLD: {
     showSip: false, showSipDay: false, showRdDay: false, showMaturityDate: false, showEmergencyFund: false,
@@ -247,6 +249,14 @@ export function Investments() {
       yearlyContribution: formData.yearlyContribution ? Number(formData.yearlyContribution) : undefined,
       expectedReturn: Number(formData.expectedReturn) || 0,
       interestRate: formData.interestRate ? Number(formData.interestRate) : undefined,
+      // Add default values for removed Real Estate fields to ensure backend compatibility
+      rentalYield: formData.monthlyRentalIncome && formData.currentValue ? 
+        (formData.monthlyRentalIncome * 12 / formData.currentValue) * 100 : 0,
+      expectedAppreciation: 5, // Default 5% appreciation
+      vacancyRate: formData.realEstateType === 'RENTAL' ? 10 : 0, // 10% for rentals, 0% for others
+      maintenanceCost: formData.currentValue ? formData.currentValue * 0.01 : 0, // 1% of property value
+      propertyTax: formData.currentValue ? formData.currentValue * 0.005 : 0, // 0.5% of property value
+      isPrimaryResidence: formData.realEstateType === 'SELF_OCCUPIED' ? true : false,
     } as Investment;
 
     if (editingItem?.id) {
@@ -362,8 +372,26 @@ export function Investments() {
                                   <Shield size={12} /> Emergency
                                 </span>
                               )}
+                              {inv.type === 'REAL_ESTATE' && inv.realEstateType && (
+                                <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                  inv.realEstateType === 'SELF_OCCUPIED' ? 'bg-green-100 text-green-700' :
+                                  inv.realEstateType === 'RENTAL' ? 'bg-blue-100 text-blue-700' :
+                                  inv.realEstateType === 'INVESTMENT' ? 'bg-purple-100 text-purple-700' :
+                                  'bg-gray-100 text-gray-700'
+                                }`}>
+                                  {inv.realEstateType === 'SELF_OCCUPIED' ? '🏡 Self-Occupied' :
+                                   inv.realEstateType === 'RENTAL' ? '🏢 Rental' :
+                                   inv.realEstateType === 'INVESTMENT' ? '📈 Investment' :
+                                   '🎁 Inherited'}
+                                </span>
+                              )}
                             </div>
                             <div className="text-xs text-slate-500">{typeInfo?.label || inv.type}</div>
+                            {inv.type === 'REAL_ESTATE' && inv.monthlyRentalIncome && (
+                              <div className="text-xs text-emerald-600 font-medium">
+                                💰 Rental Income: {formatCurrency(inv.monthlyRentalIncome, true)}/mo
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -598,6 +626,39 @@ export function Investments() {
                 <Shield size={14} className="inline mr-1" />
                 Tag as Emergency Fund (excluded from retirement corpus)
               </label>
+            </div>
+          )}
+
+          {/* Real Estate specific fields */}
+          {typeConfig.showRealEstateFields && (
+            <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <h4 className="font-medium text-blue-900 mb-3">🏠 Property Details</h4>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <Select
+                  label="Usage Type"
+                  value={formData.realEstateType || ''}
+                  onChange={e => setFormData({ ...formData, realEstateType: e.target.value as any })}
+                  options={[
+                    { value: 'SELF_OCCUPIED', label: '🏡 Self-Occupied Home' },
+                    { value: 'RENTAL', label: '🏢 Rental Property' },
+                    { value: 'INVESTMENT', label: '📈 Investment Property' },
+                    { value: 'INHERITED', label: '🎁 Inherited Property' }
+                  ]}
+                  required
+                />
+
+                {formData.realEstateType === 'RENTAL' && (
+                  <Input
+                    label="Monthly Rent (₹)"
+                    type="number"
+                    value={formData.monthlyRentalIncome || ''}
+                    onChange={e => setFormData({ ...formData, monthlyRentalIncome: Number(e.target.value) })}
+                    placeholder="25000"
+                    helperText="Monthly rental income"
+                  />
+                )}
+              </div>
             </div>
           )}
         </form>

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MainLayout } from '../components/Layout';
 import { Card, Button, Modal, Input, Select, toast } from '../components/ui';
-import { api, Loan } from '../lib/api';
+import { loansApi, Loan } from '../lib/api';
 import { amountInWordsHelper, formatCurrency } from '../lib/utils';
 import { Plus, Pencil, Trash2, Building2, TrendingDown, Calendar } from 'lucide-react';
 
@@ -24,11 +24,11 @@ export function Loans() {
 
   const { data: loans = [], isLoading } = useQuery({
     queryKey: ['loans'],
-    queryFn: api.loans.getAll,
+    queryFn: loansApi.getAll,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: Loan) => api.loans.create(data),
+    mutationFn: (data: Loan) => loansApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['loans'] });
       toast.success('Loan added successfully');
@@ -38,7 +38,7 @@ export function Loans() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Loan }) => api.loans.update(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Loan }) => loansApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['loans'] });
       toast.success('Loan updated successfully');
@@ -48,7 +48,7 @@ export function Loans() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.loans.delete(id),
+    mutationFn: (id: string) => loansApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['loans'] });
       toast.success('Loan deleted successfully');

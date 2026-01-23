@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MainLayout } from '../components/Layout';
 import { Card, CardContent, Button, Modal, toast } from '../components/ui';
 import { useAuthStore } from '../stores/authStore';
-import { api } from '../lib/api';
+import { adminApi } from '../lib/api';
 import { Users, Search, Shield, Clock, Check, AlertTriangle, Crown, Trash2 } from 'lucide-react';
 
 // Feature configuration for the modal
@@ -78,14 +78,14 @@ export function Admin() {
   // Fetch users
   const { data: usersData, isLoading, refetch } = useQuery({
     queryKey: ['admin-users'],
-    queryFn: api.admin.getUsers,
+    queryFn: adminApi.getUsers,
     enabled: user?.role === 'ADMIN',
   });
 
   // Mutations
   const updateRoleMutation = useMutation({
     mutationFn: ({ userId, data }: { userId: string; data: any }) => 
-      api.admin.updateRole(userId, data),
+      adminApi.updateRole(userId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       toast.success('Role updated successfully');
@@ -96,7 +96,7 @@ export function Admin() {
 
   const updateFeaturesMutation = useMutation({
     mutationFn: ({ userId, features }: { userId: string; features: any }) =>
-      api.admin.updateUserFeatures(userId, features),
+      adminApi.updateUserFeatures(userId, features),
     onSuccess: async (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       toast.success('Feature access updated successfully');
@@ -115,7 +115,7 @@ export function Admin() {
   });
 
   const deleteUserMutation = useMutation({
-    mutationFn: (userId: string) => api.admin.deleteUser(userId),
+    mutationFn: (userId: string) => adminApi.deleteUser(userId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       toast.success('User deleted successfully');
@@ -146,7 +146,7 @@ export function Admin() {
   const openFeatureModal = async (adminUser: AdminUser) => {
     setSelectedUser(adminUser);
     try {
-      const response = await api.admin.getFeatureAccess(adminUser.id);
+      const response = await adminApi.getFeatureAccess(adminUser.id);
       const features = response.featureAccess || response || {};
       setFeatureAccess(features);
       setFeatureModalOpen(true);

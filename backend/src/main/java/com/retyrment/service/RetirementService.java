@@ -313,15 +313,42 @@ public class RetirementService {
         double actualWithdrawalRate = withdrawalRate / 100;
         
         double annuityMonthlyIncomeAtRetirement = getAnnuityMonthlyIncomeForYear(allInsurance, retirementYearCalendar);
+        
+        // Calculate rental income that continues in retirement
+        double currentMonthlyRental = investmentRepository.findByUserIdAndType(userId, Investment.InvestmentType.REAL_ESTATE).stream()
+                .filter(i -> Investment.InvestmentType.REAL_ESTATE.equals(i.getType()) 
+                        && "RENTAL".equals(i.getRealEstateType()) 
+                        && i.getMonthlyRentalIncome() != null)
+                    .mapToDouble(i -> {
+                        double rentalIncome = i.getMonthlyRentalIncome();
+                        // Apply vacancy rate if available (default 10%)
+                        Double vacancyRate = i.getVacancyRate();
+                        if (vacancyRate == null) vacancyRate = 10.0;
+                        return rentalIncome * (1 - vacancyRate / 100);
+                    })
+                    .sum();
+        double monthlyRentalIncomeAtRetirement = investmentRepository.findByUserIdAndType(userId, Investment.InvestmentType.REAL_ESTATE).stream()
+                .filter(i -> Investment.InvestmentType.REAL_ESTATE.equals(i.getType()) 
+                    && "RENTAL".equals(i.getRealEstateType()) 
+                    && i.getMonthlyRentalIncome() != null)
+                .mapToDouble(i -> {
+                    double rentalIncome = i.getMonthlyRentalIncome();
+                    // Apply vacancy rate if available (default 10%)
+                    Double vacancyRate = i.getVacancyRate();
+                    if (vacancyRate == null) vacancyRate = 10.0;
+                    return rentalIncome * (1 - vacancyRate / 100) * Math.pow(1+(5.0 / 100), retirementAge - currentAge);
+                })
+                .sum();
+        
         // Method 1: Simple depletion (divide corpus by years)
-        double monthlyRetirementIncome = finalCorpus / retirementYears / 12 + annuityMonthlyIncomeAtRetirement;
+        double monthlyRetirementIncome = finalCorpus / retirementYears / 12 + annuityMonthlyIncomeAtRetirement + monthlyRentalIncomeAtRetirement;
         
         // Method 2: 4% Safe Withdrawal Rule
-        double monthlyIncome4Percent = (finalCorpus * 0.04) / 12 + annuityMonthlyIncomeAtRetirement;
+        double monthlyIncome4Percent = (finalCorpus * 0.04) / 12 + annuityMonthlyIncomeAtRetirement + monthlyRentalIncomeAtRetirement;
         
         // Method 3: Sustainable income (user-configurable return and withdrawal rates)
         double yearlyIncomeFromCorpus = finalCorpus * actualWithdrawalRate;
-        double monthlyIncomeFromCorpus = yearlyIncomeFromCorpus / 12 + annuityMonthlyIncomeAtRetirement;
+        double monthlyIncomeFromCorpus = yearlyIncomeFromCorpus / 12 + annuityMonthlyIncomeAtRetirement + monthlyRentalIncomeAtRetirement;
         
         // Determine selected income based on strategy
         double selectedMonthlyIncome;
@@ -354,25 +381,28 @@ public class RetirementService {
             projection.put("age", retirementAge + year);
             projection.put("corpus", Math.round(projectedCorpus));
             double annuityMonthlyIncome = getAnnuityMonthlyIncomeForYear(allInsurance, retirementYearCalendar + year);
+            double monthlyRent = currentMonthlyRental * Math.pow(1 + (5.0 / 100), retirementAge - currentAge + year);
             double monthlyIncome;
             switch (incomeStrategy) {
                 case "SIMPLE_DEPLETION":
                     // Simple depletion: divide remaining corpus by remaining years
                     int remainingYears = retirementYears - year;
-                    monthlyIncome = (remainingYears > 0 ? projectedCorpus / remainingYears / 12 : 0) + annuityMonthlyIncome;
+                    monthlyIncome = (remainingYears > 0 ? projectedCorpus / remainingYears / 12 : 0) + annuityMonthlyIncome + monthlyRent;
                     projection.put("monthlyIncome", Math.round(monthlyIncome));
                     projection.put("annuityMonthlyIncome", Math.round(annuityMonthlyIncome));
+                    projection.put("rentalMonthlyIncome", Math.round(monthlyRent));
                     // Corpus depletes proportionally
                     for (int m = 0; m < 5 && (year + m) < retirementYears; m++) {
-                        projectedCorpus = projectedCorpus - (monthlyIncome * 12);
+                        projectedCorpus = projectedCorpus - ((monthlyIncome - monthlyRent) * 12);
                     }
                     break;
                 case "SAFE_4_PERCENT":
                     // 4% withdrawal rule - fixed percentage of initial corpus
                     double annual4PercentWithdrawal = finalCorpus * 0.04;
-                    monthlyIncome = annual4PercentWithdrawal / 12 + annuityMonthlyIncome;
+                    monthlyIncome = annual4PercentWithdrawal / 12 + annuityMonthlyIncome + monthlyRent;
                     projection.put("monthlyIncome", Math.round(monthlyIncome));
                     projection.put("annuityMonthlyIncome", Math.round(annuityMonthlyIncome));
+                    projection.put("rentalMonthlyIncome", Math.round(monthlyRent));
                     // Assuming 6% growth, 4% withdrawal = 2% net growth
                     for (int m = 0; m < 5 && (year + m) < retirementYears; m++) {
                         projectedCorpus = projectedCorpus * 1.02;  // 2% net growth per year
@@ -381,9 +411,10 @@ public class RetirementService {
                 case "SUSTAINABLE":
                 default:
                     // Sustainable: withdrawal based on configured rate
-                    monthlyIncome = projectedCorpus * actualWithdrawalRate / 12 + annuityMonthlyIncome;
+                    monthlyIncome = projectedCorpus * actualWithdrawalRate / 12 + annuityMonthlyIncome + monthlyRent;
                     projection.put("monthlyIncome", Math.round(monthlyIncome));
                     projection.put("annuityMonthlyIncome", Math.round(annuityMonthlyIncome));
+                    projection.put("rentalMonthlyIncome", Math.round(monthlyRent));
                     // Corpus after this year: grows by return rate, minus withdrawal
                     for (int m = 0; m < 5 && (year + m) < retirementYears; m++) {
                         projectedCorpus = projectedCorpus * (1 + actualCorpusReturn) - (projectedCorpus * actualWithdrawalRate);
@@ -428,6 +459,7 @@ public class RetirementService {
         summary.put("selectedStrategyName", selectedStrategyName);
         summary.put("effectiveFromYear", effectiveFromYear);
         summary.put("retirementIncomeProjection", retirementIncomeProjection);
+        summary.put("monthlyRentalIncomeAtRetirement", monthlyRentalIncomeAtRetirement);
         summary.put("scenario", scenario.getName() != null ? scenario.getName() : "Default");
         
         // Starting balances breakdown (for transparency)
@@ -1019,6 +1051,23 @@ public class RetirementService {
         double totalMonthlyIncome = incomeRepository.findByUserId(userId).stream()
                 .mapToDouble(i -> i.getMonthlyAmount() != null ? i.getMonthlyAmount() : 0)
                 .sum();
+        
+        // Calculate total monthly rental income from real estate investments
+        double totalMonthlyRentalIncome = investmentRepository.findByUserId(userId).stream()
+                .filter(i -> Investment.InvestmentType.REAL_ESTATE.equals(i.getType()) 
+                    && "RENTAL".equals(i.getRealEstateType()) 
+                    && i.getMonthlyRentalIncome() != null)
+                .mapToDouble(i -> {
+                    double rentalIncome = i.getMonthlyRentalIncome();
+                    // Apply vacancy rate if available (default 10%)
+                    Double vacancyRate = i.getVacancyRate();
+                    if (vacancyRate == null) vacancyRate = 10.0;
+                    return rentalIncome * (1 - vacancyRate / 100);
+                })
+                .sum();
+        
+        // Add rental income to total monthly income
+        totalMonthlyIncome += totalMonthlyRentalIncome;
         
         // Calculate monthly EMIs from active loans - filter by userId
         double totalMonthlyEMI = loanRepository.findByUserId(userId).stream()

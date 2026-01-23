@@ -2,14 +2,53 @@ import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MainLayout } from '../components/Layout';
 import { Card, CardContent, Button, Input, Select, Modal, toast } from '../components/ui';
-import { api } from '../lib/api';
+import { 
+  analysisApi, 
+  retirementApi, 
+  investmentsApi, 
+  expensesApi, 
+  loansApi, 
+  goalsApi, 
+  incomeApi, 
+  insuranceApi, 
+  familyApi, 
+  userDataApi, 
+  settingsApi,
+  Investment, 
+  Loan, 
+  Goal, 
+  Expense, 
+  Income, 
+  Insurance, 
+  FamilyMember 
+} from '../lib/api';
+import { formatCurrency, formatDate, amountInWordsHelper } from '../lib/utils';
+import { calculateTotalRentalIncome, generateRealEstateRecommendations } from '../lib/realEstateUtils';
 import { useAuthStore } from '../stores/authStore';
-import { formatCurrency, formatDate } from '../lib/utils';
-import {
+import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer, BarChart, Bar, LineChart, Line
 } from 'recharts';
-import { Settings, ChevronDown, ChevronRight, AlertTriangle, CheckCircle, TrendingUp } from 'lucide-react';
+import { 
+  Calculator, 
+  TrendingUp, 
+  Target, 
+  Calendar, 
+  PiggyBank, 
+  Shield, 
+  Home, 
+  AlertTriangle, 
+  ChevronRight, 
+  Info, 
+  Download, 
+  RefreshCw, 
+  Lightbulb,
+  Building,
+  DollarSign,
+  Settings,
+  ChevronDown,
+  CheckCircle
+} from 'lucide-react';
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -113,7 +152,7 @@ export function Retirement() {
       
       // First, load from Settings page (backend user settings)
       try {
-        const userSettings = await api.settings.get();
+        const userSettings = await settingsApi.get();
         console.log('Loaded user settings from backend:', userSettings);
         
         // Map Settings page fields to Retirement params (use !== undefined to allow 0 or falsy values)
@@ -180,7 +219,7 @@ export function Retirement() {
                params.incomeStrategy],
     queryFn: () => {
       console.log('Fetching retirement data with params:', params);
-      return api.retirement.calculate(params);
+      return retirementApi.calculate(params);
     },
     staleTime: 0,
     gcTime: 0, // Don't cache the results
@@ -188,32 +227,32 @@ export function Retirement() {
 
   const { data: netWorth } = useQuery({
     queryKey: ['networth'],
-    queryFn: api.analysis.networth,
+    queryFn: analysisApi.networth,
   });
 
   const { data: loans = [] } = useQuery({
     queryKey: ['loans'],
-    queryFn: api.loans.getAll,
+    queryFn: loansApi.getAll,
   });
 
   const { data: goals = [] } = useQuery({
     queryKey: ['goals'],
-    queryFn: api.goals.getAll,
+    queryFn: goalsApi.getAll,
   });
 
   const { data: investments = [] } = useQuery({
     queryKey: ['investments'],
-    queryFn: api.investments.getAll,
+    queryFn: investmentsApi.getAll,
   });
 
   const { data: expenseOpportunities } = useQuery({
     queryKey: ['expenseOpportunities', params.currentAge, params.retirementAge],
-    queryFn: () => api.expenses.getInvestmentOpportunities(params.currentAge, params.retirementAge),
+    queryFn: () => expensesApi.getInvestmentOpportunities(params.currentAge, params.retirementAge),
   });
 
   const { data: savedStrategyData } = useQuery({
     queryKey: ['retirementStrategy'],
-    queryFn: api.retirement.getStrategy,
+    queryFn: retirementApi.getStrategy,
     retry: false,
   });
 
@@ -244,11 +283,11 @@ export function Retirement() {
         const merged = { ...parsed, selectedIncomeStrategy: parsedValue };
         localStorage.setItem('userStrategy', JSON.stringify(merged));
         // Persist selection so it doesn't revert on next load
-        api.retirement.saveStrategy(merged).catch(() => {});
+        retirementApi.saveStrategy(merged).catch(() => {});
       } catch {
         const merged = { selectedIncomeStrategy: parsedValue };
         localStorage.setItem('userStrategy', JSON.stringify(merged));
-        api.retirement.saveStrategy(merged).catch(() => {});
+        retirementApi.saveStrategy(merged).catch(() => {});
       }
     }
   };
@@ -270,7 +309,7 @@ export function Retirement() {
       // First fetch existing settings to preserve fields we're not changing
       let existingSettings: any = {};
       try {
-        existingSettings = await api.settings.get() || {};
+        existingSettings = await settingsApi.get() || {};
       } catch (e) {
         console.log('No existing settings, will create new');
       }
@@ -292,7 +331,7 @@ export function Retirement() {
         emergencyFundMonths: existingSettings.emergencyFundMonths || 6,
       };
       
-      await api.settings.update(settingsData);
+      await settingsApi.update(settingsData);
       queryClient.invalidateQueries({ queryKey: ['user-settings'] });
       toast.success('Settings saved successfully! These will be used as defaults.');
     } catch (error) {
@@ -589,14 +628,17 @@ export function Retirement() {
   const currentYear = new Date().getFullYear();
 
   const monthlyIncome = gapAnalysis.monthlyIncome || 0;
+  const totalRentalIncome = summary.monthlyRentalIncomeAtRetirement ||0;
+  const effectiveMonthlyIncome = monthlyIncome + totalRentalIncome;
   const totalExpenses = gapAnalysis.totalCurrentMonthlyExpenses || gapAnalysis.currentMonthlyExpenses || 0;
   const monthlyEMI = gapAnalysis.monthlyEMI || 0;
   const monthlySIPFromGap = gapAnalysis.monthlySIP || 0;
-  const netMonthlySavings = gapAnalysis.netMonthlySavings || (monthlyIncome - totalExpenses - monthlyEMI);
+  const netMonthlySavings = gapAnalysis.netMonthlySavings || (effectiveMonthlyIncome - totalExpenses - monthlyEMI);
   const availableMonthlySavings = gapAnalysis.availableMonthlySavings || (netMonthlySavings - monthlySIPFromGap);
 
   const assetBreakdown = netWorth?.assetBreakdown || {};
-  const illiquidValue = (assetBreakdown.GOLD || 0) + (assetBreakdown.REAL_ESTATE || 0);
+  const sellableAssets = netWorth?.sellableAssets || {};
+  const illiquidValue = (sellableAssets.GOLD || 0) + (sellableAssets.REAL_ESTATE || 0);
   const maturingTotal = maturingBeforeRetirement.totalMaturingBeforeRetirement || 0;
   const totalEMI = Array.isArray(loans) ? loans.reduce((sum: number, l: any) => sum + (l.emi || 0), 0) : 0;
   const expenseOpportunitiesByYear = expenseOpportunities?.freedUpByYear || [];
@@ -1024,7 +1066,7 @@ export function Retirement() {
     };
 
     try {
-      await api.retirement.saveStrategy(strategy);
+      await retirementApi.saveStrategy(strategy);
       localStorage.setItem('userStrategy', JSON.stringify(strategy));
       toast.success('Strategy saved successfully');
     } catch (error: any) {
@@ -1166,7 +1208,7 @@ export function Retirement() {
                   // Load from Settings page backend if available, otherwise use defaults
                   let resetParams = { ...defaultParams };
                   try {
-                    const userSettings = await api.settings.get();
+                    const userSettings = await settingsApi.get();
                     if (userSettings.currentAge) resetParams.currentAge = userSettings.currentAge;
                     if (userSettings.retirementAge) resetParams.retirementAge = userSettings.retirementAge;
                     if (userSettings.lifeExpectancy) resetParams.lifeExpectancy = userSettings.lifeExpectancy;
@@ -1270,7 +1312,7 @@ export function Retirement() {
                 <p className="text-xs text-slate-500">Monthly SIP</p>
                 <p className="text-xl font-bold text-primary-600">{formatCurrency(monthlySIP, true)}</p>
                 <p className="text-xs text-slate-400">
-                  {params.sipStepup}% step-up → {formatCurrency(sipAtFullStepUp, true)}
+                  {params.sipStepup}% step-up â†’ {formatCurrency(sipAtFullStepUp, true)}
                 </p>
                 {canStopEarly && optimalStopYear && (
                   <p className="text-xs text-amber-600 mt-1">
@@ -1528,6 +1570,11 @@ export function Retirement() {
             <Card>
               <CardContent>
                 <h3 className="text-lg font-semibold text-slate-800 mb-4">Income at Retirement</h3>
+                {totalRentalIncome > 0 && (
+                  <div className="mb-4 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                    Includes rental income: <strong>{formatCurrency(totalRentalIncome, true)}/mo</strong>
+                  </div>
+                )}
                 {annuityMonthlyIncome > 0 && (
                   <div className="mb-4 text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
                     Includes annuity income: <strong>{formatCurrency(annuityMonthlyIncome, true)}/mo</strong>
@@ -1538,8 +1585,8 @@ export function Retirement() {
                 <div className="grid grid-cols-3 gap-4 mb-6">
                   {INCOME_STRATEGIES.map((strategy) => {
                     const isSelected = params.incomeStrategy === strategy.value;
-                    const corpusIncome = incomeStrategies[strategy.value as keyof typeof incomeStrategies] || 0;
-                    const totalIncome = corpusIncome + annuityMonthlyIncome;
+                    const totalIncome = incomeStrategies[strategy.value as keyof typeof incomeStrategies] || 0;
+                    const corpusIncome = totalIncome - annuityMonthlyIncome - totalRentalIncome;
                     
                     return (
                       <div 
@@ -1563,6 +1610,12 @@ export function Retirement() {
                             <span className="text-slate-500">From Corpus:</span>
                             <span className={isSelected ? 'text-primary-600' : 'text-slate-600'}>{formatCurrency(corpusIncome)}</span>
                           </div>
+                          {totalRentalIncome > 0 && (
+                            <div className="flex justify-between text-xs">
+                              <span className="text-blue-600">From Rental:</span>
+                              <span className="text-blue-600">{formatCurrency(totalRentalIncome)}</span>
+                            </div>
+                          )}
                           {annuityMonthlyIncome > 0 && (
                             <div className="flex justify-between text-xs">
                               <span className="text-emerald-600">From Annuity:</span>
@@ -1586,6 +1639,9 @@ export function Retirement() {
                           <th className="px-4 py-2 text-left font-medium text-slate-600">Age</th>
                           <th className="px-4 py-2 text-right font-medium text-slate-600">Corpus</th>
                           <th className="px-4 py-2 text-right font-medium text-slate-600">From Corpus</th>
+                          {totalRentalIncome > 0 && (
+                            <th className="px-4 py-2 text-right font-medium text-blue-600">From Rental (5% Annual Increment)</th>
+                          )}
                           {annuityMonthlyIncome > 0 && (
                             <th className="px-4 py-2 text-right font-medium text-emerald-600">From Annuity</th>
                           )}
@@ -1596,17 +1652,18 @@ export function Retirement() {
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {incomeProjection.slice(0, 25).map((proj: any, i: number) => {
-                          const rowMonthlyIncome = proj.monthlyIncome
+							
+                          let totalMonthlyIncome = proj.monthlyIncome
                             ?? ((proj.withdrawal || 0) / 12);
-                          const corpusWithdrawal = rowMonthlyIncome > 0
-                            ? rowMonthlyIncome
+                          totalMonthlyIncome = totalMonthlyIncome > 0
+                            ? totalMonthlyIncome
                             : (params.incomeStrategy === 'SIMPLE_DEPLETION'
                               ? (proj.corpus && retirementYears > 0 ? (proj.corpus / Math.max(retirementYears - (proj.year || 0), 1) / 12) : 0)
                               : (params.incomeStrategy === 'SAFE_4_PERCENT'
                                 ? (projectedCorpus * 0.04) / 12
                                 : (proj.corpus || 0) * (withdrawalRate / 100) / 12));
                           const annuityIncome = proj.annuityMonthlyIncome || annuityMonthlyIncome || 0;
-                          const totalMonthlyIncome = corpusWithdrawal + annuityIncome;
+                          const corpusWithdrawal = totalMonthlyIncome - annuityIncome - proj.rentalMonthlyIncome;
                           
                           // Calculate required expense for this year (with inflation)
                           const baseMonthlyExpense = gapAnalysis.monthlyExpensesAtRetirement || gapAnalysis.inflatedMonthlyExpenses || 0;
@@ -1621,6 +1678,9 @@ export function Retirement() {
                             <td className="px-4 py-2">{params.retirementAge + proj.year}</td>
                             <td className="px-4 py-2 text-right">{formatCurrency(proj.corpus)}</td>
                             <td className="px-4 py-2 text-right text-slate-600">{formatCurrency(corpusWithdrawal)}</td>
+                            {proj.rentalMonthlyIncome > 0 && (
+                              <td className="px-4 py-2 text-right text-blue-600">{formatCurrency(proj.rentalMonthlyIncome)}</td>
+                            )}
                             {annuityMonthlyIncome > 0 && (
                               <td className="px-4 py-2 text-right text-emerald-600">{formatCurrency(annuityIncome)}</td>
                             )}
@@ -2316,8 +2376,17 @@ export function Retirement() {
                         <div className="text-xl font-bold text-slate-800">
                           {formatCurrency(netMonthlySavings)}
                           <div className="text-xs text-slate-500 font-normal mt-1">
-                            Income: {formatCurrency(monthlyIncome)} − Expenses: {formatCurrency(totalExpenses)} − EMIs: {formatCurrency(monthlyEMI)}
+                            Income: {formatCurrency(monthlyIncome)}
+                            {totalRentalIncome > 0 && (
+                              <span className="text-blue-600"> + Rental: {formatCurrency(totalRentalIncome)}</span>
+                            )}
+                            {' '}− Expenses: {formatCurrency(totalExpenses)} − EMIs: {formatCurrency(monthlyEMI)}
                           </div>
+                          {totalRentalIncome > 0 && (
+                            <div className="text-xs text-blue-500 font-normal mt-1">
+                              Total Effective Income: {formatCurrency(effectiveMonthlyIncome)}
+                            </div>
+                          )}
                         </div>
                       </div>
                       {netMonthlySavings <= 0 ? (

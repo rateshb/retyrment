@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { MainLayout } from '../components/Layout';
 import { Card, CardContent, Button, Input, toast } from '../components/ui';
-import { api } from '../lib/api';
+import { simulationApi } from '../lib/api';
 import { formatCurrency } from '../lib/utils';
 import { useAuthStore } from '../stores/authStore';
 import { Dice5, TrendingUp, AlertTriangle, CheckCircle, Play } from 'lucide-react';
@@ -14,7 +14,7 @@ export function Simulation() {
   const [results, setResults] = useState<any>(null);
 
   const simulationMutation = useMutation({
-    mutationFn: () => api.simulation.run(simulations, years),
+    mutationFn: () => simulationApi.run(simulations, years),
     onSuccess: (data) => {
       setResults(data);
       toast.success(`Completed ${simulations} simulations`);

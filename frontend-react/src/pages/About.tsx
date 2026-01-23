@@ -69,7 +69,7 @@ export function About() {
             Have questions or feedback? We'd love to hear from you.
           </p>
           <p className="text-slate-600">
-            Email: <a href="mailto:support@retyrment.com" className="text-primary-600 hover:underline">support@retyrment.com</a>
+            Email: <a href="mailto:bansalitadvisory@gmail.com" className="text-primary-600 hover:underline">bansalitadvisory@gmail.com</a>
           </p>
         </div>
       </div>

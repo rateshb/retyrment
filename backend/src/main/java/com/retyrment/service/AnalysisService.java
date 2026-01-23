@@ -1,6 +1,7 @@
 package com.retyrment.service;
 
 import com.retyrment.model.*;
+import com.retyrment.model.Investment.InvestmentType;
 import com.retyrment.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -66,6 +67,24 @@ public class AnalysisService {
             assetBreakdown.merge(type, value, Double::sum);
         });
         result.put("assetBreakdown", assetBreakdown);
+        
+     // Breakdown by investment type - filter by userId
+        Map<String, Double> sellableAssets = new LinkedHashMap<>();
+        investmentRepository.findByUserIdAndType(userId, InvestmentType.REAL_ESTATE)
+        .stream()
+        .filter(inv -> inv.getMonthlyRentalIncome() == null 
+                || (
+                		!"SELF_OCCUPIED".equals(inv.getRealEstateType())
+                		&& !"RENTAL".equals(inv.getRealEstateType())
+        		
+        		))
+        .forEach(inv -> {
+        	String type = inv.getType() != null ? inv.getType().name() : "OTHER";
+            double value = inv.getCurrentValue() != null ? inv.getCurrentValue() : 
+                          (inv.getInvestedAmount() != null ? inv.getInvestedAmount() : 0);
+            sellableAssets.merge(type, value, Double::sum);
+        });
+        result.put("sellableAssets", sellableAssets);
 
         return result;
     }
