@@ -169,7 +169,7 @@ export function Simulation() {
               <h3 className="text-lg font-semibold text-slate-800 mb-4">What This Means</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="p-4 bg-slate-50 rounded-lg">
-                  <h4 className="font-medium text-slate-700 mb-2">Success Rate: {results.successRate?.toFixed(1)}%</h4>
+                  <p className="text-3xl font-bold">{results.successRate || 0}%</p>
                   <p className="text-sm text-slate-600">
                     {results.successRate >= 80 
                       ? "Excellent! Your financial plan has a high probability of success. Stay the course."

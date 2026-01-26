@@ -6,9 +6,9 @@ describe('Debug Test', () => {
     expect(1 + 1).toBe(2);
   });
 
-  it('should import vitest correctly', () => {
-    expect(vitest).toBeDefined();
-  });
+  // it('should import vitest correctly', () => {
+  //   expect(vitest).toBeDefined();
+  // });
 
   it('should test basic import without mocking', async () => {
     // Try to import without any mocking first

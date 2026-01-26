@@ -307,14 +307,26 @@ public class AnalysisService {
 
         Collections.sort(finalValues);
 
+        // Create percentiles object for frontend compatibility
+        Map<String, Object> percentiles = new LinkedHashMap<>();
+        percentiles.put("p10", Math.round(finalValues.get((int)(simulations * 0.10))));
+        percentiles.put("p25", Math.round(finalValues.get((int)(simulations * 0.25))));
+        percentiles.put("p50", Math.round(finalValues.get((int)(simulations * 0.50))));
+        percentiles.put("p75", Math.round(finalValues.get((int)(simulations * 0.75))));
+        percentiles.put("p90", Math.round(finalValues.get((int)(simulations * 0.90))));
+
+        // Calculate success rate (percentage of simulations that beat current value * 2)
+        double targetValue = currentValue * 2; // Target: double the current value
+        long successfulSimulations = finalValues.stream()
+                .mapToLong(v -> v >= targetValue ? 1 : 0)
+                .sum();
+        double successRate = (successfulSimulations * 100.0) / simulations;
+
         result.put("simulations", simulations);
         result.put("years", years);
-        result.put("percentile10", Math.round(finalValues.get((int)(simulations * 0.10))));
-        result.put("percentile25", Math.round(finalValues.get((int)(simulations * 0.25))));
-        result.put("percentile50", Math.round(finalValues.get((int)(simulations * 0.50))));
-        result.put("percentile75", Math.round(finalValues.get((int)(simulations * 0.75))));
-        result.put("percentile90", Math.round(finalValues.get((int)(simulations * 0.90))));
+        result.put("percentiles", percentiles);  // ✅ Nested structure
         result.put("average", Math.round(finalValues.stream().mapToDouble(d -> d).average().orElse(0)));
+        result.put("successRate", Math.round(successRate * 10) / 10.0);  // ✅ Add success rate
 
         return result;
     }
