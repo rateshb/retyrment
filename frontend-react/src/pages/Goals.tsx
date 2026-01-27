@@ -199,8 +199,8 @@ export function Goals() {
           </div>
         ) : (
           goals.map((goal) => {
-            const progress = goal.targetAmount > 0 ? (goal.currentSavings / goal.targetAmount) * 100 : 0;
-            const gap = goal.targetAmount - goal.currentSavings;
+            const progress = goal.targetAmount > 0 ? ((goal.currentSavings || 0) / goal.targetAmount) * 100 : 0;
+            const gap = goal.targetAmount - (goal.currentSavings || 0);
             const yearsLeft = goal.targetYear - new Date().getFullYear();
 
             return (
@@ -227,7 +227,7 @@ export function Goals() {
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-slate-500">Saved</span>
-                      <span className="font-medium text-success-600">{formatCurrency(goal.currentSavings, true)}</span>
+                      <span className="font-medium text-success-600">{formatCurrency(goal.currentSavings || 0, true)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-slate-500">Gap</span>
@@ -323,7 +323,7 @@ export function Goals() {
             <Input
               label="Current Savings"
               type="number"
-              value={formData.currentSavings || ''}
+              value={formData.currentSavings ?? ''}
               onChange={e => {
                 setFormData({ ...formData, currentSavings: Number(e.target.value) });
                 if (formErrors.currentSavings) setFormErrors(prev => ({ ...prev, currentSavings: '' }));
@@ -331,7 +331,6 @@ export function Goals() {
               placeholder="500000"
               helperText={amountInWordsHelper(formData.currentSavings)}
               error={formErrors.currentSavings}
-              required
             />
           </div>
           <div className="grid grid-cols-2 gap-4">

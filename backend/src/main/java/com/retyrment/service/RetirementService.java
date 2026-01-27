@@ -100,6 +100,32 @@ public class RetirementService {
                 Arrays.asList(Insurance.InsuranceType.ULIP, Insurance.InsuranceType.ENDOWMENT, 
                               Insurance.InsuranceType.MONEY_BACK));
         List<Insurance> allInsurance = insuranceRepository.findByUserId(userId);
+
+        // Load expenses once for early retirement corpus checks
+        List<Expense> allExpenses = expenseRepository.findByUserId(userId);
+
+        double currentMonthlyRental = investmentRepository.findByUserIdAndType(userId, Investment.InvestmentType.REAL_ESTATE).stream()
+                .filter(i -> Investment.InvestmentType.REAL_ESTATE.equals(i.getType())
+                        && "RENTAL".equals(i.getRealEstateType())
+                        && i.getMonthlyRentalIncome() != null)
+                .mapToDouble(i -> {
+                    double rentalIncome = i.getMonthlyRentalIncome();
+                    Double vacancyRate = i.getVacancyRate();
+                    if (vacancyRate == null) vacancyRate = 10.0;
+                    return rentalIncome * (1 - vacancyRate / 100);
+                })
+                .sum();
+        double monthlyRentalIncomeAtRetirement = investmentRepository.findByUserIdAndType(userId, Investment.InvestmentType.REAL_ESTATE).stream()
+                .filter(i -> Investment.InvestmentType.REAL_ESTATE.equals(i.getType())
+                        && "RENTAL".equals(i.getRealEstateType())
+                        && i.getMonthlyRentalIncome() != null)
+                .mapToDouble(i -> {
+                    double rentalIncome = i.getMonthlyRentalIncome();
+                    Double vacancyRate = i.getVacancyRate();
+                    if (vacancyRate == null) vacancyRate = 10.0;
+                    return rentalIncome * (1 - vacancyRate / 100) * Math.pow(1 + (5.0 / 100), retirementAge - currentAge);
+                })
+                .sum();
         
         // Pre-calculate money-back payout schedules for all money-back policies
         Map<Integer, Double> moneyBackPayoutsByYear = new HashMap<>();
@@ -274,6 +300,25 @@ public class RetirementService {
             double totalCorpus = cumulativePpf + cumulativeEpf + cumulativeMf + cumulativeNps + cumulativeOtherLiquid + totalInflow;
             double netCorpus = totalCorpus - goalOutflow;
 
+            int yearsToRetirementAtYear = year;
+            int retirementYearsAtYear = Math.max(0, (scenario.getLifeExpectancy() != null ? scenario.getLifeExpectancy() : 85) - age);
+            Map<String, Double> requiredCorpusByStrategy = calculateRequiredCorpusByStrategyAtYear(
+                    allExpenses,
+                    allInsurance,
+                    goals,
+                    calendarYear,
+                    simpleInflation,
+                    yearsToRetirementAtYear,
+                    retirementYearsAtYear,
+                    withdrawalRate,
+                    corpusReturnRate,
+                    currentMonthlyRental
+            );
+            Map<String, Boolean> canRetireByStrategy = new LinkedHashMap<>();
+            for (Map.Entry<String, Double> entry : requiredCorpusByStrategy.entrySet()) {
+                canRetireByStrategy.put(entry.getKey(), netCorpus >= entry.getValue());
+            }
+
             row.put("sno", year + 1);
             row.put("year", calendarYear);
             row.put("age", age);
@@ -297,6 +342,8 @@ public class RetirementService {
             row.put("goalOutflow", Math.round(goalOutflow));
             row.put("goalsThisYear", goalsThisYear);
             row.put("netCorpus", Math.round(netCorpus));
+            row.put("requiredCorpusByStrategy", requiredCorpusByStrategy);
+            row.put("canRetireByStrategy", canRetireByStrategy);
 
             matrix.add(row);
         }
@@ -315,30 +362,7 @@ public class RetirementService {
         double annuityMonthlyIncomeAtRetirement = getAnnuityMonthlyIncomeForYear(allInsurance, retirementYearCalendar);
         
         // Calculate rental income that continues in retirement
-        double currentMonthlyRental = investmentRepository.findByUserIdAndType(userId, Investment.InvestmentType.REAL_ESTATE).stream()
-                .filter(i -> Investment.InvestmentType.REAL_ESTATE.equals(i.getType()) 
-                        && "RENTAL".equals(i.getRealEstateType()) 
-                        && i.getMonthlyRentalIncome() != null)
-                    .mapToDouble(i -> {
-                        double rentalIncome = i.getMonthlyRentalIncome();
-                        // Apply vacancy rate if available (default 10%)
-                        Double vacancyRate = i.getVacancyRate();
-                        if (vacancyRate == null) vacancyRate = 10.0;
-                        return rentalIncome * (1 - vacancyRate / 100);
-                    })
-                    .sum();
-        double monthlyRentalIncomeAtRetirement = investmentRepository.findByUserIdAndType(userId, Investment.InvestmentType.REAL_ESTATE).stream()
-                .filter(i -> Investment.InvestmentType.REAL_ESTATE.equals(i.getType()) 
-                    && "RENTAL".equals(i.getRealEstateType()) 
-                    && i.getMonthlyRentalIncome() != null)
-                .mapToDouble(i -> {
-                    double rentalIncome = i.getMonthlyRentalIncome();
-                    // Apply vacancy rate if available (default 10%)
-                    Double vacancyRate = i.getVacancyRate();
-                    if (vacancyRate == null) vacancyRate = 10.0;
-                    return rentalIncome * (1 - vacancyRate / 100) * Math.pow(1+(5.0 / 100), retirementAge - currentAge);
-                })
-                .sum();
+        // currentMonthlyRental and monthlyRentalIncomeAtRetirement are computed earlier
         
         // Method 1: Simple depletion (divide corpus by years)
         double monthlyRetirementIncome = finalCorpus / retirementYears / 12 + annuityMonthlyIncomeAtRetirement + monthlyRentalIncomeAtRetirement;
@@ -370,59 +394,67 @@ public class RetirementService {
                 break;
         }
         
+        int goalsEndYear = retirementYearCalendar + Math.max(0, retirementYears);
+        Map<Integer, Double> goalsByYear = new HashMap<>();
+        for (Goal goal : goals) {
+            goal.expandOccurrences(goalsEndYear, simpleInflation).forEach(occurrence -> {
+                goalsByYear.merge(occurrence.getYear(), occurrence.getAmount(), Double::sum);
+            });
+        }
+
         // Project corpus sustainability over retirement years - based on selected strategy
         List<Map<String, Object>> retirementIncomeProjection = new ArrayList<>();
         double projectedCorpus = finalCorpus;
-        
-        // Calculate income based on strategy
-        for (int year = 0; year <= retirementYears && year <= 30; year += 5) {
-            Map<String, Object> projection = new LinkedHashMap<>();
-            projection.put("year", year);
-            projection.put("age", retirementAge + year);
-            projection.put("corpus", Math.round(projectedCorpus));
+
+        // Calculate income based on strategy (yearly), but store rows at 5-year marks and goal years
+        for (int year = 0; year <= retirementYears && year <= 30; year++) {
             double annuityMonthlyIncome = getAnnuityMonthlyIncomeForYear(allInsurance, retirementYearCalendar + year);
             double monthlyRent = currentMonthlyRental * Math.pow(1 + (5.0 / 100), retirementAge - currentAge + year);
+            double goalOutflow = goalsByYear.getOrDefault(retirementYearCalendar + year, 0.0);
+
+            double yearlyIncomeFromCorpusAtYear;
             double monthlyIncome;
             switch (incomeStrategy) {
                 case "SIMPLE_DEPLETION":
                     // Simple depletion: divide remaining corpus by remaining years
                     int remainingYears = retirementYears - year;
-                    monthlyIncome = (remainingYears > 0 ? projectedCorpus / remainingYears / 12 : 0) + annuityMonthlyIncome + monthlyRent;
-                    projection.put("monthlyIncome", Math.round(monthlyIncome));
-                    projection.put("annuityMonthlyIncome", Math.round(annuityMonthlyIncome));
-                    projection.put("rentalMonthlyIncome", Math.round(monthlyRent));
-                    // Corpus depletes proportionally
-                    for (int m = 0; m < 5 && (year + m) < retirementYears; m++) {
-                        projectedCorpus = projectedCorpus - ((monthlyIncome - monthlyRent) * 12);
-                    }
+                    yearlyIncomeFromCorpusAtYear = remainingYears > 0 ? projectedCorpus / remainingYears : 0;
+                    monthlyIncome = (yearlyIncomeFromCorpusAtYear / 12) + annuityMonthlyIncome + monthlyRent;
+                    projectedCorpus = projectedCorpus - yearlyIncomeFromCorpusAtYear;
                     break;
                 case "SAFE_4_PERCENT":
                     // 4% withdrawal rule - fixed percentage of initial corpus
                     double annual4PercentWithdrawal = finalCorpus * 0.04;
-                    monthlyIncome = annual4PercentWithdrawal / 12 + annuityMonthlyIncome + monthlyRent;
-                    projection.put("monthlyIncome", Math.round(monthlyIncome));
-                    projection.put("annuityMonthlyIncome", Math.round(annuityMonthlyIncome));
-                    projection.put("rentalMonthlyIncome", Math.round(monthlyRent));
-                    // Assuming 6% growth, 4% withdrawal = 2% net growth
-                    for (int m = 0; m < 5 && (year + m) < retirementYears; m++) {
-                        projectedCorpus = projectedCorpus * 1.02;  // 2% net growth per year
-                    }
+                    yearlyIncomeFromCorpusAtYear = projectedCorpus > 0
+                            ? annual4PercentWithdrawal * Math.pow(1 + simpleInflation / 100, year)
+                            : 0;
+                    monthlyIncome = (yearlyIncomeFromCorpusAtYear / 12) + annuityMonthlyIncome + monthlyRent;
+                    projectedCorpus = projectedCorpus * (1 + actualCorpusReturn) - yearlyIncomeFromCorpusAtYear;
                     break;
                 case "SUSTAINABLE":
                 default:
                     // Sustainable: withdrawal based on configured rate
-                    monthlyIncome = projectedCorpus * actualWithdrawalRate / 12 + annuityMonthlyIncome + monthlyRent;
-                    projection.put("monthlyIncome", Math.round(monthlyIncome));
-                    projection.put("annuityMonthlyIncome", Math.round(annuityMonthlyIncome));
-                    projection.put("rentalMonthlyIncome", Math.round(monthlyRent));
-                    // Corpus after this year: grows by return rate, minus withdrawal
-                    for (int m = 0; m < 5 && (year + m) < retirementYears; m++) {
-                        projectedCorpus = projectedCorpus * (1 + actualCorpusReturn) - (projectedCorpus * actualWithdrawalRate);
-                    }
+                    yearlyIncomeFromCorpusAtYear = projectedCorpus * actualWithdrawalRate;
+                    monthlyIncome = (yearlyIncomeFromCorpusAtYear / 12) + annuityMonthlyIncome + monthlyRent;
+                    projectedCorpus = projectedCorpus * (1 + actualCorpusReturn) - yearlyIncomeFromCorpusAtYear;
                     break;
             }
-            
-            retirementIncomeProjection.add(projection);
+
+            if (projectedCorpus < 0) {
+                projectedCorpus = 0;
+            }
+
+            if (year % 5 == 0 || goalOutflow > 0) {
+                Map<String, Object> projection = new LinkedHashMap<>();
+                projection.put("year", year);
+                projection.put("age", retirementAge + year);
+                projection.put("corpus", Math.round(projectedCorpus));
+                projection.put("monthlyIncome", Math.round(monthlyIncome));
+                projection.put("annuityMonthlyIncome", Math.round(annuityMonthlyIncome));
+                projection.put("rentalMonthlyIncome", Math.round(monthlyRent));
+                projection.put("goalOutflow", Math.round(goalOutflow));
+                retirementIncomeProjection.add(projection);
+            }
         }
 
         // Calculate GAP Analysis using selected income strategy
@@ -510,6 +542,30 @@ public class RetirementService {
         result.put("maturingBeforeRetirement", calculateMaturingBeforeRetirement(userId, currentAge, retirementAge));
 
         return result;
+    }
+
+    public double calculateRequiredCorpusForUser(
+            String userId,
+            double inflationRate,
+            int yearsToRetirement,
+            int retirementYears,
+            String incomeStrategy,
+            double corpusReturnRate,
+            double withdrawalRate) {
+        List<Goal> goals = goalRepository.findByUserIdOrderByTargetYearAsc(userId);
+        Map<String, Object> gap = calculateGapAnalysis(
+                userId,
+                0,
+                inflationRate,
+                Math.max(0, yearsToRetirement),
+                Math.max(0, retirementYears),
+                goals,
+                incomeStrategy,
+                corpusReturnRate,
+                withdrawalRate
+        );
+        Object required = gap.get("requiredCorpus");
+        return required instanceof Number ? ((Number) required).doubleValue() : 0;
     }
 
     private RetirementScenario createDefaultScenario(String userId) {
@@ -1127,6 +1183,204 @@ public class RetirementService {
         gap.put("potentialCorpusFromFreedUpExpenses", Math.round(totalPotentialFromFreedUp));
         
         return gap;
+    }
+
+    private Map<String, Double> calculateRequiredCorpusByStrategyAtYear(
+            List<Expense> allExpenses,
+            List<Insurance> allInsurance,
+            List<Goal> goals,
+            int retirementYearCalendar,
+            double inflationRate,
+            int yearsToRetirement,
+            int retirementYears,
+            double withdrawalRate,
+            double corpusReturnRate,
+            double currentMonthlyRental) {
+
+        Map<String, Double> requiredByStrategy = new LinkedHashMap<>();
+
+        double expensesContinuingAfterRetirement = allExpenses.stream()
+                .filter(e -> e.willContinueAfterRetirement(retirementYearCalendar))
+                .mapToDouble(Expense::getMonthlyEquivalent)
+                .sum();
+
+        double monthlyInsurancePremiumsAfterRetirement = 0;
+        for (Insurance policy : allInsurance) {
+            if (shouldContinueAfterRetirement(policy) && policy.getAnnualPremium() != null) {
+                monthlyInsurancePremiumsAfterRetirement += policy.getAnnualPremium() / 12;
+            }
+        }
+
+        double monthlyExpensesContinuingAfterRetirement = expensesContinuingAfterRetirement + monthlyInsurancePremiumsAfterRetirement;
+        double inflatedMonthlyExpense = monthlyExpensesContinuingAfterRetirement *
+                Math.pow(1 + inflationRate / 100, Math.max(0, yearsToRetirement));
+        double yearlyExpenseAtRetirement = inflatedMonthlyExpense * 12;
+
+        int goalsEndYear = retirementYearCalendar + Math.max(0, retirementYears);
+        Map<Integer, Double> goalsByYear = new HashMap<>();
+        for (Goal goal : goals) {
+            goal.expandOccurrences(goalsEndYear, inflationRate).forEach(occurrence -> {
+                goalsByYear.merge(occurrence.getYear(), occurrence.getAmount(), Double::sum);
+            });
+        }
+
+        double baseRetirementMonthlyRent = currentMonthlyRental * Math.pow(1 + (5.0 / 100), Math.max(0, yearsToRetirement));
+
+        requiredByStrategy.put("SUSTAINABLE", findRequiredCorpusForStrategy(
+                yearlyExpenseAtRetirement,
+                inflationRate,
+                retirementYears,
+                retirementYearCalendar,
+                goalsByYear,
+                "SUSTAINABLE",
+                withdrawalRate,
+                corpusReturnRate,
+                baseRetirementMonthlyRent,
+                allInsurance
+        ));
+        requiredByStrategy.put("SAFE_4_PERCENT", findRequiredCorpusForStrategy(
+                yearlyExpenseAtRetirement,
+                inflationRate,
+                retirementYears,
+                retirementYearCalendar,
+                goalsByYear,
+                "SAFE_4_PERCENT",
+                withdrawalRate,
+                corpusReturnRate,
+                baseRetirementMonthlyRent,
+                allInsurance
+        ));
+        requiredByStrategy.put("SIMPLE_DEPLETION", findRequiredCorpusForStrategy(
+                yearlyExpenseAtRetirement,
+                inflationRate,
+                retirementYears,
+                retirementYearCalendar,
+                goalsByYear,
+                "SIMPLE_DEPLETION",
+                withdrawalRate,
+                corpusReturnRate,
+                baseRetirementMonthlyRent,
+                allInsurance
+        ));
+
+        return requiredByStrategy;
+    }
+
+    private double findRequiredCorpusForStrategy(
+            double yearlyExpenseAtRetirement,
+            double inflationRate,
+            int retirementYears,
+            int retirementYearCalendar,
+            Map<Integer, Double> goalsByYear,
+            String incomeStrategy,
+            double withdrawalRate,
+            double corpusReturnRate,
+            double baseRetirementMonthlyRent,
+            List<Insurance> allInsurance) {
+
+        double low = 0;
+        double high = Math.max(1, yearlyExpenseAtRetirement * 100);
+        int safeIterations = 0;
+        while (!simulateRetirementFeasibility(
+                high,
+                yearlyExpenseAtRetirement,
+                inflationRate,
+                retirementYears,
+                retirementYearCalendar,
+                goalsByYear,
+                incomeStrategy,
+                withdrawalRate,
+                corpusReturnRate,
+                baseRetirementMonthlyRent,
+                allInsurance
+        ) && safeIterations < 30) {
+            high *= 2;
+            safeIterations += 1;
+        }
+
+        for (int i = 0; i < 32; i++) {
+            double mid = (low + high) / 2;
+            boolean ok = simulateRetirementFeasibility(
+                    mid,
+                    yearlyExpenseAtRetirement,
+                    inflationRate,
+                    retirementYears,
+                    retirementYearCalendar,
+                    goalsByYear,
+                    incomeStrategy,
+                    withdrawalRate,
+                    corpusReturnRate,
+                    baseRetirementMonthlyRent,
+                    allInsurance
+            );
+            if (ok) {
+                high = mid;
+            } else {
+                low = mid;
+            }
+        }
+
+        return high;
+    }
+
+    private boolean simulateRetirementFeasibility(
+            double startingCorpus,
+            double yearlyExpenseAtRetirement,
+            double inflationRate,
+            int retirementYears,
+            int retirementYearCalendar,
+            Map<Integer, Double> goalsByYear,
+            String incomeStrategy,
+            double withdrawalRate,
+            double corpusReturnRate,
+            double baseRetirementMonthlyRent,
+            List<Insurance> allInsurance) {
+
+        double corpus = startingCorpus;
+        double actualWithdrawalRate = withdrawalRate / 100;
+        double actualCorpusReturn = corpusReturnRate / 100;
+
+        for (int year = 0; year < Math.max(0, retirementYears); year++) {
+            double yearlyExpense = yearlyExpenseAtRetirement * Math.pow(1 + inflationRate / 100, year);
+            double goalOutflow = goalsByYear.getOrDefault(retirementYearCalendar + year, 0.0);
+            double annuityMonthlyIncome = getAnnuityMonthlyIncomeForYear(allInsurance, retirementYearCalendar + year);
+            double monthlyRent = baseRetirementMonthlyRent * Math.pow(1 + (5.0 / 100), year);
+
+            double yearlyIncomeFromCorpus;
+            switch (incomeStrategy) {
+                case "SIMPLE_DEPLETION":
+                    int remainingYears = Math.max(1, retirementYears - year);
+                    yearlyIncomeFromCorpus = corpus / remainingYears;
+                    break;
+                case "SAFE_4_PERCENT":
+                    yearlyIncomeFromCorpus = startingCorpus * 0.04 * Math.pow(1 + inflationRate / 100, year);
+                    break;
+                case "SUSTAINABLE":
+                default:
+                    yearlyIncomeFromCorpus = corpus * actualWithdrawalRate;
+                    break;
+            }
+
+            double yearlyIncome = yearlyIncomeFromCorpus + (annuityMonthlyIncome * 12) + (monthlyRent * 12);
+            if (yearlyIncome + 0.01 < (yearlyExpense + goalOutflow)) {
+                return false;
+            }
+
+            switch (incomeStrategy) {
+                case "SIMPLE_DEPLETION":
+                    corpus = Math.max(0, corpus - yearlyIncomeFromCorpus);
+                    break;
+                case "SAFE_4_PERCENT":
+                    corpus = Math.max(0, corpus * (1 + actualCorpusReturn) - yearlyIncomeFromCorpus);
+                    break;
+                case "SUSTAINABLE":
+                default:
+                    corpus = Math.max(0, corpus * (1 + actualCorpusReturn) - yearlyIncomeFromCorpus);
+                    break;
+            }
+        }
+
+        return true;
     }
     
     /**

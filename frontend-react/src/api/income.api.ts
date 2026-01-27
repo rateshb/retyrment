@@ -1,4 +1,5 @@
 import { request } from '../lib/api-client';
+import { trackEvent } from '../lib/analytics';
 import { Income } from '../lib/types';
 
 export const incomeApi = {
@@ -6,6 +7,9 @@ export const incomeApi = {
   create: (data: Income) => request<Income>('/income', {
     method: 'POST',
     body: JSON.stringify(data),
+  }).then((result) => {
+    trackEvent('record_created', { record_type: 'income' });
+    return result;
   }),
   update: (id: string, data: Income) => request<Income>(`/income/${id}`, {
     method: 'PUT',

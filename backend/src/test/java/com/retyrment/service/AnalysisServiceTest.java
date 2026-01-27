@@ -46,6 +46,15 @@ class AnalysisServiceTest {
     @Mock
     private CalculationService calculationService;
 
+    @Mock
+    private UserSettingsRepository userSettingsRepository;
+
+    @Mock
+    private UserStrategyRepository userStrategyRepository;
+
+    @Mock
+    private RetirementService retirementService;
+
     @InjectMocks
     private AnalysisService analysisService;
 
@@ -801,6 +810,7 @@ class AnalysisServiceTest {
 
         @Test
         @DisplayName("should run simulation and return percentiles")
+        @SuppressWarnings("unchecked")
         void shouldReturnPercentiles() {
             Investment mf = Investment.builder()
                     .currentValue(1000000.0)
@@ -808,22 +818,295 @@ class AnalysisServiceTest {
                     .build();
 
             when(investmentRepository.findByUserId("test-user")).thenReturn(Collections.singletonList(mf));
+            when(userSettingsRepository.findByUserId("test-user")).thenReturn(
+                    java.util.Optional.of(UserSettings.builder()
+                            .currentAge(35)
+                            .retirementAge(60)
+                            .lifeExpectancy(85)
+                            .inflationRate(6.0)
+                            .mfEquityReturn(11.0)
+                            .build())
+            );
+            when(userStrategyRepository.findByUserId("test-user")).thenReturn(
+                    java.util.Optional.of(UserStrategy.builder()
+                            .selectedIncomeStrategy("SUSTAINABLE")
+                            .build())
+            );
+            when(retirementService.calculateRequiredCorpusForUser(
+                    eq("test-user"),
+                    anyDouble(),
+                    anyInt(),
+                    anyInt(),
+                    anyString(),
+                    anyDouble(),
+                    anyDouble()
+            )).thenReturn(2000000.0);
 
             Map<String, Object> result = analysisService.runMonteCarloSimulation("test-user", 100, 10);
 
-            assertThat(result).containsKey("percentile10");
-            assertThat(result).containsKey("percentile25");
-            assertThat(result).containsKey("percentile50");
-            assertThat(result).containsKey("percentile75");
-            assertThat(result).containsKey("percentile90");
+            // Result contains a nested 'percentiles' object with p10, p25, p50, p75, p90
+            assertThat(result).containsKey("percentiles");
             assertThat(result).containsKey("average");
+            assertThat(result).containsKey("simulations");
+            assertThat(result).containsKey("years");
+            assertThat(result).containsKey("successRate");
+            assertThat(result).containsKey("targetCorpus");
+
+            Map<String, Object> percentiles = (Map<String, Object>) result.get("percentiles");
+            assertThat(percentiles).containsKey("p10");
+            assertThat(percentiles).containsKey("p25");
+            assertThat(percentiles).containsKey("p50");
+            assertThat(percentiles).containsKey("p75");
+            assertThat(percentiles).containsKey("p90");
 
             // Percentiles should be in increasing order
-            Long p10 = (Long) result.get("percentile10");
-            Long p50 = (Long) result.get("percentile50");
-            Long p90 = (Long) result.get("percentile90");
+            Long p10 = (Long) percentiles.get("p10");
+            Long p50 = (Long) percentiles.get("p50");
+            Long p90 = (Long) percentiles.get("p90");
             assertThat(p10).isLessThan(p50);
             assertThat(p50).isLessThan(p90);
+        }
+
+        @Test
+        @DisplayName("should use user settings for mean return and inflation")
+        @SuppressWarnings("unchecked")
+        void shouldUseUserSettingsForMeanReturnAndInflation() {
+            Investment mf = Investment.builder()
+                    .currentValue(1000000.0)
+                    .monthlySip(20000.0)
+                    .build();
+
+            // Custom user settings
+            when(investmentRepository.findByUserId("test-user")).thenReturn(Collections.singletonList(mf));
+            when(userSettingsRepository.findByUserId("test-user")).thenReturn(
+                    java.util.Optional.of(UserSettings.builder()
+                            .currentAge(40)
+                            .retirementAge(65)
+                            .lifeExpectancy(90)
+                            .inflationRate(7.0) // Custom inflation
+                            .mfEquityReturn(15.0) // Custom equity return
+                            .build())
+            );
+            when(userStrategyRepository.findByUserId("test-user")).thenReturn(
+                    java.util.Optional.of(UserStrategy.builder()
+                            .selectedIncomeStrategy("SAFE_4_PERCENT")
+                            .build())
+            );
+            when(retirementService.calculateRequiredCorpusForUser(
+                    eq("test-user"),
+                    eq(7.0), // Inflation should match user settings
+                    eq(25), // yearsToRetirement = 65 - 40
+                    anyInt(),
+                    eq("SAFE_4_PERCENT"), // Strategy should match user settings
+                    anyDouble(),
+                    anyDouble()
+            )).thenReturn(5000000.0);
+
+            Map<String, Object> result = analysisService.runMonteCarloSimulation("test-user", 50, 15);
+
+            // Verify it uses user settings
+            assertThat(result).containsKey("targetCorpus");
+            assertThat((Long) result.get("targetCorpus")).isGreaterThan(0L);
+            
+            verify(retirementService).calculateRequiredCorpusForUser(
+                    eq("test-user"),
+                    eq(7.0),
+                    eq(25),
+                    anyInt(),
+                    eq("SAFE_4_PERCENT"),
+                    anyDouble(),
+                    anyDouble()
+            );
+        }
+
+        @Test
+        @DisplayName("should use default settings when user settings not found")
+        @SuppressWarnings("unchecked")
+        void shouldUseDefaultSettingsWhenUserSettingsNotFound() {
+            Investment mf = Investment.builder()
+                    .currentValue(500000.0)
+                    .monthlySip(10000.0)
+                    .build();
+
+            when(investmentRepository.findByUserId("test-user")).thenReturn(Collections.singletonList(mf));
+            when(userSettingsRepository.findByUserId("test-user")).thenReturn(java.util.Optional.empty());
+            when(userStrategyRepository.findByUserId("test-user")).thenReturn(java.util.Optional.empty());
+            when(retirementService.calculateRequiredCorpusForUser(
+                    eq("test-user"),
+                    eq(6.0), // Default inflation
+                    eq(25), // Default retirement age 60 - current age 35
+                    anyInt(),
+                    eq("SUSTAINABLE"), // Default strategy
+                    anyDouble(),
+                    anyDouble()
+            )).thenReturn(1000000.0);
+
+            Map<String, Object> result = analysisService.runMonteCarloSimulation("test-user", 20, 20);
+
+            assertThat(result).containsKey("percentiles");
+            assertThat(result).containsKey("targetCorpus");
+            
+            // Verify defaults were used
+            verify(retirementService).calculateRequiredCorpusForUser(
+                    eq("test-user"),
+                    eq(6.0), // Default inflation
+                    eq(25),
+                    anyInt(),
+                    eq("SUSTAINABLE"), // Default strategy
+                    anyDouble(),
+                    anyDouble()
+            );
+        }
+
+        @Test
+        @DisplayName("should calculate success rate based on target corpus")
+        @SuppressWarnings("unchecked")
+        void shouldCalculateSuccessRateBasedOnTargetCorpus() {
+            Investment mf = Investment.builder()
+                    .currentValue(2000000.0) // High starting value
+                    .monthlySip(50000.0) // High SIP
+                    .build();
+
+            when(investmentRepository.findByUserId("test-user")).thenReturn(Collections.singletonList(mf));
+            when(userSettingsRepository.findByUserId("test-user")).thenReturn(
+                    java.util.Optional.of(UserSettings.builder()
+                            .currentAge(30)
+                            .retirementAge(55)
+                            .lifeExpectancy(85)
+                            .inflationRate(6.0)
+                            .mfEquityReturn(12.0)
+                            .build())
+            );
+            when(userStrategyRepository.findByUserId("test-user")).thenReturn(
+                    java.util.Optional.of(UserStrategy.builder()
+                            .selectedIncomeStrategy("SUSTAINABLE")
+                            .build())
+            );
+            when(retirementService.calculateRequiredCorpusForUser(
+                    eq("test-user"),
+                    anyDouble(),
+                    anyInt(),
+                    anyInt(),
+                    anyString(),
+                    anyDouble(),
+                    anyDouble()
+            )).thenReturn(3000000.0);
+
+            Map<String, Object> result = analysisService.runMonteCarloSimulation("test-user", 1000, 25);
+
+            // With high SIP and long time horizon, success rate should be reasonable
+            assertThat(result).containsKey("successRate");
+            Number successRateNum = (Number) result.get("successRate");
+            long successRate = successRateNum.longValue();
+            assertThat(successRate).isBetween(0L, 100L);
+        }
+
+        @Test
+        @DisplayName("should handle SIMPLE_DEPLETION income strategy")
+        @SuppressWarnings("unchecked")
+        void shouldHandleSimpleDepletionStrategy() {
+            Investment mf = Investment.builder()
+                    .currentValue(1500000.0)
+                    .monthlySip(25000.0)
+                    .build();
+
+            when(investmentRepository.findByUserId("test-user")).thenReturn(Collections.singletonList(mf));
+            when(userSettingsRepository.findByUserId("test-user")).thenReturn(
+                    java.util.Optional.of(UserSettings.builder()
+                            .currentAge(38)
+                            .retirementAge(60)
+                            .lifeExpectancy(80)
+                            .inflationRate(5.5)
+                            .mfEquityReturn(11.5)
+                            .build())
+            );
+            when(userStrategyRepository.findByUserId("test-user")).thenReturn(
+                    java.util.Optional.of(UserStrategy.builder()
+                            .selectedIncomeStrategy("SIMPLE_DEPLETION")
+                            .build())
+            );
+            when(retirementService.calculateRequiredCorpusForUser(
+                    eq("test-user"),
+                    eq(5.5),
+                    eq(22),
+                    eq(20), // 80 - 60
+                    eq("SIMPLE_DEPLETION"),
+                    anyDouble(),
+                    anyDouble()
+            )).thenReturn(2500000.0);
+
+            Map<String, Object> result = analysisService.runMonteCarloSimulation("test-user", 100, 15);
+
+            assertThat(result).containsKey("targetCorpus");
+            assertThat(result).containsKey("successRate");
+            
+            verify(retirementService).calculateRequiredCorpusForUser(
+                    eq("test-user"),
+                    eq(5.5),
+                    eq(22),
+                    eq(20),
+                    eq("SIMPLE_DEPLETION"),
+                    anyDouble(),
+                    anyDouble()
+            );
+        }
+
+        @Test
+        @DisplayName("should handle zero investments")
+        @SuppressWarnings("unchecked")
+        void shouldHandleZeroInvestments() {
+            when(investmentRepository.findByUserId("test-user")).thenReturn(Collections.emptyList());
+            when(userSettingsRepository.findByUserId("test-user")).thenReturn(java.util.Optional.empty());
+            when(userStrategyRepository.findByUserId("test-user")).thenReturn(java.util.Optional.empty());
+            when(retirementService.calculateRequiredCorpusForUser(
+                    eq("test-user"),
+                    anyDouble(),
+                    anyInt(),
+                    anyInt(),
+                    anyString(),
+                    anyDouble(),
+                    anyDouble()
+            )).thenReturn(0.0);
+
+            Map<String, Object> result = analysisService.runMonteCarloSimulation("test-user", 10, 5);
+
+            assertThat(result).containsKey("percentiles");
+            assertThat(result).containsKey("average");
+            
+            // All percentiles should be 0 or very low with no investments
+            Map<String, Object> percentiles = (Map<String, Object>) result.get("percentiles");
+            Long p50 = (Long) percentiles.get("p50");
+            assertThat(p50).isLessThanOrEqualTo(0L);
+        }
+
+        @Test
+        @DisplayName("should handle large number of simulations")
+        @SuppressWarnings("unchecked")
+        void shouldHandleLargeNumberOfSimulations() {
+            Investment mf = Investment.builder()
+                    .currentValue(1000000.0)
+                    .monthlySip(20000.0)
+                    .build();
+
+            when(investmentRepository.findByUserId("test-user")).thenReturn(Collections.singletonList(mf));
+            when(userSettingsRepository.findByUserId("test-user")).thenReturn(java.util.Optional.empty());
+            when(userStrategyRepository.findByUserId("test-user")).thenReturn(java.util.Optional.empty());
+            when(retirementService.calculateRequiredCorpusForUser(
+                    eq("test-user"),
+                    anyDouble(),
+                    anyInt(),
+                    anyInt(),
+                    anyString(),
+                    anyDouble(),
+                    anyDouble()
+            )).thenReturn(2000000.0);
+
+            // Run with 10000 simulations
+            Map<String, Object> result = analysisService.runMonteCarloSimulation("test-user", 10000, 25);
+
+            assertThat(result).containsKey("simulations");
+            assertThat((Integer) result.get("simulations")).isEqualTo(10000);
+            assertThat(result).containsKey("percentiles");
         }
     }
 

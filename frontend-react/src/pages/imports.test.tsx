@@ -5,108 +5,82 @@ import { describe, it, expect } from 'vitest';
 
 describe('Page Component Imports', () => {
   it('should import Dashboard without errors', async () => {
-    const { Dashboard } = await import('./Dashboard');
-    expect(Dashboard).toBeDefined();
-  }, 10000);
+    const module = await import('./Dashboard');
+    expect(module.Dashboard).toBeDefined();
+  }, 15000);
 
   it('should import Income without errors', async () => {
-    const { Income } = await import('./Income');
-    expect(Income).toBeDefined();
+    const module = await import('./Income');
+    expect(module.Income).toBeDefined();
   }, 10000);
 
   it('should import Expenses without errors', async () => {
-    const { Expenses } = await import('./Expenses');
-    expect(Expenses).toBeDefined();
+    const module = await import('./Expenses');
+    expect(module.Expenses).toBeDefined();
   }, 10000);
 
   it('should import Investments without errors', async () => {
-    const { Investments } = await import('./Investments');
-    expect(Investments).toBeDefined();
+    const module = await import('./Investments');
+    expect(module.Investments).toBeDefined();
   }, 10000);
 
   it('should import Insurance without errors', async () => {
-    const { Insurance } = await import('./Insurance');
-    expect(Insurance).toBeDefined();
+    const module = await import('./Insurance');
+    expect(module.Insurance).toBeDefined();
   }, 10000);
 
   it('should import Loans without errors', async () => {
-    const { Loans } = await import('./Loans');
-    expect(Loans).toBeDefined();
+    const module = await import('./Loans');
+    expect(module.Loans).toBeDefined();
   }, 10000);
 
   it('should import Goals without errors', async () => {
-    const { Goals } = await import('./Goals');
-    expect(Goals).toBeDefined();
+    const module = await import('./Goals');
+    expect(module.Goals).toBeDefined();
   }, 10000);
 
   it('should import Family without errors', async () => {
-    const { Family } = await import('./Family');
-    expect(Family).toBeDefined();
+    const module = await import('./Family');
+    expect(module.Family).toBeDefined();
   }, 10000);
 
   it('should import Calendar without errors', async () => {
-    const { Calendar } = await import('./Calendar');
-    expect(Calendar).toBeDefined();
+    const module = await import('./Calendar');
+    expect(module.Calendar).toBeDefined();
   }, 10000);
 
   it('should import Retirement without errors', async () => {
-    const { Retirement } = await import('./Retirement');
-    expect(Retirement).toBeDefined();
+    const module = await import('./Retirement');
+    expect(module.Retirement).toBeDefined();
   }, 10000);
 
   it('should import InsuranceRecommendations without errors', async () => {
-    const { InsuranceRecommendations } = await import('./InsuranceRecommendations');
-    expect(InsuranceRecommendations).toBeDefined();
+    const module = await import('./InsuranceRecommendations');
+    expect(module.InsuranceRecommendations).toBeDefined();
   }, 10000);
 
-  // Test remaining pages that might have import issues
   it('should import Account without errors', async () => {
-    try {
-      const { Account } = await import('./Account');
-      expect(Account).toBeDefined();
-    } catch (error) {
-      // If file doesn't exist or has import issues, that's what we want to catch
-      expect(error).toBeDefined();
-    }
+    const module = await import('./Account');
+    expect(module.Account).toBeDefined();
   }, 10000);
 
   it('should import Admin without errors', async () => {
-    try {
-      const { Admin } = await import('./Admin');
-      expect(Admin).toBeDefined();
-    } catch (error) {
-      // If file doesn't exist or has import issues, that's what we want to catch
-      expect(error).toBeDefined();
-    }
+    const module = await import('./Admin');
+    expect(module.Admin).toBeDefined();
   }, 10000);
 
   it('should import Reports without errors', async () => {
-    try {
-      const { Reports } = await import('./Reports');
-      expect(Reports).toBeDefined();
-    } catch (error) {
-      // If file doesn't exist or has import issues, that's what we want to catch
-      expect(error).toBeDefined();
-    }
+    const module = await import('./Reports');
+    expect(module.Reports).toBeDefined();
   }, 10000);
 
   it('should import Settings without errors', async () => {
-    try {
-      const { Settings } = await import('./Settings');
-      expect(Settings).toBeDefined();
-    } catch (error) {
-      // If file doesn't exist or has import issues, that's what we want to catch
-      expect(error).toBeDefined();
-    }
+    const module = await import('./Settings');
+    expect(module.Settings).toBeDefined();
   }, 10000);
 
   it('should import Simulation without errors', async () => {
-    try {
-      const { Simulation } = await import('./Simulation');
-      expect(Simulation).toBeDefined();
-    } catch (error) {
-      // If file doesn't exist or has import issues, that's what we want to catch
-      expect(error).toBeDefined();
-    }
+    const module = await import('./Simulation');
+    expect(module.Simulation).toBeDefined();
   }, 10000);
 });

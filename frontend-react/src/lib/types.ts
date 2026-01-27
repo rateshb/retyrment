@@ -156,7 +156,7 @@ export interface Goal {
   description?: string;
   targetAmount: number;
   targetYear: number;
-  currentSavings: number;
+  currentSavings?: number;
   priority: 'HIGH' | 'MEDIUM' | 'LOW';
   isRecurring?: boolean;
   recurrenceInterval?: number;

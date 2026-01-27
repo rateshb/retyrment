@@ -1,8 +1,10 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { render, screen, fireEvent } from '@testing-library/react';
 
-let storeState: any = {
+let storeState: any;
+
+const defaultStoreState = () => ({
   user: { role: 'FREE', name: 'User', email: 'user@test.com' },
   features: {
     incomePage: true,
@@ -21,7 +23,7 @@ let storeState: any = {
     settingsPage: true,
   },
   logout: vi.fn(),
-};
+});
 
 vi.mock('../../stores/authStore', () => ({
   useAuthStore: () => storeState,
@@ -30,6 +32,10 @@ vi.mock('../../stores/authStore', () => ({
 import { Sidebar } from './Sidebar';
 
 describe('Sidebar', () => {
+  beforeEach(() => {
+    storeState = defaultStoreState();
+  });
+
   it('renders sections and nav items based on features', () => {
     render(
       <MemoryRouter initialEntries={['/dashboard']}>
@@ -72,7 +78,7 @@ describe('Sidebar', () => {
 
   it('calls logout on click', () => {
     const logout = vi.fn();
-    storeState = { ...storeState, logout };
+    storeState = { ...storeState, logout, user: { role: 'FREE', name: 'Test User', email: 'user@test.com' } };
 
     render(
       <MemoryRouter initialEntries={['/dashboard']}>
@@ -80,6 +86,14 @@ describe('Sidebar', () => {
       </MemoryRouter>
     );
 
+    // First click the settings toggle to reveal Logout button
+    const settingsToggle = screen.getAllByRole('button').find(btn => 
+      btn.textContent?.includes('Test User')
+    );
+    expect(settingsToggle).toBeDefined();
+    fireEvent.click(settingsToggle!);
+    
+    // Now click Logout
     fireEvent.click(screen.getByText('Logout'));
     expect(logout).toHaveBeenCalled();
   });

@@ -21,6 +21,9 @@ public class AnalysisService {
     private final ExpenseRepository expenseRepository;
     private final GoalRepository goalRepository;
     private final CalculationService calculationService;
+    private final UserSettingsRepository userSettingsRepository;
+    private final UserStrategyRepository userStrategyRepository;
+    private final RetirementService retirementService;
 
     @Value("${app.defaults.inflation-rate}")
     private double defaultInflation;
@@ -280,6 +283,44 @@ public class AnalysisService {
         Map<String, Object> result = new LinkedHashMap<>();
         java.security.SecureRandom random = new java.security.SecureRandom();
 
+        UserSettings userSettings = userSettingsRepository.findByUserId(userId).orElse(null);
+        double meanReturn = userSettings != null && userSettings.getMfEquityReturn() != null
+                ? userSettings.getMfEquityReturn()
+                : defaultMFReturn;
+        double inflationRate = userSettings != null && userSettings.getInflationRate() != null
+                ? userSettings.getInflationRate()
+                : defaultInflation;
+        int currentAge = userSettings != null && userSettings.getCurrentAge() != null
+                ? userSettings.getCurrentAge()
+                : 35;
+        int retirementAge = userSettings != null && userSettings.getRetirementAge() != null
+                ? userSettings.getRetirementAge()
+                : 60;
+        int lifeExpectancy = userSettings != null && userSettings.getLifeExpectancy() != null
+                ? userSettings.getLifeExpectancy()
+                : 85;
+        int yearsToRetirement = retirementAge - currentAge;
+        int retirementYears = lifeExpectancy - retirementAge;
+        String incomeStrategy = userStrategyRepository.findByUserId(userId)
+                .map(UserStrategy::getSelectedIncomeStrategy)
+                .orElse("SUSTAINABLE");
+        double withdrawalRate = 8.0;
+        double corpusReturnRate = 10.0;
+        double requiredCorpusAtRetirement = retirementService.calculateRequiredCorpusForUser(
+                userId,
+                inflationRate,
+                yearsToRetirement,
+                retirementYears,
+                incomeStrategy,
+                corpusReturnRate,
+                withdrawalRate
+        );
+        double adjustedTargetCorpus = requiredCorpusAtRetirement;
+        if (yearsToRetirement != years && inflationRate > 0) {
+            adjustedTargetCorpus = requiredCorpusAtRetirement * Math.pow(1 + inflationRate / 100, years - yearsToRetirement);
+        }
+        final double targetCorpus = adjustedTargetCorpus;
+
         List<Investment> investments = investmentRepository.findByUserId(userId);
         double currentValue = investments.stream()
                 .mapToDouble(i -> i.getCurrentValue() != null ? i.getCurrentValue() : 0)
@@ -289,7 +330,6 @@ public class AnalysisService {
                 .mapToDouble(Investment::getMonthlySip)
                 .sum();
 
-        double meanReturn = defaultMFReturn;
         double stdDev = 8.0; // Typical equity volatility
 
         List<Double> finalValues = new ArrayList<>();
@@ -315,10 +355,9 @@ public class AnalysisService {
         percentiles.put("p75", Math.round(finalValues.get((int)(simulations * 0.75))));
         percentiles.put("p90", Math.round(finalValues.get((int)(simulations * 0.90))));
 
-        // Calculate success rate (percentage of simulations that beat current value * 2)
-        double targetValue = currentValue * 2; // Target: double the current value
+        // Calculate success rate based on inflation-adjusted target corpus
         long successfulSimulations = finalValues.stream()
-                .mapToLong(v -> v >= targetValue ? 1 : 0)
+                .mapToLong(v -> v >= targetCorpus ? 1 : 0)
                 .sum();
         double successRate = (successfulSimulations * 100.0) / simulations;
 
@@ -327,6 +366,7 @@ public class AnalysisService {
         result.put("percentiles", percentiles);  // ✅ Nested structure
         result.put("average", Math.round(finalValues.stream().mapToDouble(d -> d).average().orElse(0)));
         result.put("successRate", Math.round(successRate * 10) / 10.0);  // ✅ Add success rate
+        result.put("targetCorpus", Math.round(targetCorpus));
 
         return result;
     }

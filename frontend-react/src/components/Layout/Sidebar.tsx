@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useState } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import {
   LayoutDashboard,
@@ -19,6 +20,10 @@ import {
   User,
   Crown,
   LogOut,
+  ChevronDown,
+  ChevronRight,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 
 interface NavItem {
@@ -57,9 +62,15 @@ const settingsItems: NavItem[] = [
   { path: '/settings', label: 'Settings', icon: <Settings size={18} />, feature: 'settingsPage' },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
+}
+
+export function Sidebar({ collapsed = false, onToggleCollapse }: SidebarProps) {
   const location = useLocation();
   const { user, features, logout } = useAuthStore();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -76,12 +87,14 @@ export function Sidebar() {
       <Link
         key={item.path}
         to={item.path}
-        className={`nav-item ${isActive(item.path) ? 'active' : ''}`}
+        className={`nav-item ${isActive(item.path) ? 'active' : ''} ${collapsed ? 'justify-center px-3' : ''}`}
+        title={collapsed ? item.label : undefined}
+        aria-label={collapsed ? item.label : undefined}
       >
         {item.icon}
-        <span>{item.label}</span>
+        {!collapsed && <span>{item.label}</span>}
         {item.requiresPro && (
-          <span className="pro-badge ml-auto">PRO</span>
+          !collapsed && <span className="pro-badge ml-auto">PRO</span>
         )}
       </Link>
     );
@@ -93,33 +106,50 @@ export function Sidebar() {
 
     return (
       <>
-        <div className="px-4 mt-6 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-          {title}
-        </div>
+        {!collapsed && (
+          <div className="px-4 mt-6 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+            {title}
+          </div>
+        )}
         {visibleItems.map(renderNavItem)}
       </>
     );
   };
 
+  const visibleSettingsItems = settingsItems.filter(canAccess);
+
   return (
-    <aside className="w-64 bg-white border-r border-slate-200 flex flex-col shadow-sm">
+    <aside className={`bg-white border-r border-slate-200 flex flex-col shadow-sm transition-all duration-200 ${collapsed ? 'w-20' : 'w-64'}`}>
       {/* Logo */}
-      <div className="p-5 border-b border-slate-200">
-        <Link to="/" className="flex items-center gap-3">
+      <div className={`p-5 border-b border-slate-200 ${collapsed ? '' : 'flex items-center justify-between'}`}>
+        <Link to="/" className={`flex items-center gap-3 ${collapsed ? 'justify-center' : ''}`}>
           <div className="w-10 h-10 rounded-lg logo-gradient flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-primary-500/30">
             ₹
           </div>
-          <span className="text-xl font-bold bg-gradient-to-r from-primary-500 to-primary-700 bg-clip-text text-transparent">
-            Retyrment
-          </span>
+          {!collapsed && (
+            <span className="text-xl font-bold bg-gradient-to-r from-primary-500 to-primary-700 bg-clip-text text-transparent">
+              Retyrment
+            </span>
+          )}
         </Link>
+        {onToggleCollapse && (
+          <button
+            onClick={onToggleCollapse}
+            className={`p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors ${collapsed ? 'mt-3 mx-auto' : ''}`}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+          </button>
+        )}
       </div>
 
       {/* Navigation */}
       <nav className="flex-1 py-4 overflow-y-auto scrollbar-thin">
-        <div className="px-4 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-          Overview
-        </div>
+        {!collapsed && (
+          <div className="px-4 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+            Overview
+          </div>
+        )}
         {overviewItems.map(renderNavItem)}
 
         {renderSection('Data Entry', dataEntryItems)}
@@ -128,15 +158,19 @@ export function Sidebar() {
         {/* Admin Panel - Always show for ADMIN users */}
         {user?.role === 'ADMIN' && (
           <>
-            <div className="px-4 mt-6 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              Administration
-            </div>
+            {!collapsed && (
+              <div className="px-4 mt-6 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                Administration
+              </div>
+            )}
             <Link
               to="/admin"
-              className={`nav-item ${isActive('/admin') ? 'active' : ''}`}
+              className={`nav-item ${isActive('/admin') ? 'active' : ''} ${collapsed ? 'justify-center px-3' : ''}`}
+              title={collapsed ? 'Admin Panel' : undefined}
+              aria-label={collapsed ? 'Admin Panel' : undefined}
             >
               <Crown size={18} />
-              <span>Admin Panel</span>
+              {!collapsed && <span>Admin Panel</span>}
             </Link>
           </>
         )}
@@ -144,43 +178,58 @@ export function Sidebar() {
 
       {/* User Section */}
       <div className="p-4 border-t border-slate-200">
-        {/* User Profile */}
-        {user && (
-          <div className="flex items-center gap-3 px-3 py-2 mb-2">
-            <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center">
-              {user.profilePicture ? (
-                <img src={user.profilePicture} alt="" className="w-8 h-8 rounded-full" />
-              ) : (
-                <User size={16} className="text-primary-600" />
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-700 truncate">{user.name || user.email}</p>
-              <p className="text-xs text-slate-500">{user.role}</p>
-            </div>
-          </div>
+        {/* Settings Toggle */}
+        {visibleSettingsItems.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setSettingsOpen((prev) => !prev)}
+            className={`nav-item w-full ${collapsed ? 'justify-center px-3' : ''}`}
+            title={collapsed ? (user?.name || user?.email || 'Account') : undefined}
+            aria-label={collapsed ? (user?.name || user?.email || 'Account') : undefined}
+          >
+            <User size={18} />
+            {!collapsed && (
+              <div className="flex flex-col items-start">
+                <span>{user?.name || user?.email || 'Account'}</span>
+                {user?.role && <span className="text-xs text-slate-500">{user.role}</span>}
+              </div>
+            )}
+            {!collapsed && (
+              <span className="ml-auto text-slate-400">
+                {settingsOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </span>
+            )}
+          </button>
         )}
 
         {/* Settings Links */}
-        {settingsItems.map(renderNavItem)}
+        {settingsOpen && visibleSettingsItems.map(renderNavItem)}
 
         {/* Account Link */}
-        <Link
-          to="/account"
-          className={`nav-item ${isActive('/account') ? 'active' : ''}`}
-        >
-          <User size={18} />
-          <span>My Account</span>
-        </Link>
+        {settingsOpen && (
+          <Link
+            to="/account"
+            className={`nav-item ${isActive('/account') ? 'active' : ''} ${collapsed ? 'justify-center px-3' : ''}`}
+            title={collapsed ? 'My Account' : undefined}
+            aria-label={collapsed ? 'My Account' : undefined}
+          >
+            <User size={18} />
+            {!collapsed && <span>My Account</span>}
+          </Link>
+        )}
 
         {/* Logout Button */}
-        <button
-          onClick={logout}
-          className="nav-item w-full text-left text-slate-500 hover:text-danger-500"
-        >
-          <LogOut size={18} />
-          <span>Logout</span>
-        </button>
+        {settingsOpen && (
+          <button
+            onClick={logout}
+            className={`nav-item w-full text-left text-slate-500 hover:text-danger-500 ${collapsed ? 'justify-center px-3' : ''}`}
+            title={collapsed ? 'Logout' : undefined}
+            aria-label={collapsed ? 'Logout' : undefined}
+          >
+            <LogOut size={18} />
+            {!collapsed && <span>Logout</span>}
+          </button>
+        )}
       </div>
     </aside>
   );

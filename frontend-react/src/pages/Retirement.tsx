@@ -24,6 +24,7 @@ import {
 } from '../lib/api';
 import { formatCurrency, formatDate, amountInWordsHelper } from '../lib/utils';
 import { calculateTotalRentalIncome, generateRealEstateRecommendations } from '../lib/realEstateUtils';
+import { trackEvent } from '../lib/analytics';
 import { useAuthStore } from '../stores/authStore';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
@@ -53,8 +54,8 @@ import {
 const CURRENT_YEAR = new Date().getFullYear();
 
 const INCOME_STRATEGIES = [
-  { value: 'SUSTAINABLE', label: 'Sustainable', description: 'Corpus grows at ~2%' },
-  { value: 'SAFE_4_PERCENT', label: '4% Rule', description: '4% annual withdrawal' },
+  { value: 'SUSTAINABLE', label: 'Sustainable', description: 'Grows at ~10% with 8% withdrawals' },
+  { value: 'SAFE_4_PERCENT', label: '4% Rule', description: 'Withdraw 4% of initial corpus yearly, inflation-adjusted' },
   { value: 'SIMPLE_DEPLETION', label: 'Depletion', description: 'Corpus depletes' },
 ];
 
@@ -144,6 +145,14 @@ export function Retirement() {
 
   // Computed active section based on primary and secondary tabs
   const activeSection = primaryTab === 'overview' ? 'overview' : secondaryTab[primaryTab] || 'matrix';
+
+  useEffect(() => {
+    trackEvent('retirement_tab_view', {
+      primary_tab: primaryTab,
+      secondary_tab: primaryTab === 'overview' ? 'overview' : secondaryTab[primaryTab],
+      active_section: activeSection,
+    });
+  }, [primaryTab, secondaryTab, activeSection]);
 
   // Load saved params - prioritize user settings from backend
   useEffect(() => {
@@ -290,6 +299,12 @@ export function Retirement() {
         retirementApi.saveStrategy(merged).catch(() => {});
       }
     }
+  };
+
+  const handleRetireAtAge = (age: number) => {
+    handleParamChange('retirementAge', age);
+    setPrimaryTab('projections');
+    setSecondaryTab(prev => ({ ...prev, projections: 'income' }));
   };
 
   const handleRecalculate = async () => {
@@ -523,6 +538,7 @@ export function Retirement() {
 
   const retirementYears = summary.retirementYears || (summary.lifeExpectancy ? (summary.lifeExpectancy - (summary.retirementAge || params.retirementAge)) : 0);
   const withdrawalRate = summary.withdrawalRate || 8;
+  const corpusReturnRate = summary.corpusReturnRate || params.corpusReturnRate || 10;
   const fallbackMonthlyRetirementIncome = projectedCorpus > 0 && retirementYears > 0
     ? projectedCorpus / retirementYears / 12
     : 0;
@@ -1587,6 +1603,11 @@ export function Retirement() {
                     const isSelected = params.incomeStrategy === strategy.value;
                     const totalIncome = incomeStrategies[strategy.value as keyof typeof incomeStrategies] || 0;
                     const corpusIncome = totalIncome - annuityMonthlyIncome - totalRentalIncome;
+                    const strategyDescription = strategy.value === 'SUSTAINABLE'
+                      ? `Grows at ~${Math.round(corpusReturnRate)}% with ${Math.round(withdrawalRate)}% withdrawals`
+                      : strategy.value === 'SAFE_4_PERCENT'
+                        ? `Withdraw 4% of initial corpus yearly, inflation-adjusted; assumes ~${Math.round(corpusReturnRate)}% return`
+                        : strategy.description;
                     
                     return (
                       <div 
@@ -1623,7 +1644,12 @@ export function Retirement() {
                             </div>
                           )}
                         </div>
-                        <div className="text-xs text-slate-400 mt-2">{strategy.description}</div>
+                        <div className="text-xs text-slate-400 mt-2">{strategyDescription}</div>
+                        {strategy.value === 'SAFE_4_PERCENT' && (
+                          <div className="text-[11px] text-slate-400 mt-1">
+                            Uses a fixed, inflation-adjusted withdrawal from the initial corpus, so withdrawals don’t shrink when the corpus dips.
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -1667,7 +1693,8 @@ export function Retirement() {
                           
                           // Calculate required expense for this year (with inflation)
                           const baseMonthlyExpense = gapAnalysis.monthlyExpensesAtRetirement || gapAnalysis.inflatedMonthlyExpenses || 0;
-                          const requiredExpense = baseMonthlyExpense * Math.pow(1 + params.inflation / 100, proj.year || 0);
+                          const goalOutflowMonthly = (proj.goalOutflow || 0) / 12;
+                          const requiredExpense = (baseMonthlyExpense * Math.pow(1 + params.inflation / 100, proj.year || 0)) + goalOutflowMonthly;
                           
                           // Calculate shortfall
                           const shortfall = Math.max(0, requiredExpense - totalMonthlyIncome);
@@ -1688,7 +1715,14 @@ export function Retirement() {
                               {formatCurrency(totalMonthlyIncome)}
                             </td>
                             <td className="px-4 py-2 text-right text-amber-600">
-                              {formatCurrency(requiredExpense)}
+                              <div className="flex flex-col items-end">
+                                <span>{formatCurrency(requiredExpense)}</span>
+                                {goalOutflowMonthly > 0 && (
+                                  <span className="text-[11px] text-indigo-600 mt-0.5">
+                                    (includes ₹{formatCurrency(goalOutflowMonthly)} goal)
+                                  </span>
+                                )}
+                              </div>
                             </td>
                             <td className={`px-4 py-2 text-right font-medium ${shortfall > 0 ? 'text-danger-600' : 'text-success-600'}`}>
                               {shortfall > 0 ? formatCurrency(shortfall) : '✓'}
@@ -2195,6 +2229,7 @@ export function Retirement() {
                         <th className="px-3 py-2 text-center font-semibold text-indigo-600">Step-Up</th>
                         <th className="px-3 py-2 text-right font-semibold text-emerald-600">Inflows</th>
                         <th className="px-3 py-2 text-right font-semibold text-danger-600">Goal Outflow</th>
+                        <th className="px-3 py-2 text-right font-semibold text-slate-600">Required Corpus</th>
                         <th className="px-3 py-2 text-right font-semibold text-primary-600 bg-primary-50">Net Corpus</th>
                       </tr>
                     </thead>
@@ -2285,6 +2320,31 @@ export function Retirement() {
                                 <span className="text-slate-400">-</span>
                               )}
                             </td>
+                            <td className="px-3 py-2 text-right">
+                              <div className="flex flex-col items-end gap-1 text-xs">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-slate-500">Sustainable</span>
+                                  <span className="text-slate-700">{formatCurrency(row.requiredCorpusByStrategy?.SUSTAINABLE || 0, true)}</span>
+                                  {row.canRetireByStrategy?.SUSTAINABLE && (
+                                    <span className="text-emerald-600">✅</span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-slate-500">4% Rule</span>
+                                  <span className="text-slate-700">{formatCurrency(row.requiredCorpusByStrategy?.SAFE_4_PERCENT || 0, true)}</span>
+                                  {row.canRetireByStrategy?.SAFE_4_PERCENT && (
+                                    <span className="text-emerald-600">✅</span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-slate-500">Depletion</span>
+                                  <span className="text-slate-700">{formatCurrency(row.requiredCorpusByStrategy?.SIMPLE_DEPLETION || 0, true)}</span>
+                                  {row.canRetireByStrategy?.SIMPLE_DEPLETION && (
+                                    <span className="text-emerald-600">✅</span>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
                             <td className={`px-3 py-2 text-right font-semibold bg-primary-50 ${(row.netCorpus || 0) < 0 ? 'text-danger-600' : 'text-primary-600'}`}>
                               <div className="flex flex-col items-end">
                                 <div className="flex items-center gap-1">
@@ -2303,6 +2363,15 @@ export function Retirement() {
                                     ↘ {formatCurrency(ifStopped.flatCorpus)}
                                   </span>
                                 ) : null}
+                                {row.canRetireByStrategy?.[params.incomeStrategy] && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRetireAtAge(row.age)}
+                                    className="mt-1 text-xs text-emerald-700 hover:text-emerald-800"
+                                  >
+                                    Retire at this age
+                                  </button>
+                                )}
                               </div>
                             </td>
                           </tr>
