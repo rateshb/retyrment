@@ -103,7 +103,7 @@ describe('InsuranceRecommendations', () => {
     expect(scoreCard).toBeTruthy();
     expect(scoreCard).toHaveClass('bg-success-50');
 
-    const scoreValue = within(scoreCard!).getByText('85');
+    const scoreValue = within(scoreCard as HTMLElement).getByText('85');
     expect(scoreValue).toHaveClass('text-success-600');
   });
 

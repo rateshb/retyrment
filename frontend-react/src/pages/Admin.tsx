@@ -413,7 +413,7 @@ export function Admin() {
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-slate-500">{formatDate(adminUser.lastLoginAt) || 'N/A'}</td>
+                    <td className="px-6 py-4 text-sm text-slate-500">{formatDate(adminUser.lastLoginAt || '') || 'N/A'}</td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">
                         <button

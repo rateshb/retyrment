@@ -5,6 +5,7 @@ type StoredPreferences = {
   numberFormat?: 'Indian' | 'International';
   compactNumbers?: boolean;
   showEmoji?: boolean;
+  dateFormat?: 'MM/DD/YYYY' | 'YYYY-MM-DD' | 'DD/MM/YYYY';
   dashboard?: {
     showNetWorth?: boolean;
     showRecommendations?: boolean;
@@ -18,6 +19,7 @@ const defaultPreferences: Required<StoredPreferences> = {
   numberFormat: 'Indian',
   compactNumbers: true,
   showEmoji: true,
+  dateFormat: 'DD/MM/YYYY',
   dashboard: {
     showNetWorth: true,
     showRecommendations: true,
