@@ -81,6 +81,74 @@ describe('authStore', () => {
     expect(mockApi.authApi.features).toHaveBeenCalled();
   });
 
+  it('refreshFeaturesIfNeeded does nothing when not authenticated', async () => {
+    mockAuth.isLoggedIn.mockReturnValue(false);
+    mockApi.authApi.features.mockResolvedValue({ features: { reportsPage: true } });
+
+    ({ useAuthStore } = await import('./authStore'));
+
+    useAuthStore.setState({ isAuthenticated: false, lastFeaturesRefresh: null });
+
+    await useAuthStore.getState().refreshFeaturesIfNeeded();
+
+    expect(mockApi.authApi.features).not.toHaveBeenCalled();
+  });
+
+  it('refreshFeaturesIfNeeded skips when cache is fresh', async () => {
+    mockAuth.isLoggedIn.mockReturnValue(false);
+    mockApi.authApi.features.mockResolvedValue({ features: { reportsPage: true } });
+
+    ({ useAuthStore } = await import('./authStore'));
+
+    useAuthStore.setState({
+      isAuthenticated: true,
+      lastFeaturesRefresh: Date.now(),
+    });
+
+    await useAuthStore.getState().refreshFeaturesIfNeeded();
+
+    expect(mockApi.authApi.features).not.toHaveBeenCalled();
+  });
+
+  it('fetchUser clears state on error', async () => {
+    mockAuth.isLoggedIn.mockReturnValue(false);
+    mockApi.authApi.me.mockRejectedValue(new Error('Failed'));
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    ({ useAuthStore } = await import('./authStore'));
+
+    useAuthStore.setState({ user: { id: 'u1' } as any, isAuthenticated: true });
+    await useAuthStore.getState().fetchUser();
+
+    expect(useAuthStore.getState().user).toBeNull();
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    expect(consoleSpy).toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
+  });
+
+  it('fetchFeatures stores features in localStorage', async () => {
+    mockAuth.isLoggedIn.mockReturnValue(false);
+    mockApi.authApi.features.mockResolvedValue({ features: { incomePage: true } });
+
+    const mockStorage = {
+      getItem: vi.fn(),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+      clear: vi.fn(),
+    };
+    vi.stubGlobal('localStorage', mockStorage);
+
+    ({ useAuthStore } = await import('./authStore'));
+
+    await useAuthStore.getState().fetchFeatures();
+
+    expect(mockStorage.setItem).toHaveBeenCalledWith(
+      'retyrment_features',
+      JSON.stringify({ incomePage: true })
+    );
+  });
+
   it('logout clears auth state', async () => {
     mockAuth.isLoggedIn.mockReturnValue(true);
     ({ useAuthStore } = await import('./authStore'));

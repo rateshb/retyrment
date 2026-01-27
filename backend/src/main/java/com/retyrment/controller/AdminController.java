@@ -3,6 +3,13 @@ package com.retyrment.controller;
 import com.retyrment.dto.UserResponseDTO;
 import com.retyrment.model.User;
 import com.retyrment.model.UserFeatureAccess;
+import com.retyrment.repository.ExpenseRepository;
+import com.retyrment.repository.FamilyMemberRepository;
+import com.retyrment.repository.GoalRepository;
+import com.retyrment.repository.IncomeRepository;
+import com.retyrment.repository.InsuranceRepository;
+import com.retyrment.repository.InvestmentRepository;
+import com.retyrment.repository.LoanRepository;
 import com.retyrment.repository.UserRepository;
 import com.retyrment.service.FeatureAccessService;
 import com.retyrment.service.RoleExpiryService;
@@ -24,6 +31,13 @@ public class AdminController {
     private final UserRepository userRepository;
     private final RoleExpiryService roleExpiryService;
     private final FeatureAccessService featureAccessService;
+    private final IncomeRepository incomeRepository;
+    private final InvestmentRepository investmentRepository;
+    private final ExpenseRepository expenseRepository;
+    private final InsuranceRepository insuranceRepository;
+    private final LoanRepository loanRepository;
+    private final GoalRepository goalRepository;
+    private final FamilyMemberRepository familyMemberRepository;
 
     /**
      * Check if current user is admin
@@ -46,7 +60,20 @@ public class AdminController {
         }
 
         List<Map<String, Object>> users = userRepository.findAll().stream()
-                .map(user -> UserResponseDTO.fromUser(user, true).toMap())
+                .map(user -> {
+                    Map<String, Object> userMap = UserResponseDTO.fromUser(user, true).toMap();
+                    Map<String, Object> recordSummary = new LinkedHashMap<>();
+                    String userId = user.getId();
+                    recordSummary.put("income", incomeRepository.countByUserId(userId));
+                    recordSummary.put("investments", investmentRepository.countByUserId(userId));
+                    recordSummary.put("expenses", expenseRepository.countByUserId(userId));
+                    recordSummary.put("insurance", insuranceRepository.countByUserId(userId));
+                    recordSummary.put("loans", loanRepository.countByUserId(userId));
+                    recordSummary.put("goals", goalRepository.countByUserId(userId));
+                    recordSummary.put("family", familyMemberRepository.countByUserId(userId));
+                    userMap.put("recordSummary", recordSummary);
+                    return userMap;
+                })
                 .collect(Collectors.toList());
 
         Map<String, Object> response = new LinkedHashMap<>();

@@ -17,7 +17,7 @@ import {
   Wallet, TrendingUp, Building2, PiggyBank, AlertTriangle, CheckCircle,
   Shield, Heart, Umbrella, Target, ArrowRight, Info
 } from 'lucide-react';
-import { formatCurrency } from '../lib/utils';
+import { formatCurrency, getUserPreferences } from '../lib/utils';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#3b82f6', '#14b8a6', '#f97316'];
@@ -25,6 +25,11 @@ const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#3b82f6'
 export function Dashboard() {
   const { user } = useAuthStore();
   const [hiddenAssets, setHiddenAssets] = useState<Set<string>>(new Set());
+
+  const preferences = useMemo(() => getUserPreferences(), []);
+  const dashboardPrefs = preferences.dashboard;
+  const showEmoji = preferences.showEmoji;
+  const emojiLabel = (emoji: string, text: string) => (showEmoji ? `${emoji} ${text}` : text);
   
   const { data: networth, isLoading: networthLoading } = useQuery({
     queryKey: ['networth'],
@@ -201,7 +206,7 @@ export function Dashboard() {
     if (enabledStrategies.length > 0) {
       alerts.push({
         type: 'info',
-        icon: '📋',
+        icon: showEmoji ? '📋' : '',
         title: 'Your Active Strategy',
         description: enabledStrategies.join(' • '),
         link: '/retirement',
@@ -215,7 +220,7 @@ export function Dashboard() {
     const count = (maturingData.investmentCount || 0) + (maturingData.insuranceCount || 0);
     alerts.push({
       type: 'success',
-      icon: '💰',
+      icon: showEmoji ? '💰' : '',
       title: `${formatCurrency(totalMaturing, true)} Available for Reinvestment`,
       description: `${count} investments/policies maturing before retirement. Consider reinvesting in higher-return assets.`,
       link: '/retirement',
@@ -231,7 +236,7 @@ export function Dashboard() {
       if (wouldMeetCorpus) {
         alerts.push({
           type: 'warning',
-          icon: '🏠',
+          icon: showEmoji ? '🏠' : '',
           title: 'Illiquid Assets Can Cover Gap',
           description: `Selling Gold/Real Estate (${formatCurrency(illiquidValue, true)}) would help meet your corpus requirement.`,
           link: '/retirement',
@@ -244,7 +249,7 @@ export function Dashboard() {
     if (totalInflows > 0 && (projectedCorpus + totalInflows) >= requiredCorpus) {
       alerts.push({
         type: 'tip',
-        icon: '📊',
+        icon: showEmoji ? '📊' : '',
         title: 'Reinvesting Maturities Helps',
         description: `If you reinvest ${formatCurrency(totalInflows, true)} from maturities, you can meet your corpus target.`,
         link: '/retirement',
@@ -253,7 +258,7 @@ export function Dashboard() {
     } else {
       alerts.push({
         type: 'danger',
-        icon: '⚠️',
+        icon: showEmoji ? '⚠️' : '',
         title: `Corpus Shortfall: ${formatCurrency(corpusGap, true)}`,
         description: 'Increase SIP or consider additional investments to meet retirement goals.',
         link: '/retirement',
@@ -270,9 +275,9 @@ export function Dashboard() {
     if (soonestLoan && soonestLoan.endDate) {
       const yearsToEnd = new Date(soonestLoan.endDate as string).getFullYear() - new Date().getFullYear();
       if (yearsToEnd > 0 && yearsToEnd <= 10) {
-        alerts.push({
+      alerts.push({
           type: 'tip',
-          icon: '🎯',
+        icon: showEmoji ? '🎯' : '',
           title: `${formatCurrency(soonestLoan.emi || 0, true)}/mo Freed in ${yearsToEnd}y`,
           description: `After ${soonestLoan.name || 'loan'} ends, redirect EMI to investments for faster corpus growth.`,
           link: '/loans',
@@ -287,7 +292,7 @@ export function Dashboard() {
     if (emergencyGap > 0) {
       alerts.push({
         type: 'warning',
-        icon: '🆘',
+        icon: showEmoji ? '🆘' : '',
         title: 'Emergency Fund Gap',
         description: `Need ${formatCurrency(emergencyGap, true)} more. Current: ${formatCurrency(totalEmergencyFund, true)} (Cash + Tagged FD/RD)`,
         link: '/investments',
@@ -311,7 +316,7 @@ export function Dashboard() {
         sum + (inv.currentValue || inv.investedAmount || 0), 0);
       alerts.push({
         type: 'warning',
-        icon: '⏰',
+        icon: showEmoji ? '⏰' : '',
         title: 'Emergency Fund Maturing Soon',
         description: `${maturingSoonEmergencyFunds.length} emergency ${maturingSoonEmergencyFunds.length === 1 ? 'fund' : 'funds'} (${formatCurrency(totalMaturing, true)}) maturing in 6 months. Plan to reinvest to maintain emergency coverage.`,
         link: '/investments',
@@ -324,7 +329,7 @@ export function Dashboard() {
   if (atRiskGoals.length > 0) {
     alerts.push({
       type: 'danger',
-      icon: '🎯',
+      icon: showEmoji ? '🎯' : '',
       title: `${atRiskGoals.length} Goal(s) Underfunded`,
       description: atRiskGoals.slice(0, 2).map((g: any) => g.name).join(', ') + (atRiskGoals.length > 2 ? '...' : ''),
       link: '/goals',
@@ -393,13 +398,20 @@ export function Dashboard() {
     },
   ];
 
+  const projectedCorpusIcon = showEmoji ? '💰' : <Wallet className="text-success-600" size={20} />;
+  const requiredCorpusIcon = showEmoji ? '🎯' : <Target className="text-primary-600" size={20} />;
+  const readinessIcon = showEmoji
+    ? (readinessPercent >= 100 ? '✅' : readinessPercent >= 75 ? '⚠️' : '❗')
+    : (readinessPercent >= 100 ? <CheckCircle className="text-success-600" size={20} /> : <AlertTriangle className="text-warning-600" size={20} />);
+
   return (
     <MainLayout 
       title={`Welcome back, ${user?.name?.split(' ')[0] || 'User'}!`}
       subtitle="Here's your financial overview"
     >
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      {dashboardPrefs.showNetWorth && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {stats.map((stat, index) => (
           <Card 
             key={index} 
@@ -421,15 +433,16 @@ export function Dashboard() {
             </CardContent>
           </Card>
         ))}
-      </div>
+        </div>
+      )}
 
       {/* Retirement Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Card className={`border-l-4 ${corpusGap <= 0 ? 'border-l-success-500' : 'border-l-warning-500'}`}>
           <CardContent>
             <div className="flex items-center gap-4">
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${corpusGap <= 0 ? 'bg-success-100' : 'bg-warning-100'}`}>
-                💰
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${corpusGap <= 0 ? 'bg-success-100' : 'bg-warning-100'}`}>
+                {projectedCorpusIcon}
               </div>
               <div>
                 <p className="text-sm text-slate-500">Projected Corpus</p>
@@ -443,8 +456,8 @@ export function Dashboard() {
         <Card className={`border-l-4 ${corpusGap <= 0 ? 'border-l-success-500' : 'border-l-danger-500'}`}>
           <CardContent>
             <div className="flex items-center gap-4">
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${corpusGap <= 0 ? 'bg-success-100' : 'bg-danger-100'}`}>
-                🎯
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${corpusGap <= 0 ? 'bg-success-100' : 'bg-danger-100'}`}>
+                {requiredCorpusIcon}
               </div>
               <div>
                 <p className="text-sm text-slate-500">Required Corpus</p>
@@ -460,10 +473,10 @@ export function Dashboard() {
         <Card className={`border-l-4 ${readinessPercent >= 100 ? 'border-l-success-500' : readinessPercent >= 75 ? 'border-l-warning-500' : 'border-l-danger-500'}`}>
           <CardContent>
             <div className="flex items-center gap-4">
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
                 readinessPercent >= 100 ? 'bg-success-100' : readinessPercent >= 75 ? 'bg-warning-100' : 'bg-danger-100'
               }`}>
-                {readinessPercent >= 100 ? '✅' : readinessPercent >= 75 ? '⚠️' : '❗'}
+                {readinessIcon}
               </div>
               <div>
                 <p className="text-sm text-slate-500">Retirement Readiness</p>
@@ -473,7 +486,7 @@ export function Dashboard() {
                 <p className={`text-xs ${
                   readinessPercent >= 100 ? 'text-success-600' : readinessPercent >= 75 ? 'text-warning-600' : 'text-danger-600'
                 }`}>
-                  {readinessPercent >= 100 ? "You're on track! 🎉" : readinessPercent >= 75 ? 'Almost there' : 'Need to increase investments'}
+                  {readinessPercent >= 100 ? `You're on track${showEmoji ? '! 🎉' : '!'}` : readinessPercent >= 75 ? 'Almost there' : 'Need to increase investments'}
                 </p>
               </div>
             </div>
@@ -482,7 +495,7 @@ export function Dashboard() {
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      <div className={`grid grid-cols-1 lg:grid-cols-${dashboardPrefs.showUpcomingEvents ? 3 : 2} gap-6 mb-6`}>
         {/* Critical Areas Check */}
         <Card>
           <CardContent>
@@ -501,7 +514,7 @@ export function Dashboard() {
                     <span className={`text-sm font-medium ${
                       item.status === null ? 'text-slate-500' : item.status ? 'text-success-600' : 'text-danger-600'
                     }`}>
-                      {item.status === null ? 'ℹ️ Unknown' : item.status ? '✅ Met' : '⚠️ Missing'}
+                      {item.status === null ? emojiLabel('ℹ️', 'Unknown') : item.status ? emojiLabel('✅', 'Met') : emojiLabel('⚠️', 'Missing')}
                     </span>
                   </div>
                   <div className="text-sm text-slate-700">{item.detail}</div>
@@ -515,7 +528,7 @@ export function Dashboard() {
         </Card>
 
         {/* Emergency Fund Widget */}
-        <Card>
+      <Card>
           <CardContent>
             <h3 className="text-lg font-semibold text-slate-800 mb-4">Emergency Fund</h3>
             <div className="space-y-4">
@@ -530,9 +543,9 @@ export function Dashboard() {
                     emergencyFundMet ? 'text-success-600' : 
                     totalEmergencyFund >= emergencyFundTarget * 0.5 ? 'text-warning-600' : 'text-danger-600'
                   }`}>
-                    {monthlyExpenses === 0 ? 'ℹ️ Add expenses' :
-                     emergencyFundMet ? '✅ Adequate' : 
-                     totalEmergencyFund >= emergencyFundTarget * 0.5 ? '⚠️ Partial' : '🚨 Critical'}
+                    {monthlyExpenses === 0 ? emojiLabel('ℹ️', 'Add expenses') :
+                     emergencyFundMet ? emojiLabel('✅', 'Adequate') :
+                     totalEmergencyFund >= emergencyFundTarget * 0.5 ? emojiLabel('⚠️', 'Partial') : emojiLabel('🚨', 'Critical')}
                   </p>
                   <p className="text-sm text-slate-500">Target: {formatCurrency(emergencyFundTarget)}</p>
                 </div>
@@ -576,6 +589,7 @@ export function Dashboard() {
         </Card>
 
         {/* High Priority Alerts */}
+      {dashboardPrefs.showUpcomingEvents && (
         <Card>
           <CardContent>
             <div className="flex items-center justify-between mb-4">
@@ -591,7 +605,7 @@ export function Dashboard() {
                     alert.type === 'success' ? 'bg-emerald-50 border-emerald-200' :
                     'bg-blue-50 border-blue-200'
                   }`}>
-                    <span className="text-xl flex-shrink-0">{alert.icon}</span>
+                    {alert.icon && <span className="text-xl flex-shrink-0">{alert.icon}</span>}
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-slate-800 text-sm">{alert.title}</p>
                       <p className="text-xs text-slate-600 mt-0.5">{alert.description}</p>
@@ -604,17 +618,18 @@ export function Dashboard() {
               </div>
             ) : (
               <div className="text-center py-6 text-slate-400">
-                <div className="text-4xl mb-2">✅</div>
+                {showEmoji && <div className="text-4xl mb-2">✅</div>}
                 <p className="font-medium">All Good!</p>
                 <p className="text-sm">No high priority alerts</p>
               </div>
             )}
           </CardContent>
-        </Card>
+      </Card>
+      )}
       </div>
 
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className={`grid grid-cols-1 ${dashboardPrefs.showGoalProgress ? 'lg:grid-cols-2' : ''} gap-6`}>
         {/* Asset Breakdown Chart */}
         <Card>
           <CardContent>
@@ -687,12 +702,13 @@ export function Dashboard() {
         </Card>
 
         {/* Goal Progress Chart */}
-        <Card>
+        {dashboardPrefs.showGoalProgress && (
+          <Card>
           <CardContent>
             <h3 className="text-lg font-semibold text-slate-800 mb-4">Goal Progress</h3>
             {goalsData.some((g: any) => g.hasShortfall) && (
               <div className="mb-4 p-3 bg-danger-50 border border-danger-200 rounded-lg flex items-start gap-2">
-                <span className="text-danger-500">⚠️</span>
+                {showEmoji && <span className="text-danger-500">⚠️</span>}
                 <div className="text-sm text-danger-700">
                   <strong>Goal Shortfall Detected:</strong> Some goals cannot be fully funded from projected corpus. 
                   Check Year-by-Year matrix in Retirement page for details.
@@ -735,10 +751,12 @@ export function Dashboard() {
             )}
           </CardContent>
         </Card>
+        )}
       </div>
 
       {/* Recommendations */}
-      <Card className="mt-6">
+      {dashboardPrefs.showRecommendations && (
+        <Card className="mt-6">
         <CardContent>
           <h3 className="text-lg font-semibold text-slate-800 mb-4">Recommendations</h3>
           <div className="space-y-3">
@@ -766,7 +784,8 @@ export function Dashboard() {
             )}
           </div>
         </CardContent>
-      </Card>
+        </Card>
+      )}
     </MainLayout>
   );
 }

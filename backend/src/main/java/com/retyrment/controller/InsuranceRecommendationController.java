@@ -1,11 +1,8 @@
 package com.retyrment.controller;
 
-import com.retyrment.model.User;
 import com.retyrment.service.InsuranceRecommendationService;
 import com.retyrment.service.InsuranceRecommendationService.InsuranceRecommendation;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -17,17 +14,9 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/insurance/recommendations")
 @RequiredArgsConstructor
-public class InsuranceRecommendationController {
+public class InsuranceRecommendationController extends BaseController {
 
     private final InsuranceRecommendationService recommendationService;
-
-    private String getCurrentUserId() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getPrincipal() instanceof User user) {
-            return user.getId();
-        }
-        throw new IllegalStateException("User not authenticated");
-    }
 
     /**
      * Get comprehensive insurance recommendations

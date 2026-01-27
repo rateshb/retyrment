@@ -13,6 +13,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.time.LocalDate;
 
 /**
  * Financial goal with support for one-time and recurring goals.
@@ -46,7 +47,7 @@ public class Goal {
     
     @NotNull(message = "Target amount is required")
     @Positive(message = "Target amount must be positive")
-    private Double targetAmount;        // Target amount in today's value
+    private Double targetAmount;        // Target amount in today's value (as of creation)
     
     @NotNull(message = "Target year is required")
     @Min(value = 2024, message = "Target year must be 2024 or later")
@@ -134,8 +135,16 @@ public class Goal {
         double amount = targetAmount;
         
         if (!Boolean.TRUE.equals(isRecurring)) {
-            // One-time goal
-            occurrences.add(new GoalOccurrence(targetYear, amount, name));
+            // One-time goal (inflate from created year to target year if enabled)
+            double rate = customInflationRate != null ? customInflationRate : inflationRate;
+            boolean inflate = Boolean.TRUE.equals(adjustForInflation);
+            int baseYear = createdAt != null ? createdAt.getYear() : LocalDate.now().getYear();
+            int yearsFromBase = Math.max(0, targetYear - baseYear);
+            double occurrenceAmount = amount;
+            if (inflate && yearsFromBase > 0) {
+                occurrenceAmount = amount * Math.pow(1 + rate / 100, yearsFromBase);
+            }
+            occurrences.add(new GoalOccurrence(targetYear, Math.round(occurrenceAmount), name));
             return occurrences;
         }
         

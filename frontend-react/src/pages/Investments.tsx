@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MainLayout } from '../components/Layout';
 import { Card, Button, Modal, Input, Select, toast } from '../components/ui';
 import { investmentsApi, Investment } from '../lib/api';
-import { amountInWordsHelper, formatCurrency } from '../lib/utils';
+import { amountInWordsHelper, formatCurrency, getCurrencySymbol } from '../lib/utils';
 import { Plus, Pencil, Trash2, Shield } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 
@@ -115,6 +115,8 @@ const TYPE_FIELDS: Record<string, {
 
 export function Investments() {
   const queryClient = useQueryClient();
+  const currencySymbol = getCurrencySymbol();
+  const replaceCurrency = (label: string) => label.replace('₹', currencySymbol);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Investment | null>(null);
   const [formData, setFormData] = useState<Partial<Investment>>({});
@@ -488,7 +490,7 @@ export function Investments() {
           <div className="grid grid-cols-2 gap-4">
             {typeConfig.investedLabel && (
               <Input
-                label={typeConfig.investedLabel}
+                label={replaceCurrency(typeConfig.investedLabel)}
                 type="number"
                 value={formData.investedAmount || ''}
                 onChange={e => {
@@ -502,7 +504,7 @@ export function Investments() {
               />
             )}
             <Input
-              label={typeConfig.currentLabel}
+              label={replaceCurrency(typeConfig.currentLabel)}
               type="number"
               value={formData.currentValue || ''}
               onChange={e => {
@@ -520,7 +522,7 @@ export function Investments() {
           {typeConfig.showSip && (
             <div className="grid grid-cols-2 gap-4">
               <Input
-                label={typeConfig.sipLabel}
+                label={replaceCurrency(typeConfig.sipLabel)}
                 type="number"
                 value={formData.monthlySip || ''}
                 onChange={e => {
@@ -569,7 +571,7 @@ export function Investments() {
           {/* PPF yearly contribution */}
           {typeConfig.showYearlyContribution && (
             <Input
-              label="Yearly Contribution (₹)"
+              label={`Yearly Contribution (${currencySymbol})`}
               type="number"
               value={formData.yearlyContribution || ''}
               onChange={e => {
@@ -577,7 +579,7 @@ export function Investments() {
                 if (formErrors.yearlyContribution) setFormErrors(prev => ({ ...prev, yearlyContribution: '' }));
               }}
               placeholder="150000"
-              helperText={amountInWordsHelper(formData.yearlyContribution) || 'Max ₹1,50,000 per year'}
+              helperText={amountInWordsHelper(formData.yearlyContribution) || `Max ${formatCurrency(150000, { compact: false })} per year`}
               error={formErrors.yearlyContribution}
             />
           )}
@@ -650,7 +652,7 @@ export function Investments() {
 
                 {formData.realEstateType === 'RENTAL' && (
                   <Input
-                    label="Monthly Rent (₹)"
+                    label={`Monthly Rent (${currencySymbol})`}
                     type="number"
                     value={formData.monthlyRentalIncome || ''}
                     onChange={e => setFormData({ ...formData, monthlyRentalIncome: Number(e.target.value) })}

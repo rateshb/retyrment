@@ -1,4 +1,4 @@
-import { SelectHTMLAttributes, forwardRef, ReactNode } from 'react';
+import { SelectHTMLAttributes, forwardRef, ReactNode, useId } from 'react';
 
 interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
@@ -8,17 +8,21 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ label, error, options, children, className = '', ...props }, ref) => {
+  ({ label, error, options, children, className = '', id, ...props }, ref) => {
+    const generatedId = useId();
+    const selectId = id ?? generatedId;
+
     return (
       <div className="space-y-1">
         {label && (
-          <label className="block text-sm font-medium text-slate-700">
+          <label htmlFor={selectId} className="block text-sm font-medium text-slate-700">
             {label}
             {props.required && <span className="text-danger-500 ml-1">*</span>}
           </label>
         )}
         <select
           ref={ref}
+          id={selectId}
           className={`select-field ${error ? 'border-danger-500 focus:ring-danger-500' : ''} ${className}`}
           {...props}
         >

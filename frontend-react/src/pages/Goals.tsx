@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MainLayout } from '../components/Layout';
 import { Card, Button, Modal, Input, Select, toast } from '../components/ui';
 import { goalsApi, Goal } from '../lib/api';
-import { amountInWordsHelper, formatCurrency } from '../lib/utils';
+import { amountInWordsHelper, formatCurrency, getUserPreferences } from '../lib/utils';
 import { Plus, Pencil, Trash2, Target, TrendingUp, AlertTriangle, CheckCircle } from 'lucide-react';
 
 const PRIORITY_OPTIONS = [
@@ -18,6 +18,7 @@ export function Goals() {
   const [editingItem, setEditingItem] = useState<Goal | null>(null);
   const [formData, setFormData] = useState<Partial<Goal>>({});
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const showEmoji = getUserPreferences().showEmoji;
 
   const { data: goals = [], isLoading } = useQuery({
     queryKey: ['goals'],
@@ -222,7 +223,7 @@ export function Goals() {
 
                   <div className="space-y-2 mb-4">
                     <div className="flex justify-between text-sm">
-                      <span className="text-slate-500">Target</span>
+                      <span className="text-slate-500">Target Year {goal.targetYear}</span>
                       <span className="font-medium text-slate-800">{formatCurrency(goal.targetAmount, true)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
@@ -252,12 +253,15 @@ export function Goals() {
                   {/* Recurring Badge */}
                   {goal.isRecurring && (
                     <div className="mb-3 px-2 py-1 bg-primary-50 rounded text-xs text-primary-700">
-                      🔄 Recurring every {goal.recurrenceInterval} year(s) until {goal.recurrenceEndYear}
+                      {showEmoji && '🔄 '}Recurring every {goal.recurrenceInterval} year(s) until {goal.recurrenceEndYear}
                     </div>
                   )}
 
                   <div className="flex justify-between items-center pt-3 border-t border-slate-100">
-                    <span className="text-xs text-slate-500">Target: {goal.targetYear}</span>
+                    <span className="text-xs text-slate-500">
+                      Target Amount is
+                      As of {goal.createdAt ? new Date(goal.createdAt).getFullYear() : new Date().getFullYear()}
+                    </span>
                     <div className="flex gap-2">
                       <button onClick={() => openEditModal(goal)} className="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg">
                         <Pencil size={16} />
@@ -316,11 +320,11 @@ export function Goals() {
                 if (formErrors.targetAmount) setFormErrors(prev => ({ ...prev, targetAmount: '' }));
               }}
               placeholder="2500000"
-              helperText={amountInWordsHelper(formData.targetAmount)}
+              helperText={`Amount in today's value. ${amountInWordsHelper(formData.targetAmount)}`}
               error={formErrors.targetAmount}
               required
             />
-            <Input
+            {/* <Input
               label="Current Savings"
               type="number"
               value={formData.currentSavings ?? ''}
@@ -331,7 +335,7 @@ export function Goals() {
               placeholder="500000"
               helperText={amountInWordsHelper(formData.currentSavings)}
               error={formErrors.currentSavings}
-            />
+            /> */}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <Input

@@ -6,6 +6,7 @@ export interface User {
   name: string;
   role: 'FREE' | 'PRO' | 'ADMIN';
   effectiveRole?: string;
+  picture?: string;
   profilePicture?: string;
 }
 
@@ -161,6 +162,7 @@ export interface Goal {
   isRecurring?: boolean;
   recurrenceInterval?: number;
   recurrenceEndYear?: number;
+  createdAt?: string;
 }
 
 export interface FamilyMember {

@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MainLayout } from '../components/Layout';
 import { Card, Button, Modal, Input, Select, toast } from '../components/ui';
 import { expensesApi, Expense } from '../lib/api';
-import { amountInWordsHelper, formatCurrency } from '../lib/utils';
+import { amountInWordsHelper, formatCurrency, formatDate } from '../lib/utils';
 import { Plus, Pencil, Trash2, ShoppingCart, TrendingUp, AlertCircle } from 'lucide-react';
 
 const EXPENSE_CATEGORIES = [
@@ -259,7 +259,7 @@ export function Expenses() {
                           <span className="px-2 py-0.5 text-xs rounded-full bg-purple-100 text-purple-700">Time-Bound</span>
                           <div className="text-xs text-purple-600 mt-1">
                             {exp.endDate ? (
-                              new Date(exp.endDate).toLocaleDateString()
+                              formatDate(exp.endDate)
                             ) : exp.endAge && exp.dependentDob ? (
                               (() => {
                                 const dob = new Date(exp.dependentDob);
@@ -279,10 +279,18 @@ export function Expenses() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex justify-center gap-2">
-                        <button onClick={() => openEditModal(exp)} className="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg">
+                        <button
+                          onClick={() => openEditModal(exp)}
+                          aria-label="Edit expense"
+                          className="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
+                        >
                           <Pencil size={16} />
                         </button>
-                        <button onClick={() => handleDelete(exp.id!)} className="p-2 text-slate-400 hover:text-danger-600 hover:bg-danger-50 rounded-lg">
+                        <button
+                          onClick={() => handleDelete(exp.id!)}
+                          aria-label="Delete expense"
+                          className="p-2 text-slate-400 hover:text-danger-600 hover:bg-danger-50 rounded-lg"
+                        >
                           <Trash2 size={16} />
                         </button>
                       </div>

@@ -2,6 +2,13 @@ package com.retyrment.controller;
 
 import com.retyrment.model.User;
 import com.retyrment.model.UserFeatureAccess;
+import com.retyrment.repository.ExpenseRepository;
+import com.retyrment.repository.FamilyMemberRepository;
+import com.retyrment.repository.GoalRepository;
+import com.retyrment.repository.IncomeRepository;
+import com.retyrment.repository.InsuranceRepository;
+import com.retyrment.repository.InvestmentRepository;
+import com.retyrment.repository.LoanRepository;
 import com.retyrment.repository.UserRepository;
 import com.retyrment.service.FeatureAccessService;
 import com.retyrment.service.RoleExpiryService;
@@ -23,6 +30,7 @@ import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -39,6 +47,27 @@ class AdminControllerUnitTest {
     private FeatureAccessService featureAccessService;
 
     @Mock
+    private IncomeRepository incomeRepository;
+
+    @Mock
+    private InvestmentRepository investmentRepository;
+
+    @Mock
+    private ExpenseRepository expenseRepository;
+
+    @Mock
+    private InsuranceRepository insuranceRepository;
+
+    @Mock
+    private LoanRepository loanRepository;
+
+    @Mock
+    private GoalRepository goalRepository;
+
+    @Mock
+    private FamilyMemberRepository familyMemberRepository;
+
+    @Mock
     private SecurityContext securityContext;
 
     @Mock
@@ -53,6 +82,14 @@ class AdminControllerUnitTest {
     @BeforeEach
     void setUp() {
         SecurityContextHolder.setContext(securityContext);
+
+        lenient().when(incomeRepository.countByUserId(anyString())).thenReturn(0L);
+        lenient().when(investmentRepository.countByUserId(anyString())).thenReturn(0L);
+        lenient().when(expenseRepository.countByUserId(anyString())).thenReturn(0L);
+        lenient().when(insuranceRepository.countByUserId(anyString())).thenReturn(0L);
+        lenient().when(loanRepository.countByUserId(anyString())).thenReturn(0L);
+        lenient().when(goalRepository.countByUserId(anyString())).thenReturn(0L);
+        lenient().when(familyMemberRepository.countByUserId(anyString())).thenReturn(0L);
         
         adminUser = User.builder()
                 .id("admin123")

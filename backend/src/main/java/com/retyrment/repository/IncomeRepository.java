@@ -21,6 +21,8 @@ public interface IncomeRepository extends MongoRepository<Income, String> {
     Optional<Income> findByIdAndUserId(String id, String userId);
     
     boolean existsByIdAndUserId(String id, String userId);
+
+    long countByUserId(String userId);
     
     void deleteByUserId(String userId);
 }

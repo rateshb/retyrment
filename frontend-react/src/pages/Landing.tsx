@@ -3,6 +3,7 @@ import {
   TrendingUp, Shield, Target, PiggyBank, Calculator, 
   BarChart3, Users, CheckCircle, ArrowRight, Star
 } from 'lucide-react';
+import { formatCurrency } from '../lib/utils';
 
 export function Landing() {
   return (
@@ -102,7 +103,7 @@ export function Landing() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {[
               { value: '10K+', label: 'Active Users' },
-              { value: '₹500Cr+', label: 'Assets Tracked' },
+              { value: `${formatCurrency(5_000_000_000, true)}+`, label: 'Assets Tracked' },
               { value: '50K+', label: 'Goals Set' },
               { value: '99.9%', label: 'Uptime' },
             ].map((stat, i) => (

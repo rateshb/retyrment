@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MainLayout } from '../components/Layout';
 import { Card, Button, Modal, Input, Select, toast } from '../components/ui';
 import { loansApi, Loan } from '../lib/api';
-import { amountInWordsHelper, formatCurrency } from '../lib/utils';
+import { amountInWordsHelper, formatCurrency, getCurrencySymbol } from '../lib/utils';
 import { Plus, Pencil, Trash2, Building2, TrendingDown, Calendar } from 'lucide-react';
 
 const LOAN_TYPES = [
@@ -17,6 +17,7 @@ const LOAN_TYPES = [
 
 export function Loans() {
   const queryClient = useQueryClient();
+  const currencySymbol = getCurrencySymbol();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Loan | null>(null);
   const [formData, setFormData] = useState<Partial<Loan>>({});
@@ -271,7 +272,7 @@ export function Loans() {
           />
           <div className="grid grid-cols-2 gap-4">
             <Input
-              label="Original Amount (₹)"
+              label={`Original Amount (${currencySymbol})`}
               type="number"
               value={formData.originalAmount || ''}
               onChange={e => {
@@ -284,7 +285,7 @@ export function Loans() {
               required
             />
             <Input
-              label="Outstanding Amount (₹)"
+              label={`Outstanding Amount (${currencySymbol})`}
               type="number"
               value={formData.outstandingAmount || ''}
               onChange={e => {
@@ -299,7 +300,7 @@ export function Loans() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <Input
-              label="Monthly EMI (₹)"
+              label={`Monthly EMI (${currencySymbol})`}
               type="number"
               value={formData.emi || ''}
               onChange={e => {

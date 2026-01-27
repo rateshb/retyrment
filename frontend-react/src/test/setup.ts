@@ -1,11 +1,20 @@
 // Mock localStorage before any other imports (needed for authStore initialization)
+const localStorageStore = new Map<string, string>();
 const localStorageMock = {
-  getItem: (key: string) => null,
-  setItem: (key: string, value: string) => {},
-  removeItem: (key: string) => {},
-  clear: () => {},
-  length: 0,
-  key: (index: number) => null,
+  getItem: (key: string) => (localStorageStore.has(key) ? localStorageStore.get(key)! : null),
+  setItem: (key: string, value: string) => {
+    localStorageStore.set(key, String(value));
+  },
+  removeItem: (key: string) => {
+    localStorageStore.delete(key);
+  },
+  clear: () => {
+    localStorageStore.clear();
+  },
+  key: (index: number) => Array.from(localStorageStore.keys())[index] ?? null,
+  get length() {
+    return localStorageStore.size;
+  },
 };
 Object.defineProperty(global, 'localStorage', {
   value: localStorageMock,

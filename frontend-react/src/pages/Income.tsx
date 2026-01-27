@@ -3,11 +3,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MainLayout } from '../components/Layout';
 import { Card, Button, Modal, Input, toast } from '../components/ui';
 import { incomeApi, Income as IncomeType } from '../lib/api';
-import { amountInWordsHelper, formatCurrency } from '../lib/utils';
+import { amountInWordsHelper, formatCurrency, getCurrencySymbol } from '../lib/utils';
 import { Plus, Pencil, Trash2, Wallet, TrendingUp, Calendar } from 'lucide-react';
 
 export function Income() {
   const queryClient = useQueryClient();
+  const currencySymbol = getCurrencySymbol();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<IncomeType | null>(null);
   const [formData, setFormData] = useState<Partial<IncomeType>>({});
@@ -228,7 +229,7 @@ export function Income() {
           />
           <div className="grid grid-cols-2 gap-4">
             <Input
-              label="Monthly Amount (₹)"
+              label={`Monthly Amount (${currencySymbol})`}
               type="number"
               value={formData.monthlyAmount || ''}
               onChange={e => {

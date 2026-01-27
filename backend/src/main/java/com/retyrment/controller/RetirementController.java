@@ -8,9 +8,7 @@ import com.retyrment.repository.UserStrategyRepository;
 import com.retyrment.service.RetirementService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -20,19 +18,11 @@ import java.util.Map;
 @RestController
 @RequestMapping("/retirement")
 @RequiredArgsConstructor
-public class RetirementController {
+public class RetirementController extends BaseController {
 
     private final RetirementScenarioRepository scenarioRepository;
     private final UserStrategyRepository userStrategyRepository;
     private final RetirementService retirementService;
-
-    private String getCurrentUserId() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getPrincipal() instanceof User user) {
-            return user.getId();
-        }
-        throw new IllegalStateException("User not authenticated");
-    }
 
     @GetMapping("/matrix")
     public Map<String, Object> getRetirementMatrix() {

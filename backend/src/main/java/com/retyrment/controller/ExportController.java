@@ -1,14 +1,11 @@
 package com.retyrment.controller;
 
-import com.retyrment.model.User;
 import com.retyrment.service.ExportService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -17,17 +14,9 @@ import java.util.Map;
 @RestController
 @RequestMapping("/export")
 @RequiredArgsConstructor
-public class ExportController {
+public class ExportController extends BaseController {
 
     private final ExportService exportService;
-
-    private String getCurrentUserId() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getPrincipal() instanceof User user) {
-            return user.getId();
-        }
-        throw new IllegalStateException("User not authenticated");
-    }
 
     @GetMapping("/json")
     public Map<String, Object> exportAllDataAsJson() {

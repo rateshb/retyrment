@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { MainLayout } from '../components/Layout';
 import { Card, CardContent, Button, toast } from '../components/ui';
-import { Palette, Bell, Eye, Save } from 'lucide-react';
+import { Palette, Eye, Save } from 'lucide-react';
 
 interface UserPreferences {
   theme: 'light' | 'dark' | 'system';
@@ -47,6 +47,28 @@ const defaultPreferences: UserPreferences = {
 
 export function Preferences() {
   const [prefs, setPrefs] = useState<UserPreferences>(defaultPreferences);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('retyrment_preferences');
+      if (!stored) return;
+      const parsed = JSON.parse(stored) as Partial<UserPreferences>;
+      setPrefs({
+        ...defaultPreferences,
+        ...parsed,
+        notifications: {
+          ...defaultPreferences.notifications,
+          ...(parsed.notifications || {}),
+        },
+        dashboard: {
+          ...defaultPreferences.dashboard,
+          ...(parsed.dashboard || {}),
+        },
+      });
+    } catch {
+      // Ignore malformed preferences
+    }
+  }, []);
 
   const handleSave = () => {
     localStorage.setItem('retyrment_preferences', JSON.stringify(prefs));
@@ -140,47 +162,14 @@ export function Preferences() {
           </CardContent>
         </Card>
 
-        {/* Notifications */}
-        <Card>
-          <CardContent>
-            <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-              <Bell size={20} /> Notifications
-            </h3>
-            <div className="space-y-3">
-              {[
-                { key: 'email', label: 'Email Notifications', desc: 'Receive updates via email' },
-                { key: 'browser', label: 'Browser Notifications', desc: 'Desktop push notifications' },
-                { key: 'renewalReminders', label: 'Renewal Reminders', desc: 'Insurance & policy renewals' },
-                { key: 'goalAlerts', label: 'Goal Alerts', desc: 'Progress updates on goals' },
-              ].map(({ key, label, desc }) => (
-                <div key={key} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-slate-700">{label}</p>
-                    <p className="text-sm text-slate-500">{desc}</p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={prefs.notifications[key as keyof typeof prefs.notifications]}
-                    onChange={e => setPrefs({
-                      ...prefs,
-                      notifications: { ...prefs.notifications, [key]: e.target.checked }
-                    })}
-                    className="w-5 h-5 text-primary-600 rounded"
-                  />
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Dashboard Widgets */}
-        <Card className="lg:col-span-2">
+        <Card>
           <CardContent>
             <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
               <Eye size={20} /> Dashboard Widgets
             </h3>
             <p className="text-slate-500 mb-4">Choose which widgets to display on your dashboard</p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               {[
                 { key: 'showNetWorth', label: 'Net Worth', icon: '💰' },
                 { key: 'showRecommendations', label: 'Recommendations', icon: '💡' },
@@ -204,7 +193,7 @@ export function Preferences() {
                     })}
                     className="w-4 h-4 text-primary-600 rounded"
                   />
-                  <span className="text-xl">{icon}</span>
+                  {prefs.showEmoji && <span className="text-xl">{icon}</span>}
                   <span className="text-sm font-medium text-slate-700">{label}</span>
                 </label>
               ))}

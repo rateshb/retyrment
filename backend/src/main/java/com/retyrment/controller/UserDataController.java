@@ -18,17 +18,19 @@ import java.util.Map;
 @RequestMapping("/user/data")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
-public class UserDataController {
+public class UserDataController extends BaseController {
 
     private final UserDataDeletionService userDataDeletionService;
 
-    private String getCurrentUserId() {
+    @Override
+    protected String getCurrentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.isAuthenticated()) {
             Object principal = auth.getPrincipal();
             if (principal instanceof User user) {
                 return user.getId();
-            } else if (principal instanceof String userIdString) {
+            }
+            if (principal instanceof String userIdString) {
                 // For cases where principal is just the userId string (e.g., from JwtAuthenticationFilter)
                 return userIdString;
             }

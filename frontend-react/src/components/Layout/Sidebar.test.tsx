@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 
 let storeState: any;
 
@@ -96,5 +96,60 @@ describe('Sidebar', () => {
     // Now click Logout
     fireEvent.click(screen.getByText('Logout'));
     expect(logout).toHaveBeenCalled();
+  });
+
+  it('shows profile image when available', () => {
+    storeState = {
+      ...storeState,
+      user: {
+        role: 'FREE',
+        name: 'Test User',
+        email: 'user@test.com',
+        picture: 'https://example.com/avatar.png',
+      },
+    };
+
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <Sidebar />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('img', { name: 'Test User' })).toBeInTheDocument();
+  });
+
+  it('falls back to avatar when image fails to load', async () => {
+    storeState = {
+      ...storeState,
+      user: {
+        role: 'FREE',
+        name: 'Test User',
+        email: 'user@test.com',
+        picture: 'https://example.com/broken.png',
+      },
+    };
+
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <Sidebar />
+      </MemoryRouter>
+    );
+
+    const img = screen.getByRole('img', { name: 'Test User' });
+
+    const settingsToggle = screen.getAllByRole('button').find(btn =>
+      btn.textContent?.includes('Test User')
+    );
+    expect(settingsToggle).toBeDefined();
+
+    const initialSvgCount = settingsToggle!.querySelectorAll('svg').length;
+    fireEvent.error(img);
+
+    await waitFor(() => {
+      expect(within(settingsToggle!).queryByRole('img')).toBeNull();
+    });
+
+    const afterErrorSvgCount = settingsToggle!.querySelectorAll('svg').length;
+    expect(afterErrorSvgCount).toBeGreaterThan(initialSvgCount);
   });
 });

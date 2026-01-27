@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Check, Star } from 'lucide-react';
+import { formatCurrency } from '../lib/utils';
 
 export function Pricing() {
   const plans = [
     {
       name: 'Free',
-      price: '₹0',
+      price: 0,
       period: 'forever',
       description: 'Perfect for getting started with financial planning',
       features: [
@@ -21,7 +22,7 @@ export function Pricing() {
     },
     {
       name: 'Pro',
-      price: '₹499',
+      price: 499,
       period: 'per month',
       description: 'Advanced features for serious financial planning',
       features: [
@@ -97,7 +98,7 @@ export function Pricing() {
               </h3>
               <div className="mb-4">
                 <span className={`text-4xl font-bold ${plan.highlighted ? 'text-white' : 'text-slate-800'}`}>
-                  {plan.price}
+                  {formatCurrency(plan.price, { compact: false })}
                 </span>
                 <span className={`text-sm ${plan.highlighted ? 'text-primary-200' : 'text-slate-500'}`}>
                   /{plan.period}

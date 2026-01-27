@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -26,13 +27,16 @@ class GoalRecurringTest {
                     .targetAmount(2500000.0)
                     .targetYear(2030)
                     .isRecurring(false)
+                    .createdAt(LocalDateTime.of(2024, 1, 1, 0, 0))
                     .build();
 
             List<Goal.GoalOccurrence> occurrences = goal.expandOccurrences(2045, 6.0);
 
             assertThat(occurrences).hasSize(1);
             assertThat(occurrences.get(0).getYear()).isEqualTo(2030);
-            assertThat(occurrences.get(0).getAmount()).isEqualTo(2500000.0);
+            int yearsFromNow = Math.max(0, 2030 - 2024);
+            double expectedAmount = Math.round(2500000.0 * Math.pow(1 + 6.0 / 100, yearsFromNow));
+            assertThat(occurrences.get(0).getAmount()).isEqualTo(expectedAmount);
             assertThat(occurrences.get(0).getDescription()).isEqualTo("Child Education");
         }
 
@@ -237,11 +241,14 @@ class GoalRecurringTest {
                     .targetAmount(5000000.0)
                     .targetYear(2030)
                     .isRecurring(false)
+                    .createdAt(LocalDateTime.of(2024, 1, 1, 0, 0))
                     .build();
 
             double totalCost = goal.getTotalCost(2045, 6.0);
 
-            assertThat(totalCost).isEqualTo(5000000.0);
+            int yearsFromNow = Math.max(0, 2030 - 2024);
+            double expectedTotal = Math.round(5000000.0 * Math.pow(1 + 6.0 / 100, yearsFromNow));
+            assertThat(totalCost).isEqualTo(expectedTotal);
         }
 
         @Test

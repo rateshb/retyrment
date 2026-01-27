@@ -1,12 +1,9 @@
 package com.retyrment.controller;
 
-import com.retyrment.model.User;
 import com.retyrment.model.UserPreference;
 import com.retyrment.repository.UserPreferenceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -14,16 +11,16 @@ import java.util.*;
 @RestController
 @RequestMapping("/preferences")
 @RequiredArgsConstructor
-public class UserPreferenceController {
+public class UserPreferenceController extends BaseController {
 
     private final UserPreferenceRepository preferenceRepository;
 
-    private String getCurrentUserId() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getPrincipal() instanceof User user) {
-            return user.getId();
+    protected String getCurrentUserId() {
+        try {
+            return super.getCurrentUserId();
+        } catch (IllegalStateException e) {
+            return "default";
         }
-        return "default";
     }
 
     @GetMapping

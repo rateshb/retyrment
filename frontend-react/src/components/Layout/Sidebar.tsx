@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import {
   LayoutDashboard,
@@ -71,6 +71,13 @@ export function Sidebar({ collapsed = false, onToggleCollapse }: SidebarProps) {
   const location = useLocation();
   const { user, features, logout } = useAuthStore();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
+
+  const avatarUrl = user?.picture || user?.profilePicture;
+
+  useEffect(() => {
+    setAvatarError(false);
+  }, [avatarUrl]);
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -187,7 +194,19 @@ export function Sidebar({ collapsed = false, onToggleCollapse }: SidebarProps) {
             title={collapsed ? (user?.name || user?.email || 'Account') : undefined}
             aria-label={collapsed ? (user?.name || user?.email || 'Account') : undefined}
           >
-            <User size={18} />
+            {avatarUrl && !avatarError ? (
+              <img
+                src={avatarUrl}
+                alt={user?.name || 'User'}
+                className="w-7 h-7 rounded-full object-cover"
+                referrerPolicy="no-referrer"
+                onError={() => setAvatarError(true)}
+              />
+            ) : (
+              <span className="w-7 h-7 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center">
+                <User size={16} />
+              </span>
+            )}
             {!collapsed && (
               <div className="flex flex-col items-start">
                 <span>{user?.name || user?.email || 'Account'}</span>

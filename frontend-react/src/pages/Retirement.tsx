@@ -1328,7 +1328,7 @@ export function Retirement() {
                 <p className="text-xs text-slate-500">Monthly SIP</p>
                 <p className="text-xl font-bold text-primary-600">{formatCurrency(monthlySIP, true)}</p>
                 <p className="text-xs text-slate-400">
-                  {params.sipStepup}% step-up â†’ {formatCurrency(sipAtFullStepUp, true)}
+                  {params.sipStepup}% step-up to {formatCurrency(sipAtFullStepUp, true)}
                 </p>
                 {canStopEarly && optimalStopYear && (
                   <p className="text-xs text-amber-600 mt-1">
@@ -1719,7 +1719,7 @@ export function Retirement() {
                                 <span>{formatCurrency(requiredExpense)}</span>
                                 {goalOutflowMonthly > 0 && (
                                   <span className="text-[11px] text-indigo-600 mt-0.5">
-                                    (includes ₹{formatCurrency(goalOutflowMonthly)} goal)
+                                    (includes {formatCurrency(goalOutflowMonthly)} goal)
                                   </span>
                                 )}
                               </div>

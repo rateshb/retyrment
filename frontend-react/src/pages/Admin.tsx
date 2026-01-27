@@ -4,7 +4,8 @@ import { MainLayout } from '../components/Layout';
 import { Card, CardContent, Button, Modal, toast } from '../components/ui';
 import { useAuthStore } from '../stores/authStore';
 import { adminApi } from '../lib/api';
-import { Users, Search, Shield, Clock, Check, AlertTriangle, Crown, Trash2 } from 'lucide-react';
+import { formatDate } from '../lib/utils';
+import { Users, Search, Shield, Clock, Check, AlertTriangle, Crown, Trash2, UserCog, SlidersHorizontal, Info } from 'lucide-react';
 
 // Feature configuration for the modal
 const PAGE_FEATURES = [
@@ -55,6 +56,15 @@ interface AdminUser {
   picture?: string;
   trial?: { active: boolean; daysRemaining: number };
   roleInfo?: { temporary: boolean; expired: boolean; daysRemaining?: number };
+  recordSummary?: {
+    income?: number;
+    investments?: number;
+    expenses?: number;
+    insurance?: number;
+    loans?: number;
+    goals?: number;
+    family?: number;
+  };
 }
 
 export function Admin() {
@@ -216,11 +226,6 @@ export function Admin() {
     setFeatureAccess(prev => ({ ...prev, blockedInsuranceTypes: updated }));
   };
 
-  const formatDate = (dateStr?: string) => {
-    if (!dateStr) return 'N/A';
-    return new Date(dateStr).toLocaleDateString();
-  };
-
   // Access check
   if (user?.role !== 'ADMIN') {
     return (
@@ -340,7 +345,6 @@ export function Admin() {
                 <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">User</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">Email</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">Role</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">Created</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">Last Login</th>
                 <th className="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase">Actions</th>
               </tr>
@@ -348,11 +352,11 @@ export function Admin() {
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-slate-400">Loading...</td>
+                  <td colSpan={5} className="px-6 py-8 text-center text-slate-400">Loading...</td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-slate-400">No users found</td>
+                  <td colSpan={5} className="px-6 py-8 text-center text-slate-400">No users found</td>
                 </tr>
               ) : (
                 filteredUsers.map((adminUser) => (
@@ -366,50 +370,73 @@ export function Admin() {
                             <Users size={16} className="text-slate-500" />
                           </div>
                         )}
-                        <span className="font-medium text-slate-800">{adminUser.name || 'Unknown'}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-slate-800">{adminUser.name || 'Unknown'}</span>
+                          <button
+                            type="button"
+                            className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md"
+                            title={[
+                              `Income: ${adminUser.recordSummary?.income ?? 0}`,
+                              `Investments: ${adminUser.recordSummary?.investments ?? 0}`,
+                              `Expenses: ${adminUser.recordSummary?.expenses ?? 0}`,
+                              `Insurance: ${adminUser.recordSummary?.insurance ?? 0}`,
+                              `Loans: ${adminUser.recordSummary?.loans ?? 0}`,
+                              `Goals: ${adminUser.recordSummary?.goals ?? 0}`,
+                              `Family: ${adminUser.recordSummary?.family ?? 0}`,
+                            ].join('\n')}
+                            aria-label="Record summary"
+                          >
+                            <Info size={14} />
+                          </button>
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-slate-600">{adminUser.email}</td>
                     <td className="px-6 py-4">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className={`px-2 py-1 text-xs rounded-full font-medium ${
-                          adminUser.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' :
-                          adminUser.role === 'PRO' ? 'bg-amber-100 text-amber-700' :
-                          'bg-slate-100 text-slate-600'
+                        <span className={`px-2 py-0.5 text-xs rounded-md font-semibold uppercase tracking-wide border ${
+                          adminUser.role === 'ADMIN' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                          adminUser.role === 'PRO' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                          'bg-slate-50 text-slate-600 border-slate-200'
                         }`}>
-                          {adminUser.role === 'ADMIN' ? '👑 ' : adminUser.role === 'PRO' ? '⭐ ' : ''}{adminUser.role}
+                          {adminUser.role}
                         </span>
                         {adminUser.roleInfo?.temporary && !adminUser.roleInfo.expired && (
-                          <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full">
-                            ⏰ {adminUser.roleInfo.daysRemaining}d left
+                          <span className="px-2 py-0.5 text-[11px] bg-blue-50 text-blue-700 rounded-md border border-blue-200">
+                            {adminUser.roleInfo.daysRemaining}d left
                           </span>
                         )}
                         {adminUser.roleInfo?.expired && (
-                          <span className="px-2 py-0.5 text-xs bg-red-100 text-red-700 rounded-full">
-                            ⚠️ Expired
+                          <span className="px-2 py-0.5 text-[11px] bg-red-50 text-red-700 rounded-md border border-red-200">
+                            Expired
                           </span>
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-slate-500">{formatDate(adminUser.createdAt)}</td>
-                    <td className="px-6 py-4 text-sm text-slate-500">{formatDate(adminUser.lastLoginAt)}</td>
+                    <td className="px-6 py-4 text-sm text-slate-500">{formatDate(adminUser.lastLoginAt) || 'N/A'}</td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">
                         <button
                           onClick={() => openRoleModal(adminUser)}
-                          className="text-primary-500 hover:text-primary-700 font-medium text-sm"
+                          className="p-2 rounded-md text-slate-500 hover:text-primary-700 hover:bg-primary-50"
+                          aria-label="Change role"
+                          title="Change role"
                         >
-                          Change Role
+                          <UserCog size={16} />
                         </button>
                         <button
                           onClick={() => openFeatureModal(adminUser)}
-                          className="text-blue-500 hover:text-blue-700 font-medium text-sm"
+                          className="p-2 rounded-md text-slate-500 hover:text-blue-700 hover:bg-blue-50"
+                          aria-label="Manage features"
+                          title="Manage features"
                         >
-                          Features
+                          <SlidersHorizontal size={16} />
                         </button>
                         <button
                           onClick={() => handleDeleteUser(adminUser)}
-                          className="text-slate-400 hover:text-danger-500"
+                          className="p-2 rounded-md text-slate-500 hover:text-danger-600 hover:bg-danger-50"
+                          aria-label="Delete user"
+                          title="Delete user"
                         >
                           <Trash2 size={16} />
                         </button>

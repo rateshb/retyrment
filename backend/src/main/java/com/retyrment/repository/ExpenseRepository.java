@@ -29,6 +29,8 @@ public interface ExpenseRepository extends MongoRepository<Expense, String> {
     Optional<Expense> findByIdAndUserId(String id, String userId);
     
     boolean existsByIdAndUserId(String id, String userId);
+
+    long countByUserId(String userId);
     
     // Time-bound expense queries
     List<Expense> findByUserIdAndIsTimeBoundTrue(String userId);

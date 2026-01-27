@@ -3,14 +3,11 @@ package com.retyrment.controller;
 import com.retyrment.exception.ResourceNotFoundException;
 import com.retyrment.model.Loan;
 import com.retyrment.model.Loan.LoanType;
-import com.retyrment.model.User;
 import com.retyrment.repository.LoanRepository;
 import com.retyrment.service.CalculationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,18 +16,10 @@ import java.util.Map;
 @RestController
 @RequestMapping("/loans")
 @RequiredArgsConstructor
-public class LoanController {
+public class LoanController extends BaseController {
 
     private final LoanRepository loanRepository;
     private final CalculationService calculationService;
-
-    private String getCurrentUserId() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getPrincipal() instanceof User user) {
-            return user.getId();
-        }
-        throw new IllegalStateException("User not authenticated");
-    }
 
     @GetMapping
     public List<Loan> getAllLoans() {

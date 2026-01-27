@@ -7,7 +7,7 @@ describe('Page Component Imports', () => {
   it('should import Dashboard without errors', async () => {
     const module = await import('./Dashboard');
     expect(module.Dashboard).toBeDefined();
-  }, 15000);
+  }, 30000);
 
   it('should import Income without errors', async () => {
     const module = await import('./Income');

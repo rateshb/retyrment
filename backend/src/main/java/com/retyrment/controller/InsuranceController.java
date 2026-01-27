@@ -2,12 +2,9 @@ package com.retyrment.controller;
 
 import com.retyrment.model.Insurance;
 import com.retyrment.model.Insurance.InsuranceType;
-import com.retyrment.model.User;
 import com.retyrment.repository.InsuranceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Arrays;
@@ -16,17 +13,9 @@ import java.util.List;
 @RestController
 @RequestMapping("/insurance")
 @RequiredArgsConstructor
-public class InsuranceController {
+public class InsuranceController extends BaseController {
 
     private final InsuranceRepository insuranceRepository;
-
-    private String getCurrentUserId() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getPrincipal() instanceof User user) {
-            return user.getId();
-        }
-        throw new IllegalStateException("User not authenticated");
-    }
 
     @GetMapping
     public List<Insurance> getAllInsurance() {

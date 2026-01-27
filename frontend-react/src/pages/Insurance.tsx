@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MainLayout } from '../components/Layout';
 import { Card, Button, Modal, Input, Select, toast } from '../components/ui';
 import { insuranceApi, Insurance as InsuranceType } from '../lib/api';
-import { amountInWordsHelper, formatCurrency, formatDate } from '../lib/utils';
+import { amountInWordsHelper, formatCurrency, formatDate, getCurrencySymbol } from '../lib/utils';
 import { Plus, Pencil, Trash2, Shield, Heart, Umbrella } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 
@@ -28,6 +28,7 @@ const PREMIUM_FREQUENCIES = [
 
 export function Insurance() {
   const queryClient = useQueryClient();
+  const currencySymbol = getCurrencySymbol();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InsuranceType | null>(null);
   const [formData, setFormData] = useState<Partial<InsuranceType>>({});
@@ -297,10 +298,18 @@ export function Insurance() {
                     <td className="px-6 py-4 text-center text-slate-600">{ins.maturityDate ? formatDate(ins.maturityDate) : '-'}</td>
                     <td className="px-6 py-4">
                       <div className="flex justify-center gap-2">
-                        <button onClick={() => openEditModal(ins)} className="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg">
+                        <button
+                          onClick={() => openEditModal(ins)}
+                          aria-label="Edit policy"
+                          className="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
+                        >
                           <Pencil size={16} />
                         </button>
-                        <button onClick={() => handleDelete(ins.id!)} className="p-2 text-slate-400 hover:text-danger-600 hover:bg-danger-50 rounded-lg">
+                        <button
+                          onClick={() => handleDelete(ins.id!)}
+                          aria-label="Delete policy"
+                          className="p-2 text-slate-400 hover:text-danger-600 hover:bg-danger-50 rounded-lg"
+                        >
                           <Trash2 size={16} />
                         </button>
                       </div>
@@ -408,7 +417,7 @@ export function Insurance() {
           <div className={`grid gap-4 ${showCoverageAmount ? 'grid-cols-2' : 'grid-cols-1'}`}>
             {showCoverageAmount && (
               <Input
-                label={formData.type === 'HEALTH' ? 'Coverage Amount (₹)' : 'Sum Assured (₹)'}
+                label={formData.type === 'HEALTH' ? `Coverage Amount (${currencySymbol})` : `Sum Assured (${currencySymbol})`}
                 type="number"
                 value={formData.sumAssured || ''}
                 onChange={e => {
@@ -422,7 +431,7 @@ export function Insurance() {
               />
             )}
             <Input
-              label="Annual Premium (₹)"
+              label={`Annual Premium (${currencySymbol})`}
               type="number"
               value={formData.annualPremium || ''}
               onChange={e => {
@@ -507,7 +516,7 @@ export function Insurance() {
                   placeholder="20"
                 />
                 <Input
-                  label="Expected Maturity (₹)"
+                  label={`Expected Maturity (${currencySymbol})`}
                   type="number"
                   value={formData.maturityBenefit || ''}
                   onChange={e => setFormData({ ...formData, maturityBenefit: Number(e.target.value) })}
@@ -586,7 +595,7 @@ export function Insurance() {
                   placeholder="15"
                 />
                 <Input
-                  label="Monthly Annuity (₹)"
+                  label={`Monthly Annuity (${currencySymbol})`}
                   type="number"
                   value={formData.monthlyAnnuityAmount || ''}
                   onChange={e => setFormData({ ...formData, monthlyAnnuityAmount: Number(e.target.value) })}

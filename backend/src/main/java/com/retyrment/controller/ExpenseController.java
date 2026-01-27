@@ -4,13 +4,10 @@ import com.retyrment.exception.ResourceNotFoundException;
 import com.retyrment.model.Expense;
 import com.retyrment.model.Expense.ExpenseCategory;
 import com.retyrment.model.Expense.ExpenseFrequency;
-import com.retyrment.model.User;
 import com.retyrment.repository.ExpenseRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -20,17 +17,9 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/expenses")
 @RequiredArgsConstructor
-public class ExpenseController {
+public class ExpenseController extends BaseController {
 
     private final ExpenseRepository expenseRepository;
-
-    private String getCurrentUserId() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getPrincipal() instanceof User user) {
-            return user.getId();
-        }
-        throw new IllegalStateException("User not authenticated");
-    }
 
     @GetMapping
     public List<Expense> getAllExpenses() {
