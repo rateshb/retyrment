@@ -6,7 +6,7 @@ import { Account } from './Account';
 
 vi.mock('../lib/api', () => ({
   userDataApi: {
-    summary: vi.fn().mockResolvedValue({ totalRecords: 50 }),
+    getSummary: vi.fn().mockResolvedValue({ total: 50 }),
     deleteAll: vi.fn().mockResolvedValue({}),
   },
   exportApi: {

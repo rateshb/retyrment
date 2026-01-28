@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   TrendingUp, Shield, Target, PiggyBank, Calculator, 
@@ -6,6 +7,10 @@ import {
 import { formatCurrency } from '../lib/utils';
 
 export function Landing() {
+  useEffect(() => {
+    document.title = 'Home | Retyrment';
+  }, []);
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Navigation */}

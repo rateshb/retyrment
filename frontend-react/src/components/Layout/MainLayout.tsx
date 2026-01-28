@@ -20,6 +20,12 @@ export function MainLayout({ children, title, subtitle, actions }: MainLayoutPro
     }
   });
 
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.title = title ? `${title} | Retyrment` : 'Retyrment - Financial Planning';
+    }
+  }, [title]);
+
   // Auto-refresh features when layout mounts (on page navigation)
   useEffect(() => {
     if (isAuthenticated) {
@@ -30,10 +36,7 @@ export function MainLayout({ children, title, subtitle, actions }: MainLayoutPro
   const handleRefreshFeatures = async () => {
     try {
       await fetchFeatures();
-      // Show a subtle success indicator (optional - could add toast)
-      console.log('Features refreshed successfully');
     } catch (error) {
-      console.error('Failed to refresh features:', error);
     }
   };
 

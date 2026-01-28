@@ -18,6 +18,7 @@ describe('Landing', () => {
       </MemoryRouter>
     );
     expect(screen.getByText('Retyrment')).toBeInTheDocument();
+    expect(document.title).toBe('Home | Retyrment');
   });
 
   it('renders main heading', () => {

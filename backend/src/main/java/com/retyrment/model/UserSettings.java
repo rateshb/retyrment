@@ -35,6 +35,7 @@ public class UserSettings {
     private Double ppfReturn;
     private Double mfEquityReturn;
     private Double mfDebtReturn;
+    private Double npsReturn;
     private Double fdReturn;
     
     // Other Settings

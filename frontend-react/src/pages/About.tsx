@@ -1,7 +1,12 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Users, Target, Shield, Heart } from 'lucide-react';
 
 export function About() {
+  useEffect(() => {
+    document.title = 'About | Retyrment';
+  }, []);
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Navigation */}

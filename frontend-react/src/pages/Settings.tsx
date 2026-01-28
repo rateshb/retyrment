@@ -14,6 +14,7 @@ interface AppSettings {
   ppfReturn: number;
   mfEquityReturn: number;
   mfDebtReturn: number;
+  npsReturn: number;
   fdReturn: number;
   emergencyFundMonths: number;
   sipStepup: number;
@@ -28,6 +29,7 @@ const defaultSettings: AppSettings = {
   ppfReturn: 7.1,
   mfEquityReturn: 12.0,
   mfDebtReturn: 7.0,
+  npsReturn: 10.0,
   fdReturn: 6.5,
   emergencyFundMonths: 6,
   sipStepup: 10,
@@ -145,6 +147,14 @@ export function Settings() {
                 value={settings.mfDebtReturn}
                 onChange={e => setSettings({ ...settings, mfDebtReturn: Number(e.target.value) })}
                 helperText="Debt fund expected return"
+              />
+              <Input
+                label="NPS Return"
+                type="number"
+                step="0.01"
+                value={settings.npsReturn}
+                onChange={e => setSettings({ ...settings, npsReturn: Number(e.target.value) })}
+                helperText="Expected annual return for NPS"
               />
               <Input
                 label="FD Return"

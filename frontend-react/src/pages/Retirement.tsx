@@ -65,6 +65,7 @@ const defaultParams = {
   lifeExpectancy: 85,
   inflation: 6,
   mfReturn: 12,
+  npsReturn: 10,
   epfReturn: 8.15,
   ppfReturn: 7.1,
   sipStepup: 10,
@@ -162,7 +163,6 @@ export function Retirement() {
       // First, load from Settings page (backend user settings)
       try {
         const userSettings = await settingsApi.get();
-        console.log('Loaded user settings from backend:', userSettings);
         
         // Map Settings page fields to Retirement params (use !== undefined to allow 0 or falsy values)
         if (userSettings) {
@@ -173,12 +173,11 @@ export function Retirement() {
           if (userSettings.epfReturn !== undefined) mergedParams.epfReturn = userSettings.epfReturn;
           if (userSettings.ppfReturn !== undefined) mergedParams.ppfReturn = userSettings.ppfReturn;
           if (userSettings.mfEquityReturn !== undefined) mergedParams.mfReturn = userSettings.mfEquityReturn;
+          if (userSettings.npsReturn !== undefined) mergedParams.npsReturn = userSettings.npsReturn;
           if (userSettings.sipStepup !== undefined) mergedParams.sipStepup = userSettings.sipStepup;
         }
         
-        console.log('Merged params after backend settings:', mergedParams);
       } catch (error) {
-        console.error('Failed to load user settings:', error);
       }
       
       // Then, override ONLY Retirement-specific settings from localStorage
@@ -187,17 +186,15 @@ export function Retirement() {
       if (retirementSettings) {
         hasSavedParamsRef.current = true;
         const parsed = JSON.parse(retirementSettings);
-        console.log('Loaded retirement params from localStorage:', parsed);
         
         // Migrate older absolute year values to relative offsets
         if (typeof parsed.effectiveFromYear === 'number' && parsed.effectiveFromYear > 1000) {
           const relative = parsed.effectiveFromYear - CURRENT_YEAR;
           parsed.effectiveFromYear = Math.max(0, relative);
-          console.log('Migrated effectiveFromYear to relative:', parsed.effectiveFromYear);
         }
         
         // ONLY use localStorage for Retirement-specific fields, NOT basic settings
-        // Basic settings (currentAge, retirementAge, inflation, epfReturn, ppfReturn, mfReturn, sipStepup) 
+        // Basic settings (currentAge, retirementAge, inflation, epfReturn, ppfReturn, mfReturn, npsReturn, sipStepup) 
         // should come from Settings page backend
         const retirementOnlyFields = ['effectiveFromYear', 'incomeStrategy', 'corpusReturnRate', 
                                        'enableRateReduction', 'rateReductionPercent', 'rateReductionYears'];
@@ -208,7 +205,6 @@ export function Retirement() {
           }
         });
         
-        console.log('Final merged params after localStorage (retirement-specific only):', mergedParams);
       }
       
       setParams(mergedParams);
@@ -222,12 +218,11 @@ export function Retirement() {
 
   const { data: retirementData, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['retirement', params.currentAge, params.retirementAge, params.lifeExpectancy,
-               params.inflation, params.mfReturn, params.epfReturn, params.ppfReturn,
+               params.inflation, params.mfReturn, params.npsReturn, params.epfReturn, params.ppfReturn,
                params.sipStepup, params.effectiveFromYear, params.corpusReturnRate,
                params.enableRateReduction, params.rateReductionPercent, params.rateReductionYears,
                params.incomeStrategy],
     queryFn: () => {
-      console.log('Fetching retirement data with params:', params);
       return retirementApi.calculate(params);
     },
     staleTime: 0,
@@ -266,7 +261,7 @@ export function Retirement() {
   });
 
   const handleParamChange = (key: string, value: any) => {
-    const numericFields = ['currentAge', 'retirementAge', 'lifeExpectancy', 'inflation', 'mfReturn', 'sipStepup', 'epfReturn', 'ppfReturn', 'corpusReturnRate', 'effectiveFromYear', 'rateReductionPercent', 'rateReductionYears'];
+    const numericFields = ['currentAge', 'retirementAge', 'lifeExpectancy', 'inflation', 'mfReturn', 'npsReturn', 'sipStepup', 'epfReturn', 'ppfReturn', 'corpusReturnRate', 'effectiveFromYear', 'rateReductionPercent', 'rateReductionYears'];
     const parsedValue = numericFields.includes(key) ? Number(value) : value;
     const newParams = { ...params, [key]: parsedValue };
     setParams(newParams);
@@ -308,7 +303,6 @@ export function Retirement() {
   };
 
   const handleRecalculate = async () => {
-    console.log('Recalculating with params:', params);
     // Clear all retirement queries and refetch
     queryClient.removeQueries({ queryKey: ['retirement'] });
     const result = await refetch();
@@ -326,7 +320,7 @@ export function Retirement() {
       try {
         existingSettings = await settingsApi.get() || {};
       } catch (e) {
-        console.log('No existing settings, will create new');
+        // ignore missing settings
       }
       
       // Map Retirement params to Settings format, preserving existing values for fields not in Retirement
@@ -339,6 +333,7 @@ export function Retirement() {
         epfReturn: params.epfReturn,
         ppfReturn: params.ppfReturn,
         mfEquityReturn: params.mfReturn,
+        npsReturn: params.npsReturn,
         sipStepup: params.sipStepup,
         // Set defaults for fields not in Retirement params if they don't exist
         mfDebtReturn: existingSettings.mfDebtReturn || 7.0,
@@ -350,7 +345,6 @@ export function Retirement() {
       queryClient.invalidateQueries({ queryKey: ['user-settings'] });
       toast.success('Settings saved successfully! These will be used as defaults.');
     } catch (error) {
-      console.error('Failed to save settings:', error);
       toast.error('Failed to save settings to database');
     }
   };
@@ -433,17 +427,7 @@ export function Retirement() {
   const gapAnalysis = retirementData?.gapAnalysis || {};
   const matrix = retirementData?.matrix || [];
   
-  // Debug logging
-  console.log('Retirement Data:', { 
-    matrixLength: matrix.length, 
-    incomeProjectionLength: (summary.retirementIncomeProjection || []).length,
-    paramsCurrentAge: params.currentAge,
-    paramsRetirementAge: params.retirementAge,
-    summaryCurrentAge: summary.currentAge,
-    summaryRetirementAge: summary.retirementAge,
-    firstMatrixYear: matrix[0]?.year,
-    lastMatrixYear: matrix[matrix.length - 1]?.year
-  });
+  // Debug logging removed
   const maturingBeforeRetirement = retirementData?.maturingBeforeRetirement || {};
   const moneyBackPayouts = maturingBeforeRetirement.moneyBackPayouts || [];
   const moneyBackCount = maturingBeforeRetirement.moneyBackCount || moneyBackPayouts.length || 0;
@@ -464,17 +448,7 @@ export function Retirement() {
   const sipAtFullStepUp = sipStepUpOptimization.sipAtFullStepUp || monthlySIP;
   const sipAtOptimalStop = sipStepUpOptimization.sipAtOptimalStop || monthlySIP;
   
-  // Debug SIP step-up values
-  console.log('SIP Step-up Debug:', {
-    sipAtStart: sipStepUpOptimization.sipAtStart,
-    sipAtFullStepUp: sipStepUpOptimization.sipAtFullStepUp,
-    sipAtOptimalStop: sipStepUpOptimization.sipAtOptimalStop,
-    monthlySIP,
-    sipStepup: params.sipStepup,
-    effectiveFromYear: params.effectiveFromYear,
-    yearsToRetirement: params.retirementAge - params.currentAge,
-    optimization: sipStepUpOptimization
-  });
+  // Debug logging removed
   const optimalStopYear = sipStepUpOptimization.optimalStopYear;
   const canStopEarly = sipStepUpOptimization.canStopEarly;
   const corpusAtOptimalStop = sipStepUpOptimization.corpusAtOptimalStop || projectedCorpus;
@@ -1098,10 +1072,7 @@ export function Retirement() {
     >
       <div className="flex items-center justify-end gap-3 mb-4">
         <Button
-          onClick={() => {
-            console.log('Toggle settings panel');
-            setShowSettings(prev => !prev);
-          }}
+          onClick={() => setShowSettings(prev => !prev)}
           variant="secondary"
           size="sm"
           aria-expanded={showSettings}
@@ -1164,6 +1135,13 @@ export function Retirement() {
                 type="number"
                 value={params.ppfReturn}
                 onChange={e => handleParamChange('ppfReturn', Number(e.target.value))}
+                step="0.1"
+              />
+              <Input
+                label="NPS Return (%)"
+                type="number"
+                value={params.npsReturn}
+                onChange={e => handleParamChange('npsReturn', Number(e.target.value))}
                 step="0.1"
               />
               <Input
@@ -1232,9 +1210,10 @@ export function Retirement() {
                     if (userSettings.epfReturn) resetParams.epfReturn = userSettings.epfReturn;
                     if (userSettings.ppfReturn) resetParams.ppfReturn = userSettings.ppfReturn;
                     if (userSettings.mfEquityReturn) resetParams.mfReturn = userSettings.mfEquityReturn;
+                    if (userSettings.npsReturn) resetParams.npsReturn = userSettings.npsReturn;
                     if (userSettings.sipStepup) resetParams.sipStepup = userSettings.sipStepup;
                   } catch (error) {
-                    console.error('Failed to load user settings:', error);
+                    // ignore load failures and keep defaults
                   }
                   
                   setParams(resetParams);

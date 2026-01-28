@@ -40,6 +40,27 @@ import '@testing-library/jest-dom/vitest';
 import { afterEach, beforeEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 
+vi.mock('recharts', () => {
+  const Mock = () => null;
+  return {
+    AreaChart: Mock,
+    Area: Mock,
+    BarChart: Mock,
+    Bar: Mock,
+    LineChart: Mock,
+    Line: Mock,
+    PieChart: Mock,
+    Pie: Mock,
+    Cell: Mock,
+    XAxis: Mock,
+    YAxis: Mock,
+    Tooltip: Mock,
+    Legend: Mock,
+    CartesianGrid: Mock,
+    ResponsiveContainer: Mock,
+  };
+});
+
 // Reset mocks before each test
 beforeEach(() => {
   vi.clearAllMocks();

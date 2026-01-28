@@ -22,9 +22,11 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -149,6 +151,87 @@ class RetirementServiceTest {
             // Final corpus should be positive
             Long finalCorpus = (Long) summary.get("finalCorpus");
             assertThat(finalCorpus).isPositive();
+        }
+
+        @Test
+        @DisplayName("should use explicit NPS return over MF returns")
+        void shouldUseExplicitNpsReturn() {
+            Investment nps = Investment.builder()
+                    .type(Investment.InvestmentType.NPS)
+                    .currentValue(100.0)
+                    .monthlySip(0.0)
+                    .build();
+
+            when(investmentRepository.findByUserIdAndType(eq("test-user"), any()))
+                    .thenReturn(Collections.emptyList());
+            when(investmentRepository.findByUserIdAndType("test-user", Investment.InvestmentType.NPS))
+                    .thenReturn(Collections.singletonList(nps));
+            when(investmentRepository.findByUserId("test-user")).thenReturn(Collections.emptyList());
+            when(insuranceRepository.findByUserIdAndTypeIn(eq("test-user"), anyList()))
+                    .thenReturn(Collections.emptyList());
+            when(insuranceRepository.findByUserId("test-user")).thenReturn(Collections.emptyList());
+            when(calculationService.calculateSIPFutureValue(anyDouble(), anyDouble(), anyInt()))
+                    .thenReturn(0.0);
+
+            RetirementScenario scenario = RetirementScenario.builder()
+                    .currentAge(35)
+                    .retirementAge(36)
+                    .lifeExpectancy(85)
+                    .npsReturn(8.0)
+                    .mfReturns(List.of(RetirementScenario.PeriodReturn.builder()
+                            .fromYear(0)
+                            .toYear(10)
+                            .rate(5.0)
+                            .build()))
+                    .build();
+
+            Map<String, Object> result = retirementService.generateRetirementMatrix("test-user", scenario);
+
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> matrix = (List<Map<String, Object>>) result.get("matrix");
+            Map<String, Object> yearOne = matrix.get(1);
+
+            assertThat(((Number) yearOne.get("npsBalance")).longValue()).isEqualTo(108L);
+        }
+
+        @Test
+        @DisplayName("should fall back to MF returns when NPS return not provided")
+        void shouldFallbackToMfReturnsWhenNpsReturnMissing() {
+            Investment nps = Investment.builder()
+                    .type(Investment.InvestmentType.NPS)
+                    .currentValue(100.0)
+                    .monthlySip(0.0)
+                    .build();
+
+            when(investmentRepository.findByUserIdAndType(eq("test-user"), any()))
+                    .thenReturn(Collections.emptyList());
+            when(investmentRepository.findByUserIdAndType("test-user", Investment.InvestmentType.NPS))
+                    .thenReturn(Collections.singletonList(nps));
+            when(investmentRepository.findByUserId("test-user")).thenReturn(Collections.emptyList());
+            when(insuranceRepository.findByUserIdAndTypeIn(eq("test-user"), anyList()))
+                    .thenReturn(Collections.emptyList());
+            when(insuranceRepository.findByUserId("test-user")).thenReturn(Collections.emptyList());
+            when(calculationService.calculateSIPFutureValue(anyDouble(), anyDouble(), anyInt()))
+                    .thenReturn(0.0);
+
+            RetirementScenario scenario = RetirementScenario.builder()
+                    .currentAge(35)
+                    .retirementAge(36)
+                    .lifeExpectancy(85)
+                    .mfReturns(List.of(RetirementScenario.PeriodReturn.builder()
+                            .fromYear(0)
+                            .toYear(10)
+                            .rate(5.0)
+                            .build()))
+                    .build();
+
+            Map<String, Object> result = retirementService.generateRetirementMatrix("test-user", scenario);
+
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> matrix = (List<Map<String, Object>>) result.get("matrix");
+            Map<String, Object> yearOne = matrix.get(1);
+
+            assertThat(((Number) yearOne.get("npsBalance")).longValue()).isEqualTo(105L);
         }
 
         @Test

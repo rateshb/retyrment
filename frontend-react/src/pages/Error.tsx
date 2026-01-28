@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button, Card, CardContent } from '../components/ui';
 import { useAuthStore } from '../stores/authStore';
@@ -17,6 +18,10 @@ export function ErrorPage() {
     (location.state as { title?: string } | null)?.title ||
     searchParams.get('title') ||
     'Oops!';
+
+  useEffect(() => {
+    document.title = `${title} | Retyrment`;
+  }, [title]);
 
   return (
     <div className="min-h-screen bg-slate-50 bg-pattern flex items-center justify-center p-6">

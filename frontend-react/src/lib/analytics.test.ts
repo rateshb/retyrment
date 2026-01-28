@@ -3,7 +3,6 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 // Mock config BEFORE imports
 vi.mock('../config/env', () => ({
   config: {
-    isProduction: true,
     ga4MeasurementId: 'G-TEST123',
     gtmContainerId: 'GTM-TEST123',
   },
@@ -26,6 +25,7 @@ describe('analytics', () => {
       async: false,
       src: '',
       innerHTML: '',
+      addEventListener: vi.fn(),
     }));
     mockGetElementById = vi.fn(() => null);
     mockAppendChild = vi.fn();
@@ -78,18 +78,16 @@ describe('analytics', () => {
         'event',
         'page_view',
         expect.objectContaining({
+          send_to: 'G-TEST123',
           page_path: '/test-page',
         })
       );
     });
 
-    it('should push event to dataLayer', () => {
+    it('should not push page view to dataLayer', () => {
       trackPageView('/dashboard');
 
-      expect(mockDataLayer.length).toBeGreaterThan(0);
-      expect(mockDataLayer.some(item => 
-        item && item.event === 'page_view' && item.page_path === '/dashboard'
-      )).toBe(true);
+      expect(mockDataLayer.length).toBe(0);
     });
 
     it('should handle different page paths', () => {
@@ -125,6 +123,7 @@ describe('analytics', () => {
         'event',
         'page_view',
         expect.objectContaining({
+          send_to: 'G-TEST123',
           page_location: expect.any(String),
           page_title: expect.any(String),
         })
@@ -137,6 +136,7 @@ describe('analytics', () => {
       trackEvent('button_click', { button_name: 'submit' });
 
       expect(mockGtag).toHaveBeenCalledWith('event', 'button_click', {
+        send_to: 'G-TEST123',
         button_name: 'submit',
       });
     });
@@ -153,19 +153,25 @@ describe('analytics', () => {
     it('should track event without parameters', () => {
       trackEvent('page_load');
 
-      expect(mockGtag).toHaveBeenCalledWith('event', 'page_load', {});
+      expect(mockGtag).toHaveBeenCalledWith('event', 'page_load', {
+        send_to: 'G-TEST123',
+      });
     });
 
     it('should handle undefined parameters', () => {
       expect(() => trackEvent('test_event', undefined)).not.toThrow();
 
-      expect(mockGtag).toHaveBeenCalledWith('event', 'test_event', {});
+      expect(mockGtag).toHaveBeenCalledWith('event', 'test_event', {
+        send_to: 'G-TEST123',
+      });
     });
 
     it('should handle empty parameters object', () => {
       trackEvent('test_event', {});
 
-      expect(mockGtag).toHaveBeenCalledWith('event', 'test_event', {});
+      expect(mockGtag).toHaveBeenCalledWith('event', 'test_event', {
+        send_to: 'G-TEST123',
+      });
     });
 
     it('should track multiple events', () => {
@@ -186,7 +192,10 @@ describe('analytics', () => {
 
       trackEvent('conversion', complexParams);
 
-      expect(mockGtag).toHaveBeenCalledWith('event', 'conversion', complexParams);
+      expect(mockGtag).toHaveBeenCalledWith('event', 'conversion', {
+        send_to: 'G-TEST123',
+        ...complexParams,
+      });
     });
 
     it('should not error if gtag is undefined', () => {
@@ -215,6 +224,7 @@ describe('analytics', () => {
       trackEvent('purchase', { price: 99.99, quantity: 2 });
 
       expect(mockGtag).toHaveBeenCalledWith('event', 'purchase', {
+        send_to: 'G-TEST123',
         price: 99.99,
         quantity: 2,
       });
@@ -224,6 +234,7 @@ describe('analytics', () => {
       trackEvent('feature_toggle', { enabled: true });
 
       expect(mockGtag).toHaveBeenCalledWith('event', 'feature_toggle', {
+        send_to: 'G-TEST123',
         enabled: true,
       });
     });
@@ -232,6 +243,7 @@ describe('analytics', () => {
       trackEvent('select_items', { items: ['item1', 'item2'] });
 
       expect(mockGtag).toHaveBeenCalledWith('event', 'select_items', {
+        send_to: 'G-TEST123',
         items: ['item1', 'item2'],
       });
     });

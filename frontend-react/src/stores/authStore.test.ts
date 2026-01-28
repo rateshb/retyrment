@@ -113,7 +113,6 @@ describe('authStore', () => {
   it('fetchUser clears state on error', async () => {
     mockAuth.isLoggedIn.mockReturnValue(false);
     mockApi.authApi.me.mockRejectedValue(new Error('Failed'));
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     ({ useAuthStore } = await import('./authStore'));
 
@@ -122,9 +121,6 @@ describe('authStore', () => {
 
     expect(useAuthStore.getState().user).toBeNull();
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
-    expect(consoleSpy).toHaveBeenCalled();
-
-    consoleSpy.mockRestore();
   });
 
   it('fetchFeatures stores features in localStorage', async () => {

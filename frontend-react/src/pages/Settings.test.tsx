@@ -16,6 +16,7 @@ vi.mock('../lib/api', () => ({
       ppfReturn: 7.1,
       mfEquityReturn: 12.0,
       mfDebtReturn: 7.0,
+      npsReturn: 10.0,
       fdReturn: 6.5,
       emergencyFundMonths: 6,
       sipStepup: 10,

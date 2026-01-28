@@ -1,7 +1,12 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 
 export function Terms() {
+  useEffect(() => {
+    document.title = 'Terms | Retyrment';
+  }, []);
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Navigation */}

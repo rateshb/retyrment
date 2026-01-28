@@ -1,8 +1,13 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Check, Star } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
 
 export function Pricing() {
+  useEffect(() => {
+    document.title = 'Pricing | Retyrment';
+  }, []);
+
   const plans = [
     {
       name: 'Free',

@@ -58,7 +58,6 @@ export const useAuthStore = create<AuthState>()(
           auth.setUser(user);
           set({ user, isAuthenticated: true });
         } catch (error) {
-          console.error('Failed to fetch user:', error);
           set({ user: null, isAuthenticated: false });
         }
       },
@@ -70,7 +69,6 @@ export const useAuthStore = create<AuthState>()(
           // Also store in localStorage for backward compatibility
           localStorage.setItem('retyrment_features', JSON.stringify(response.features));
         } catch (error) {
-          console.error('Failed to fetch features:', error);
         }
       },
 

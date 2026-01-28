@@ -213,17 +213,17 @@ vi.mock('../stores/authStore', () => ({
 
 // Mock recharts to avoid rendering issues
 vi.mock('recharts', () => ({
-  AreaChart: ({ children }: any) => <div data-testid="area-chart">{children}</div>,
+  AreaChart: ({ children }: any) => <svg data-testid="area-chart">{children}</svg>,
   Area: () => null,
   XAxis: () => null,
   YAxis: () => null,
   CartesianGrid: () => null,
   Tooltip: () => null,
   Legend: () => null,
-  ResponsiveContainer: ({ children }: any) => <div data-testid="responsive-container">{children}</div>,
-  BarChart: ({ children }: any) => <div data-testid="bar-chart">{children}</div>,
+  ResponsiveContainer: ({ children }: any) => <svg data-testid="responsive-container">{children}</svg>,
+  BarChart: ({ children }: any) => <svg data-testid="bar-chart">{children}</svg>,
   Bar: () => null,
-  LineChart: ({ children }: any) => <div data-testid="line-chart">{children}</div>,
+  LineChart: ({ children }: any) => <svg data-testid="line-chart">{children}</svg>,
   Line: () => null,
 }));
 
@@ -437,6 +437,16 @@ describe('Retirement Page', () => {
       await waitFor(() => {
         expect(mockRetirementCalculate).toHaveBeenCalledWith(
           expect.objectContaining({ mfReturn: 12 })
+        );
+      });
+    });
+
+    it('uses default NPS return of 10', async () => {
+      renderWithProviders(<Retirement />);
+
+      await waitFor(() => {
+        expect(mockRetirementCalculate).toHaveBeenCalledWith(
+          expect.objectContaining({ npsReturn: 10 })
         );
       });
     });

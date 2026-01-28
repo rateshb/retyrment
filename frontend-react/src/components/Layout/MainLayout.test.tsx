@@ -29,6 +29,7 @@ describe('MainLayout', () => {
     expect(screen.getByText('Subtitle')).toBeInTheDocument();
     expect(screen.getByText('Content')).toBeInTheDocument();
     expect(screen.getByText('Sidebar')).toBeInTheDocument();
+    expect(document.title).toBe('Title | Retyrment');
   });
 
   it('refreshes features on mount and on button click', async () => {

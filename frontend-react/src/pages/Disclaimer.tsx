@@ -1,7 +1,12 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, AlertTriangle } from 'lucide-react';
 
 export function Disclaimer() {
+  useEffect(() => {
+    document.title = 'Disclaimer | Retyrment';
+  }, []);
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Navigation */}

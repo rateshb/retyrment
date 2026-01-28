@@ -78,6 +78,7 @@ public class RetirementScenario {
     private Double epfReturn;           // Simple EPF return %
     private Double ppfReturn;           // Simple PPF return %
     private Double mfReturn;            // Simple MF return %
+    private Double npsReturn;           // Simple NPS return %
     private Double inflation;           // Alias for inflationRate
 
     // Other assumptions

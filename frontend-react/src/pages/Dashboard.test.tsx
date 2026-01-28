@@ -7,26 +7,40 @@ import { Dashboard } from './Dashboard';
 // Mock the API - simplified approach
 vi.mock('../lib/api', () => ({
   analysisApi: {
-    networth: vi.fn(),
-    recommendations: vi.fn(),
-    goals: vi.fn(),
+    networth: vi.fn().mockResolvedValue({
+      totalAssets: 0,
+      totalLiabilities: 0,
+      netWorth: 0,
+      assetBreakdown: {},
+    }),
+    recommendations: vi.fn().mockResolvedValue({
+      recommendations: [],
+      monthlySavings: 0,
+    }),
+    goals: vi.fn().mockResolvedValue({ goals: [] }),
   },
   investmentsApi: {
-    getAll: vi.fn(),
+    getAll: vi.fn().mockResolvedValue([]),
   },
   insuranceApi: {
-    getAll: vi.fn(),
+    getAll: vi.fn().mockResolvedValue([]),
   },
   loansApi: {
-    getAll: vi.fn(),
+    getAll: vi.fn().mockResolvedValue([]),
   },
   retirementApi: {
-    calculate: vi.fn(),
-    getMaturing: vi.fn(),
-    getStrategy: vi.fn(),
+    calculate: vi.fn().mockResolvedValue({
+      summary: { finalCorpus: 0, retirementIncomeProjection: [] },
+      gapAnalysis: {},
+      matrix: [],
+    }),
+    getMaturing: vi.fn().mockResolvedValue({}),
+    getStrategy: vi.fn().mockResolvedValue(null),
   },
   insuranceRecommendationsApi: {
-    getOverall: vi.fn(),
+    getOverall: vi.fn().mockResolvedValue({
+      healthRecommendation: { gap: 0, totalRecommendedCover: 0 },
+    }),
   },
   auth: {
     isLoggedIn: vi.fn().mockReturnValue(false),

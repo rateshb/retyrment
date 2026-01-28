@@ -19,7 +19,6 @@ export function Home() {
       login(token).then(() => {
         // Token processed, will re-render as authenticated
       }).catch((error) => {
-        console.error('Login failed:', error);
         navigate('/login');
       });
     }

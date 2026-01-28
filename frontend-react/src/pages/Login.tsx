@@ -5,6 +5,10 @@ import { Button } from '../components/ui';
 import { config } from '../config/env';
 
 export function Login() {
+  useEffect(() => {
+    document.title = 'Login | Retyrment';
+  }, []);
+
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { isAuthenticated, login } = useAuthStore();

@@ -36,6 +36,7 @@ public class UserSettingsController extends BaseController {
         response.put("ppfReturn", settings.getPpfReturn() != null ? settings.getPpfReturn() : 7.1);
         response.put("mfEquityReturn", settings.getMfEquityReturn() != null ? settings.getMfEquityReturn() : 12.0);
         response.put("mfDebtReturn", settings.getMfDebtReturn() != null ? settings.getMfDebtReturn() : 7.0);
+        response.put("npsReturn", settings.getNpsReturn() != null ? settings.getNpsReturn() : 10.0);
         response.put("fdReturn", settings.getFdReturn() != null ? settings.getFdReturn() : 6.5);
         response.put("emergencyFundMonths", settings.getEmergencyFundMonths() != null ? settings.getEmergencyFundMonths() : 6);
         response.put("sipStepup", settings.getSipStepup() != null ? settings.getSipStepup() : 10.0);
@@ -81,6 +82,9 @@ public class UserSettingsController extends BaseController {
         if (settingsData.containsKey("mfDebtReturn")) {
             settings.setMfDebtReturn(((Number) settingsData.get("mfDebtReturn")).doubleValue());
         }
+        if (settingsData.containsKey("npsReturn")) {
+            settings.setNpsReturn(((Number) settingsData.get("npsReturn")).doubleValue());
+        }
         if (settingsData.containsKey("fdReturn")) {
             settings.setFdReturn(((Number) settingsData.get("fdReturn")).doubleValue());
         }
@@ -113,6 +117,7 @@ public class UserSettingsController extends BaseController {
                 .ppfReturn(7.1)
                 .mfEquityReturn(12.0)
                 .mfDebtReturn(7.0)
+                .npsReturn(10.0)
                 .fdReturn(6.5)
                 .emergencyFundMonths(6)
                 .sipStepup(10.0)

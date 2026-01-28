@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   ArrowLeft, ArrowRight, TrendingUp, PiggyBank, Shield, Target, 
@@ -5,6 +6,10 @@ import {
 } from 'lucide-react';
 
 export function Features() {
+  useEffect(() => {
+    document.title = 'Features | Retyrment';
+  }, []);
+
   const features = [
     {
       icon: <TrendingUp size={32} />,

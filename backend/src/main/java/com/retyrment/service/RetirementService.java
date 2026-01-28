@@ -232,8 +232,15 @@ public class RetirementService {
                     currentSip = currentSip * (1 + sipStepUp / 100);
                 }
                 
-                // NPS
-                double npsRate = getRateForPeriod(scenario.getMfReturns(), year, 10);
+                // NPS: use explicit NPS return if provided, else fall back to MF returns
+                double npsRate;
+                if (scenario.getNpsReturn() != null) {
+                    npsRate = scenario.getNpsReturn();
+                } else if (scenario.getMfReturns() != null && !scenario.getMfReturns().isEmpty()) {
+                    npsRate = getRateForPeriod(scenario.getMfReturns(), year, mfRate);
+                } else {
+                    npsRate = mfRate;
+                }
                 cumulativeNps = cumulativeNps * (1 + npsRate / 100) + (npsMonthly * 12);
                 
                 // Other Liquid Assets (FD, RD, STOCK, CASH)
